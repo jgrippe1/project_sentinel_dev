@@ -7,7 +7,7 @@ RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
 # Copy data for add-on
 COPY run.sh /
-COPY sentinel /opt/sentinel
+COPY sentinel /opt/sentinel/
 
 WORKDIR /opt
 
