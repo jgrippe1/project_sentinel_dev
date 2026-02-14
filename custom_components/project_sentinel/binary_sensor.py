@@ -1,51 +1,33 @@
 import logging
-import sqlite3
-from homeassistant.core import HomeAssistant
-from homeassistant.components.binary_sensor import BinarySensorEntity, BinarySensorDeviceClass
+from homeassistant.components.binary_sensor import (
+    BinarySensorDeviceClass,
+    BinarySensorEntity,
+)
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
-def setup_platform(hass, config, add_entities, discovery_info=None):
-    """Set up the binary sensor platform."""
-    db_path = hass.data[DOMAIN]["db_path"]
+async def async_setup_entry(hass, entry, async_add_entities):
+    """Set up the binary sensor platform from a config entry."""
+    coordinator = hass.data[DOMAIN][entry.entry_id]
     
-    add_entities([
-        SentinelCriticalAlert(db_path)
-    ], True)
+    async_add_entities([
+        SentinelCriticalAlert(coordinator)
+    ])
 
-class SentinelCriticalAlert(BinarySensorEntity):
-    def __init__(self, db_path):
-        self.db_path = db_path
-        self._is_on = False
+class SentinelCriticalAlert(CoordinatorEntity, BinarySensorEntity):
+    """Binary sensor for critical vulnerability alerts."""
+    _attr_name = "Critical Security Alert"
+    _attr_unique_id = "sentinel_critical_alert"
+    _attr_device_class = BinarySensorDeviceClass.PROBLEM
 
-    @property
-    def name(self):
-        return "Sentinel Critical Alert"
-
-    @property
-    def unique_id(self):
-        return "sentinel_critical_alert"
-
-    @property
-    def device_class(self):
-        return BinarySensorDeviceClass.PROBLEM
+    def __init__(self, coordinator):
+        super().__init__(coordinator)
+        self._attr_has_entity_name = True
 
     @property
     def is_on(self):
-        return self._is_on
-
-    def update(self):
-        try:
-            conn = sqlite3.connect(self.db_path)
-            c = conn.cursor()
-            # Check for any vulnerability with score >= 9.0 (Critical)
-            c.execute("SELECT COUNT(*) FROM vulnerabilities WHERE cvss_score >= 9.0")
-            row = c.fetchone()
-            conn.close()
-            
-            count = row[0] if row else 0
-            self._is_on = count > 0
-        except Exception as e:
-            _LOGGER.error(f"DB Error: {e}")
-            self._is_on = False
+        """Return true if critical vulnerabilities are present."""
+        critical_count = self.coordinator.data.get("critical_vulnerability_count", 0)
+        return critical_count > 0

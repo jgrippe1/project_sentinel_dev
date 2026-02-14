@@ -1,104 +1,52 @@
 import logging
-import sqlite3
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity import Entity
+from homeassistant.components.sensor import SensorEntity
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
-def setup_platform(hass, config, add_entities, discovery_info=None):
-    """Set up the sensor platform."""
-    db_path = hass.data[DOMAIN]["db_path"]
+async def async_setup_entry(hass, entry, async_add_entities):
+    """Set up the sensor platform from a config entry."""
+    coordinator = hass.data[DOMAIN][entry.entry_id]
     
-    add_entities([
-        SentinelDeviceCount(db_path),
-        SentinelVulnerabilityCount(db_path),
-        SentinelLastScan(db_path)
-    ], True)
+    async_add_entities([
+        SentinelDeviceCount(coordinator),
+        SentinelVulnerabilityCount(coordinator),
+        SentinelLastScan(coordinator)
+    ])
 
-class SentinelBaseSensor(Entity):
-    def __init__(self, db_path):
-        self.db_path = db_path
-        self._state = None
-        self._attr = {}
-
-    def _query(self, query):
-        try:
-            conn = sqlite3.connect(self.db_path)
-            c = conn.cursor()
-            c.execute(query)
-            result = c.fetchone()
-            conn.close()
-            return result
-        except Exception as e:
-            _LOGGER.error(f"DB Query Error: {e}")
-            return None
-
-    @property
-    def should_poll(self):
-        return True
+class SentinelBaseSensor(CoordinatorEntity, SensorEntity):
+    """Base class for Project Sentinel sensors."""
+    def __init__(self, coordinator):
+        super().__init__(coordinator)
+        self._attr_has_entity_name = True
 
 class SentinelDeviceCount(SentinelBaseSensor):
-    @property
-    def name(self):
-        return "Sentinel Device Count"
+    _attr_name = "Device Count"
+    _attr_unique_id = "sentinel_device_count"
+    _attr_icon = "mdi:router-network"
 
     @property
-    def unique_id(self):
-        return "sentinel_device_count"
-
-    @property
-    def state(self):
-        return self._state
-
-    @property
-    def icon(self):
-        return "mdi:router-network"
-
-    def update(self):
-        row = self._query("SELECT COUNT(*) FROM assets WHERE status='active'")
-        self._state = row[0] if row else 0
+    def native_value(self):
+        """Return the state of the sensor."""
+        return self.coordinator.data.get("device_count", 0)
 
 class SentinelVulnerabilityCount(SentinelBaseSensor):
-    @property
-    def name(self):
-        return "Sentinel Vulnerabilities"
-        
-    @property
-    def unique_id(self):
-        return "sentinel_vulnerability_count"
+    _attr_name = "Vulnerabilities"
+    _attr_unique_id = "sentinel_vulnerability_count"
+    _attr_icon = "mdi:shield-alert"
 
     @property
-    def state(self):
-        return self._state
-
-    @property
-    def icon(self):
-        return "mdi:shield-alert"
-
-    def update(self):
-        # Join with assets to ensure we only count active devices if needed, 
-        # but for now just count total known vulns
-        row = self._query("SELECT COUNT(*) FROM vulnerabilities")
-        self._state = row[0] if row else 0
+    def native_value(self):
+        """Return the state of the sensor."""
+        return self.coordinator.data.get("vulnerability_count", 0)
 
 class SentinelLastScan(SentinelBaseSensor):
-    @property
-    def name(self):
-        return "Sentinel Last Scan"
-        
-    @property
-    def unique_id(self):
-        return "sentinel_last_scan"
+    _attr_name = "Last Scan"
+    _attr_unique_id = "sentinel_last_scan"
+    _attr_icon = "mdi:clock-check"
 
     @property
-    def state(self):
-        return self._state
-
-    @property
-    def icon(self):
-        return "mdi:clock-check"
-
-    def update(self):
-        row = self._query("SELECT MAX(last_seen) FROM assets")
-        self._state = row[0] if row else "Unknown"
+    def native_value(self):
+        """Return the state of the sensor."""
+        return self.coordinator.data.get("last_scan", "Unknown")
