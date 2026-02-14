@@ -1,0 +1,22 @@
+# Project Sentinel Gitignore
+
+# Database
+sentinel.db
+sentinel.db-journal
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+.env
+
+# Home Assistant Add-on
+# (Exclude local testing configs if any)
+
+# OS
+.DS_Store
+Thumbs.db

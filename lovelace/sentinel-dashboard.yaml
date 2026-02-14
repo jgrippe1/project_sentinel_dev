@@ -1,0 +1,32 @@
+title: Project Sentinel
+views:
+  - title: Risk Overview
+    icon: mdi:shield-home
+    cards:
+      - type: horizontal-stack
+        cards:
+          - type: entity
+            entity: sensor.sentinel_device_count
+            name: Active Devices
+          - type: entity
+            entity: sensor.sentinel_vulnerabilities
+            name: Total Vulnerabilities
+          - type: entity
+            entity: binary_sensor.sentinel_critical_alert
+            name: Critical Risk
+            
+      - type: markdown
+        title: Network Status
+        content: >
+          <ha-icon icon="mdi:clock-check"></ha-icon> Last Scan: {{ states('sensor.sentinel_last_scan') }}
+
+      - type: markdown
+        title: High Risk Devices
+        content: >
+          | Device | IP | Vulnerabilities |
+          | :--- | :--- | :--- |
+          {% for device in state_attr('sensor.sentinel_vulnerabilities', 'devices') %}
+          | {{ device.hostname }} | {{ device.ip }} | {{ device.vuln_count }} |
+          {% endfor %}
+          
+          *(Note: Advanced list rendering requires a custom card or `auto-entities`. This is a placeholder.)*

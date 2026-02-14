@@ -1,0 +1,23 @@
+name: "Project Sentinel"
+version: "0.1.0"
+slug: "project_sentinel"
+description: "Home Network Governance & Risk Management"
+url: "https://github.com/jgrip/project-sentinel"
+arch:
+  - aarch64
+  - amd64
+  - armv7
+startup: application
+boot: auto
+options:
+  scan_interval: 15
+  subnets: []
+  log_level: "info"
+schema:
+  scan_interval: int
+  subnets:
+    - str
+  log_level: list(debug, info, warning)
+map:
+  - config:rw
+  - share:rw
