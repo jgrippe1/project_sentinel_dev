@@ -1,5 +1,5 @@
-
 import socket
+import re
 
 def grab_banner(ip, port, timeout=2):
     """
@@ -12,44 +12,43 @@ def grab_banner(ip, port, timeout=2):
             s.connect((ip, port))
             
             # Send a basic HTTP request if port implies HTTP to trigger a response
-            if port in [80, 8080]:
-                s.sendall(b"HEAD / HTTP/1.0\r\n\r\n")
+            if port in [80, 8080, 443]:
+                s.sendall(b"HEAD / HTTP/1.1\r\nHost: " + ip.encode() + b"\r\n\r\n")
             
             try:
-                banner = s.recv(1024)
+                banner = s.recv(2048) # Increased buffer
                 return banner.decode('utf-8', errors='ignore').strip()
             except socket.timeout:
                 return None
     except Exception as e:
-        # print(f"Error grabbing banner for {ip}:{port} - {e}")
         return None
 
 def analyze_banner(banner):
     """
     Parses a banner to extract product and version.
-    Very basic implementation for PoC.
+    Uses regex to handle common service patterns.
     """
     if not banner:
         return None, None
-        
-    # Example simplistic parsing
-    # "Server: Apache/2.4.41 (Ubuntu)"
-    lines = banner.split('\r\n')
-    for line in lines:
-        if "Server:" in line:
-            parts = line.split("Server:")[1].strip().split(" ")
-            if parts:
-                product_part = parts[0]
-                if "/" in product_part:
-                    product, version = product_part.split("/", 1)
-                    return product, version
-                return product_part, None
-    
-    # Check for SSH
-    # "SSH-2.0-OpenSSH_8.2p1 Ubuntu-4ubuntu0.5"
-    if "SSH-" in banner:
-        parts = banner.split("-")
-        if len(parts) > 2:
-            return "OpenSSH", parts[2].split(" ")[0] # Very rough
+
+    # HTTP Server Header: "Server: Apache/2.4.41 (Ubuntu)"
+    http_match = re.search(r'Server:\s*([^/\s\r\n]+)(?:/([^\s\r\n(]+))?', banner, re.IGNORECASE)
+    if http_match:
+        return http_match.group(1), http_match.group(2)
+
+    # SSH Banner: "SSH-2.0-OpenSSH_8.2p1 Ubuntu-4ubuntu0.5"
+    ssh_match = re.search(r'(?:SSH-\d\.\d-)([^_\s-]+)_([^\s-]+)', banner)
+    if ssh_match:
+        return ssh_match.group(1), ssh_match.group(2)
+
+    # FTP/Generic: "220 (vsFTPd 3.0.3)" or "220-FileZilla Server 0.9.60 beta"
+    ftp_match = re.search(r'(?:220[\s-].*?)([^/\s\r\n()]+)\s+([0-9.]+[^\s\r\n]*)', banner)
+    if ftp_match:
+        return ftp_match.group(1), ftp_match.group(2)
+
+    # Generic Product/Version: "Product v1.2.3" or "Product 1.2.3"
+    generic_match = re.search(r'^([a-zA-Z._-]+)[/\s]v?([0-9]+\.[0-9.]+[a-zA-Z0-9-]*)', banner)
+    if generic_match:
+        return generic_match.group(1), generic_match.group(2)
             
     return None, None
