@@ -2,15 +2,14 @@ ARG BUILD_FROM
 FROM $BUILD_FROM
 
 # Install requirements for add-on
-COPY requirements.txt /tmp/
-RUN pip install --no-cache-dir -r /tmp/requirements.txt
+WORKDIR /app
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy data for add-on
-COPY run.sh /
-COPY sentinel /opt/sentinel/
+COPY run.sh ./
+COPY sentinel ./sentinel
 
-WORKDIR /opt
+RUN chmod a+x run.sh
 
-RUN chmod a+x /run.sh
-
-CMD [ "/run.sh" ]
+CMD [ "./run.sh" ]
