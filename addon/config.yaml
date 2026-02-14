@@ -2,7 +2,7 @@ name: "Project Sentinel"
 version: "0.1.0"
 slug: "project_sentinel"
 description: "Home Network Governance & Risk Management"
-url: "https://github.com/jgrip/project-sentinel"
+url: "https://github.com/jgrippe1/project_sentinel_dev"
 arch:
   - aarch64
   - amd64
