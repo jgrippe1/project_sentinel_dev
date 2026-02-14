@@ -1,19 +1,20 @@
 # Project Sentinel
 
 [![GitHub](https://img.shields.io/github/license/jgrippe1/project_sentinel_dev)](LICENSE)
-[![Home Assistant Custom Component](https://img.shields.io/badge/Home%20Assistant-Custom%20Component-blue.svg)](https://github.com/jgrippe1/project_sentinel_dev)
+[![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz/)
+[![Home Assistant Add-on](https://img.shields.io/badge/Home%20Assistant-Add--on-blue.svg)](https://github.com/jgrippe1/project_sentinel_dev)
 
 **Project Sentinel** is a Home Network Governance & Risk Management platform designed for Home Assistant. It provides proactive Third-Party Risk Management (TPRM) and Asset Lifecycle Management by identifying devices, scanning for services, and mapping them to known vulnerabilities (CVEs) via the NVD API.
 
 ## 🚀 Features
 
-- **Network Discovery**: Automatic mapping of local hosts and MAC addresses.
-- **Service Enrichment**: Banner grabbing to identify running software versions.
-- **Vulnerability Mapping**: Integration with the NVD (National Vulnerability Database) API to find active CVEs.
+- **Network Discovery**: Automatic mapping of local hosts and services.
+- **Service Enrichment**: Robust regex-based banner grabbing to identify software versions.
+- **Vulnerability Mapping**: Real-time integration with the NVD (National Vulnerability Database) API.
 - **Home Assistant Integration**: 
   - **Add-on**: Background engine that handles scanning and maintains a persistent SQLite database.
-  - **Custom Component**: Exposes network health, device counts, and critical vulnerabilities as Home Assistant entities.
-- **Modern Dashboard**: Lovelace-ready visualizations for your network's security posture.
+  - **Integration**: Exposes network health, device counts, and critical vulnerabilities as Home Assistant entities.
+- **Modern Dashboard**: UI-based configuration and Lovelace-ready visualizations.
 
 ## 🏗️ Architecture
 
@@ -23,53 +24,52 @@ graph TD
     B -->|Enrichment| C[Service Identification]
     C -->|CVE Mapping| D[Vulnerability Database]
     D -->|SQLite| E[(sentinel.db)]
-    E -->|Bridge| F[HA Custom Component]
+    E -->|Bridge| F[HA Integration]
     F -->|Entities| G[Lovelace Dashboard]
 ```
 
 ## 📂 Project Structure
 
-- `/sentinel`: The core Python engine for scanning and NVD integration.
-- `/addon`: Configuration files for the Home Assistant Add-on.
+- `/project_sentinel`: The Home Assistant Add-on source and configuration.
 - `/custom_components`: The HACS-ready Home Assistant integration.
 - `/lovelace`: Sample dashboard YAML configuration.
-- `/poc`: Early Proof of Concept scripts.
 
-## 🛠️ Installation (In Development)
+## 🛠️ Installation
 
-> [!WARNING]
-> Project Sentinel is currently in **Active Development (Phase 5)**. Manual installation is required.
+### 1. Install the Add-on
+1. In Home Assistant, go to **Settings > Add-ons > Add-on Store**.
+2. Click the **three dots > Repositories**.
+3. Add `https://github.com/jgrippe1/project_sentinel_dev`.
+4. Search for and install **Project Sentinel**.
+5. Configure your `subnets` (e.g., `192.168.1.0/24`) in the configuration tab and **Start**.
 
-### 1. Requirements
-- Python 3.11+
-- Network access for discovery (arp-scan/nmap recommended in future modules).
-- NVD API Key (optional but recommended for rate limiting).
+### 2. Install the Integration (via HACS)
+1. In Home Assistant, navigate to **HACS**.
+2. Click the **three dots > Custom repositories**.
+3. Add `https://github.com/jgrippe1/project_sentinel_dev` with **Category: Integration**.
+4. Install **Project Sentinel** and **Restart Home Assistant**.
 
-### 2. Add-on Setup
-1. Copy the `addon/` folder to your local Home Assistant Add-ons repository.
-2. Build and Start the Add-on from the HA Supervisor.
-
-### 3. Integration Setup
-1. Copy `custom_components/project_sentinel` to your HA `config/custom_components`.
-2. Add `project_sentinel:` to your `configuration.yaml`.
-3. Restart Home Assistant.
+### 3. Setup Integration
+1. Go to **Settings > Devices & Services > Add Integration**.
+2. Search for **Project Sentinel**.
+3. Point to the shared database: `/share/sentinel.db`.
 
 ## 📜 Roadmap
 
-- [ ] UI-based Config Flow (Settings page).
-- [ ] Improved CPE matching for more accurate vulnerability detection.
+- [x] UI-based Config Flow.
+- [x] Real-time NVD API Integration.
 - [ ] Actionable notifications for newly discovered critical CVEs.
 - [ ] Device history and tracking.
 
 ## ☕ Support the Project
 
-If you find Project Sentinel useful and would like to support its development, tips are greatly appreciated!
+If you find Project Sentinel useful, tips are greatly appreciated!
 
 [**Tip via PayPal**](https://paypal.me/jgrippe1)
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request or open an issue in the [project_sentinel_dev](https://github.com/jgrippe1/project_sentinel_dev) repository.
+Contributions are welcome! Please feel free to submit a Pull Request or open an issue.
 
 ---
-*Disclaimer: Project Sentinel is intended for home security auditing and governance. Use responsibly on your own network.*
+*Disclaimer: Project Sentinel is intended for home security auditing. Use responsibly on your own network.*
