@@ -14,11 +14,13 @@ options:
   scan_interval: 15
   subnets: []
   log_level: "info"
+  nvd_api_key: ""
 schema:
   scan_interval: int
   subnets:
     - str
   log_level: list(debug, info, warning)
+  nvd_api_key: str?
 map:
   - config:rw
   - share:rw

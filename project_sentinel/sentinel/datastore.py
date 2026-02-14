@@ -114,3 +114,20 @@ class Datastore:
         rows = [dict(row) for row in c.fetchall()]
         conn.close()
         return rows
+
+    def upsert_vulnerability(self, mac, cve_id, cvss_score, description):
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+        now = datetime.datetime.now()
+        
+        c.execute('''
+            INSERT INTO vulnerabilities (cve_id, mac_address, cvss_score, description, last_synced)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(cve_id, mac_address) DO UPDATE SET
+            cvss_score=excluded.cvss_score,
+            description=excluded.description,
+            last_synced=excluded.last_synced
+        ''', (cve_id, mac, cvss_score, description, now))
+        
+        conn.commit()
+        conn.close()
