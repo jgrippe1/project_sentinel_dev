@@ -61,6 +61,12 @@ graph TD
 - [ ] Actionable notifications for newly discovered critical CVEs.
 - [ ] Device history and tracking.
 
+## ☕ Support the Project
+
+If you find Project Sentinel useful and would like to support its development, tips are greatly appreciated!
+
+[**Tip via PayPal**](https://paypal.me/jgrippe1)
+
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request or open an issue in the [project_sentinel_dev](https://github.com/jgrippe1/project_sentinel_dev) repository.
