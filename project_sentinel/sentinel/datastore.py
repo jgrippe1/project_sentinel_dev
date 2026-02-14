@@ -89,7 +89,7 @@ class Datastore:
         conn.commit()
         conn.close()
 
-    def upsert_service(self, mac, port, proto, service_name, banner, version):
+    def upsert_service(self, mac, port, proto, service_name, banner, version_string):
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
         now = datetime.datetime.now()
@@ -101,7 +101,7 @@ class Datastore:
             banner=excluded.banner,
             version_string=excluded.version_string,
             last_seen=excluded.last_seen
-        ''', (mac, port, proto, service_name, banner, version, now))
+        ''', (mac, port, proto, service_name, banner, version_string, now))
         
         conn.commit()
         conn.close()

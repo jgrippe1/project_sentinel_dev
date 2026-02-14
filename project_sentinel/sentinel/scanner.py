@@ -18,7 +18,7 @@ def check_port(ip, port, timeout=1):
         pass
     return False
 
-def scan_host(ip, ports=[80, 443, 22, 8080]):
+def scan_host(ip, ports=[80, 443, 22, 8080, 53, 445, 5000, 8123, 8000]):
     """
     Scans a single host for specified ports.
     """
