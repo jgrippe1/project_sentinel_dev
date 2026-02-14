@@ -2,9 +2,9 @@ import sqlite3
 import datetime
 import os
 
-DB_PATH = "/data/sentinel.db"
+DB_PATH = os.getenv("SENTINEL_DB_PATH", "/data/sentinel.db")
 # Fallback for local testing if not running in Add-on environment
-if not os.path.exists("/data"):
+if not os.path.exists("/data") and "SENTINEL_DB_PATH" not in os.environ:
     DB_PATH = "sentinel.db"
 
 class Datastore:
