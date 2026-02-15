@@ -488,13 +488,17 @@
                     <div id="integration-list">
                         <!-- suggestions injected here -->
                     </div>
-                    <div id="manual-integration-search" style="margin-top: 1rem;">
-                        <div style="display: flex; gap: 0.5rem;">
+                    <div id="manual-integration-search" style="margin-top: 1.5rem;">
+                        <span class="section-title"
+                            style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase;">Manual
+                            Link</span>
+                        <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
                             <input list="manual-int-list" id="manual-int-input"
-                                placeholder="+ Manually Link Integration..."
-                                style="flex: 1; padding: 0.5rem; border-radius: 8px; background: rgba(0,0,0,0.2); color: white; border: 1px solid var(--glass-border);">
+                                placeholder="+ Type integration name (e.g. esphome)"
+                                style="flex: 1; padding: 0.75rem; border-radius: 8px; background: rgba(0,0,0,0.3); color: white; border: 1px solid var(--glass-border); outline: none;">
                             <datalist id="manual-int-list"></datalist>
-                            <button class="btn btn-ghost" onclick="addManualIntegration()">Add</button>
+                            <button class="btn btn-primary" style="padding: 0 1.25rem;"
+                                onclick="addManualIntegration()">Add</button>
                         </div>
                     </div>
 
