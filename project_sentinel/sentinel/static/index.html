@@ -285,6 +285,11 @@
             </button>
         </header>
 
+        <div id="error-message"
+            style="display: none; background: rgba(239, 68, 68, 0.2); border: 1px solid var(--danger); color: var(--text); padding: 1rem; border-radius: 12px; margin-bottom: 2rem; font-size: 0.9rem;">
+            <strong>Error:</strong> <span id="error-text"></span>
+        </div>
+
         <div class="stats-grid">
             <div class="stat-card">
                 <span class="stat-value" id="stat-assets">0</span>
@@ -343,18 +348,33 @@
     </div>
 
     <script>
+        function showError(msg) {
+            const errDiv = document.getElementById('error-message');
+            const errText = document.getElementById('error-text');
+            errText.innerText = msg;
+            errDiv.style.display = 'block';
+            document.getElementById('loader').classList.add('hidden');
+        }
+
         async function loadData() {
             try {
-                // Fetch stats
-                const statsRes = await fetch('/api/stats');
+                // Clear errors
+                document.getElementById('error-message').style.display = 'none';
+
+                // Fetch stats (Relative paths for Ingress convenience)
+                const statsRes = await fetch('api/stats');
+                if (!statsRes.ok) throw new Error(`Stats API failed: ${statsRes.status}`);
                 const stats = await statsRes.json();
+
                 document.getElementById('stat-assets').innerText = stats.total_assets;
                 document.getElementById('stat-vulns').innerText = stats.total_vulnerabilities;
                 document.getElementById('stat-critical').innerText = stats.critical_vulnerabilities;
 
                 // Fetch assets
-                const assetsRes = await fetch('/api/assets');
+                const assetsRes = await fetch('api/assets');
+                if (!assetsRes.ok) throw new Error(`Assets API failed: ${assetsRes.status}`);
                 const assets = await assetsRes.json();
+
                 const assetsTable = document.getElementById('assets-table');
                 assetsTable.innerHTML = assets.map(asset => `
                     <tr>
@@ -369,8 +389,10 @@
                 `).join('');
 
                 // Fetch vulnerabilities
-                const vulnsRes = await fetch('/api/vulnerabilities');
+                const vulnsRes = await fetch('api/vulnerabilities');
+                if (!vulnsRes.ok) throw new Error(`Vulnerabilities API failed: ${vulnsRes.status}`);
                 const vulns = await vulnsRes.json();
+
                 const vulnsTable = document.getElementById('vulns-table');
                 vulnsTable.innerHTML = vulns.slice(0, 10).map(v => `
                     <tr>
@@ -387,6 +409,7 @@
                 document.getElementById('loader').classList.add('hidden');
             } catch (err) {
                 console.error("Failed to load dashboard data:", err);
+                showError(err.message);
             }
         }
 
