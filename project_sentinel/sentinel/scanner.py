@@ -34,6 +34,19 @@ class RouterDiscovery:
         clients = []
         wireless_macs = set()
 
+        # Pre-check connectivity
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.settimeout(3)
+                if s.connect_ex((self.host, self.port)) != 0:
+                    logger.error(f"Network Error: Port {self.port} on {self.host} is unreachable or closed.")
+                    return []
+                else:
+                    logger.debug(f"Port {self.port} on {self.host} is open. Proceeding with SSH...")
+        except Exception as e:
+            logger.error(f"Connectivity check failed: {e}")
+            return []
+
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
