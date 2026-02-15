@@ -845,14 +845,13 @@
             document.getElementById('inbox-empty').classList.add('hidden');
 
             container.innerHTML = inbox.map(a => `
-                <div class="card" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <div class="card clickable" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;" onclick="openAssetDetail('${a.mac_address}')">
                     <div>
                         <h4 style="color: var(--warning)">NEW DISCOVERY: ${a.hostname || a.ip_address}</h4>
                         <p style="font-size: 0.8rem; color: var(--text-muted)">MAC: ${a.mac_address} | Vendor: ${a.vendor || 'Unknown'}</p>
                     </div>
                     <div style="display: flex; gap: 0.5rem;">
-                        <button class="btn btn-primary" onclick="approveAsset('${a.mac_address}')">Approve</button>
-                        <button class="btn btn-ghost">Dismiss</button>
+                        <button class="btn btn-ghost" onclick="event.stopPropagation(); approveAsset('${a.mac_address}')">Dismiss</button>
                     </div>
                 </div>
             `).join('');
