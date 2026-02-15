@@ -718,6 +718,9 @@
                     <h2>Threat Intelligence</h2>
                     <p>Unified vulnerability ledger</p>
                 </div>
+                <div>
+                    <button class="btn btn-ghost" onclick="exportSecurityReport()">📥 Export Report</button>
+                </div>
             </div>
             <div class="card" style="padding: 0;">
                 <table>
@@ -1188,6 +1191,7 @@
         }
 
         async function saveAssetDetail() {
+            // ... (keep current simplified implementation)
             const mac = document.getElementById('detail-mac').value;
             const payload = {
                 mac,
@@ -1198,6 +1202,10 @@
             await fetch('api/assets/update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             closeModal('asset-detail');
             loadData();
+        }
+
+        function exportSecurityReport() {
+            window.location.href = 'api/report/security';
         }
 
         function renderSecurity() {

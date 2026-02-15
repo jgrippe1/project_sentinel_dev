@@ -1,7 +1,9 @@
 import logging
 import os
 import requests
-from flask import Flask, jsonify, send_from_directory, request
+import io
+import csv
+from flask import Flask, jsonify, send_from_directory, request, Response
 from sentinel.datastore import Datastore
 
 # Configure Logging
@@ -158,6 +160,60 @@ def get_stats():
         })
     except Exception as e:
         logger.error(f"Error fetching stats: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/report/security')
+def export_security_report():
+    try:
+        assets = db.get_assets_with_services()
+        vulns = db.get_all_vulnerabilities()
+        
+        # Build mapping for easier lookup
+        asset_vulns = {}
+        for v in vulns:
+            mac = v['mac_address']
+            if mac not in asset_vulns: asset_vulns[mac] = []
+            asset_vulns[mac].append(v)
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Header
+        writer.writerow([
+            "MAC Address", "IP Address", "Hostname", "Vendor", "Model", "OS", 
+            "CVE ID", "CVSS Score", "Severity", "Description"
+        ])
+        
+        for a in assets:
+            mac = a['mac_address']
+            vlist = asset_vulns.get(mac, [])
+            
+            if not vlist:
+                # Still include asset even if no vulns
+                writer.writerow([
+                    mac, a.get('ip_address'), a.get('hostname'), a.get('vendor'), 
+                    a.get('model'), a.get('os'), "None", "-", "SECURE", "No known vulnerabilities found."
+                ])
+            else:
+                for v in vlist:
+                    score = v.get('cvss_score') or 0
+                    severity = "LOW"
+                    if score >= 9: severity = "CRITICAL"
+                    elif score >= 7: severity = "HIGH"
+                    elif score >= 4: severity = "MEDIUM"
+                    
+                    writer.writerow([
+                        mac, a.get('ip_address'), a.get('hostname'), a.get('vendor'), 
+                        a.get('model'), a.get('os'), v.get('cve_id'), score, severity, v.get('description')
+                    ])
+
+        return Response(
+            output.getvalue(),
+            mimetype="text/csv",
+            headers={"Content-disposition": "attachment; filename=sentinel_security_report.csv"}
+        )
+    except Exception as e:
+        logger.error(f"Error generating security report: {e}")
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
