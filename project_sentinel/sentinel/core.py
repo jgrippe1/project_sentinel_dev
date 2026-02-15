@@ -145,7 +145,8 @@ def process_host(ip, mac, ports, db, nvd):
         os=aggregated_intel['os'], 
         model=aggregated_intel['model'], 
         fw_version=aggregated_intel['fw_version'],
-        vendor=final_vendor
+        vendor=final_vendor,
+        oui_vendor=oui_vendor
     )
 
 def main():

@@ -527,6 +527,12 @@
                                     Rev</label>
                                 <span id="detail-intel-hw">--</span>
                             </div>
+                            <div>
+                                <label
+                                    style="display: block; color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase;">Manufacturer
+                                    (OUI)</label>
+                                <span id="detail-intel-oui">--</span>
+                            </div>
                         </div>
                     </div>
 
@@ -1009,6 +1015,7 @@
             document.getElementById('detail-intel-os').innerText = a.os || '--';
             document.getElementById('detail-intel-fw').innerText = a.fw_version || '--';
             document.getElementById('detail-intel-hw').innerText = a.hw_version || '--';
+            document.getElementById('detail-intel-oui').innerText = a.oui_vendor || '--';
 
             renderSuggestions(a);
             openModal('asset-detail');

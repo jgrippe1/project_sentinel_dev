@@ -133,7 +133,8 @@ class Datastore:
             'hw_version': 'TEXT',
             'fw_version': 'TEXT',
             'model': 'TEXT',
-            'os': 'TEXT'
+            'os': 'TEXT',
+            'oui_vendor': 'TEXT'
         }
         for col, col_type in new_cols.items():
             if col not in columns:
@@ -167,7 +168,7 @@ class Datastore:
         conn.commit()
         conn.close()
 
-    def upsert_asset(self, mac, ip, hostname=None, vendor=None, interface=None, parent_mac=None, original_device_type=None, hw_version=None, fw_version=None, model=None, os=None):
+    def upsert_asset(self, mac, ip, hostname=None, vendor=None, interface=None, parent_mac=None, original_device_type=None, hw_version=None, fw_version=None, model=None, os=None, oui_vendor=None):
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
         now = datetime.datetime.now()
@@ -200,11 +201,13 @@ class Datastore:
                  c.execute("UPDATE assets SET model=? WHERE mac_address=?", (model, mac))
             if os:
                  c.execute("UPDATE assets SET os=? WHERE mac_address=?", (os, mac))
+            if oui_vendor:
+                 c.execute("UPDATE assets SET oui_vendor=? WHERE mac_address=?", (oui_vendor, mac))
         else:
             c.execute('''
-                INSERT INTO assets (mac_address, ip_address, hostname, vendor, interface, parent_mac, original_device_type, hw_version, fw_version, model, os, first_seen, last_seen)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (mac, ip, hostname, vendor, interface, parent_mac, original_device_type, hw_version, fw_version, model, os, now, now))
+                INSERT INTO assets (mac_address, ip_address, hostname, vendor, interface, parent_mac, original_device_type, hw_version, fw_version, model, os, oui_vendor, first_seen, last_seen)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (mac, ip, hostname, vendor, interface, parent_mac, original_device_type, hw_version, fw_version, model, os, oui_vendor, now, now))
             
         conn.commit()
         conn.close()
