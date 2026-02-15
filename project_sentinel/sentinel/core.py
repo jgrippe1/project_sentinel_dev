@@ -38,11 +38,29 @@ def load_config():
 def process_host(ip, mac, ports, db, nvd):
     """
     Performs service enrichment and vulnerability lookup for a single host.
+    Aggregates high-fidelity intelligence (OS, Model, Firmware) across ports.
     """
+    aggregated_intel = {
+        'os': None,
+        'model': None,
+        'fw_version': None,
+        'vendor': None
+    }
+
     for port in ports:
         banner = grab_banner(ip, port)
-        product, version = analyze_banner(banner)
+        product, version, os_found = analyze_banner(banner)
         
+        # 2.5a Advanced Intelligence Mining
+        from sentinel.analysis import analyze_device_intelligence
+        device_intel = analyze_device_intelligence(banner)
+        
+        # Merge intelligence
+        if os_found and not aggregated_intel['os']: aggregated_intel['os'] = os_found
+        if device_intel.get('model') and not aggregated_intel['model']: aggregated_intel['model'] = device_intel['model']
+        if device_intel.get('fw_version') and not aggregated_intel['fw_version']: aggregated_intel['fw_version'] = device_intel['fw_version']
+        if device_intel.get('vendor') and not aggregated_intel['vendor']: aggregated_intel['vendor'] = device_intel['vendor']
+
         db.upsert_service(
             mac=mac,
             port=port,
@@ -52,7 +70,7 @@ def process_host(ip, mac, ports, db, nvd):
             version_string=version
         )
         
-        # 2.5 SSL Certificate Check (Certificate Sentinel)
+        # 2.5b SSL Certificate Check (Certificate Sentinel)
         if port in [443, 8443, 8123]: # Common SSL ports
             from sentinel.analysis import get_ssl_expiry
             expiry = get_ssl_expiry(ip, port)
@@ -61,12 +79,12 @@ def process_host(ip, mac, ports, db, nvd):
                     mac=mac,
                     port=port,
                     proto="tcp",
-                    service_name="unknown",
-                    banner=banner,
-                    version_string=version,
-                    cert_expiry=expiry
+                    service_name="ssl-cert",
+                    banner=f"SSL Certificate Expiry: {expiry}",
+                    version_string=None,
+                    cert_expiry=expiry.isoformat()
                 )
-        
+
         if product and version:
             logger.info(f"Identified {product} {version} on {ip}:{port}")
             
@@ -80,7 +98,7 @@ def process_host(ip, mac, ports, db, nvd):
                 descriptions = cve.get('descriptions', [{}])
                 description = descriptions[0].get('value', 'No description')
                 
-                # Extract CVSS score (checking for v3.1, then v3.0, then v2)
+                # Extract CVSS score
                 metrics = cve.get('metrics', {})
                 cvss_score = 0
                 if 'cvssMetricV31' in metrics:
@@ -97,6 +115,16 @@ def process_host(ip, mac, ports, db, nvd):
                     description=description
                 )
                 logger.info(f"Logged vulnerability {cve_id} (Score: {cvss_score}) for {ip}")
+    
+    # Final step: Update asset with aggregated high-fidelity intelligence
+    db.upsert_asset(
+        mac=mac, 
+        ip=ip, 
+        os=aggregated_intel['os'], 
+        model=aggregated_intel['model'], 
+        fw_version=aggregated_intel['fw_version'],
+        vendor=aggregated_intel['vendor']
+    )
 
 def main():
     logger.info("Starting Project Sentinel Core...")

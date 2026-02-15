@@ -128,6 +128,21 @@ class Datastore:
             except Exception as e:
                 print(f"Migration error (original_device_type): {e}")
 
+        # Phase 30: Advanced Asset Intelligence
+        new_cols = {
+            'hw_version': 'TEXT',
+            'fw_version': 'TEXT',
+            'model': 'TEXT',
+            'os': 'TEXT'
+        }
+        for col, col_type in new_cols.items():
+            if col not in columns:
+                print(f"Migrating database: Adding '{col}' column to 'assets' table.")
+                try:
+                    c.execute(f"ALTER TABLE assets ADD COLUMN {col} {col_type}")
+                except Exception as e:
+                    print(f"Migration error ({col}): {e}")
+
         # Check for 'custom_name' in 'assets' table
         if 'custom_name' not in columns:
             print("Migrating database: Adding 'custom_name' column to 'assets' table.")
@@ -152,7 +167,7 @@ class Datastore:
         conn.commit()
         conn.close()
 
-    def upsert_asset(self, mac, ip, hostname=None, vendor=None, interface=None, parent_mac=None, original_device_type=None):
+    def upsert_asset(self, mac, ip, hostname=None, vendor=None, interface=None, parent_mac=None, original_device_type=None, hw_version=None, fw_version=None, model=None, os=None):
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
         now = datetime.datetime.now()
@@ -177,11 +192,19 @@ class Datastore:
                  c.execute("UPDATE assets SET parent_mac=? WHERE mac_address=?", (parent_mac, mac))
             if original_device_type:
                  c.execute("UPDATE assets SET original_device_type=? WHERE mac_address=?", (original_device_type, mac))
+            if hw_version:
+                 c.execute("UPDATE assets SET hw_version=? WHERE mac_address=?", (hw_version, mac))
+            if fw_version:
+                 c.execute("UPDATE assets SET fw_version=? WHERE mac_address=?", (fw_version, mac))
+            if model:
+                 c.execute("UPDATE assets SET model=? WHERE mac_address=?", (model, mac))
+            if os:
+                 c.execute("UPDATE assets SET os=? WHERE mac_address=?", (os, mac))
         else:
             c.execute('''
-                INSERT INTO assets (mac_address, ip_address, hostname, vendor, interface, parent_mac, original_device_type, first_seen, last_seen)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (mac, ip, hostname, vendor, interface, parent_mac, original_device_type, now, now))
+                INSERT INTO assets (mac_address, ip_address, hostname, vendor, interface, parent_mac, original_device_type, hw_version, fw_version, model, os, first_seen, last_seen)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (mac, ip, hostname, vendor, interface, parent_mac, original_device_type, hw_version, fw_version, model, os, now, now))
             
         conn.commit()
         conn.close()

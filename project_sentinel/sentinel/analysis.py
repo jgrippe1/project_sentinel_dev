@@ -28,33 +28,80 @@ def grab_banner(ip, port, timeout=2):
 
 def analyze_banner(banner):
     """
-    Parses a banner to extract product and version.
-    Uses regex to handle common service patterns.
+    Parses a banner to extract product, version, and OS intelligence.
     """
     if not banner:
-        return None, None
+        return None, None, None
+
+    product, version, os_found = None, None, None
 
     # HTTP Server Header: "Server: Apache/2.4.41 (Ubuntu)"
-    http_match = re.search(r'Server:\s*([^/\s\r\n]+)(?:/([^\s\r\n(]+))?', banner, re.IGNORECASE)
+    http_match = re.search(r'Server:\s*([^/\s\r\n]+)(?:/([^\s\r\n(]+))?(?:\s*\(([^)]+)\))?', banner, re.IGNORECASE)
     if http_match:
-        return http_match.group(1), http_match.group(2)
+        product = http_match.group(1)
+        version = http_match.group(2)
+        os_info = http_match.group(3)
+        if os_info:
+            if any(x in os_info.lower() for x in ['ubuntu', 'debian', 'linux']): os_found = "Linux"
+            if 'win' in os_info.lower(): os_found = "Windows"
+            if 'macos' in os_info.lower(): os_found = "macOS"
 
     # SSH Banner: "SSH-2.0-OpenSSH_8.2p1 Ubuntu-4ubuntu0.5"
-    ssh_match = re.search(r'(?:SSH-\d\.\d-)([^_\s-]+)_([^\s-]+)', banner)
-    if ssh_match:
-        return ssh_match.group(1), ssh_match.group(2)
+    if not product:
+        ssh_match = re.search(r'(?:SSH-\d\.\d-)([^_\s-]+)_([^\s-]+)(?:\s+([^_\s-]+))?', banner)
+        if ssh_match:
+            product = ssh_match.group(1)
+            version = ssh_match.group(2)
+            os_raw = ssh_match.group(3)
+            if os_raw:
+                if 'ubuntu' in os_raw.lower() or 'debian' in os_raw.lower(): os_found = "Linux"
 
     # FTP/Generic: "220 (vsFTPd 3.0.3)" or "220-FileZilla Server 0.9.60 beta"
-    ftp_match = re.search(r'(?:220[\s-].*?)([^/\s\r\n()]+)\s+([0-9.]+[^\s\r\n]*)', banner)
-    if ftp_match:
-        return ftp_match.group(1), ftp_match.group(2)
+    if not product:
+        ftp_match = re.search(r'(?:220[\s-].*?)([^/\s\r\n()]+)\s+([0-9.]+[^\s\r\n]*)', banner)
+        if ftp_match:
+            product = ftp_match.group(1)
+            version = ftp_match.group(2)
 
     # Generic Product/Version: "Product v1.2.3" or "Product 1.2.3"
-    generic_match = re.search(r'^([a-zA-Z._-]+)[/\s]v?([0-9]+\.[0-9.]+[a-zA-Z0-9-]*)', banner)
-    if generic_match:
-        return generic_match.group(1), generic_match.group(2)
+    if not product:
+        generic_match = re.search(r'^([a-zA-Z._-]+)[/\s]v?([0-9]+\.[0-9.]+[a-zA-Z0-9-]*)', banner)
+        if generic_match:
+            product = generic_match.group(1)
+            version = generic_match.group(2)
             
-    return None, None
+    return product, version, os_found
+
+def analyze_device_intelligence(banner):
+    """
+    Specifically looks for Hardware/Model/Firmware details in banners.
+    Used for high-fidelity mining.
+    """
+    if not banner: return {}
+    intel = {}
+
+    # ASUS Router Detection
+    if "asus" in banner.lower():
+        model_match = re.search(r'(RT-[A-Z0-9-]+|GT-[A-Z0-9-]+)', banner, re.IGNORECASE)
+        if model_match: intel['model'] = model_match.group(1).upper()
+    
+    # Synology Detection
+    if "synology" in banner.lower():
+        intel['vendor'] = "Synology"
+        model_match = re.search(r'(DS\d+[a-z+]*)', banner, re.IGNORECASE)
+        if model_match: intel['model'] = model_match.group(1).upper()
+
+    # TP-Link Detection
+    if "tp-link" in banner.lower():
+        intel['vendor'] = "TP-Link"
+        model_match = re.search(r'(Archer\s?[A-Z\d]+|RE\d+|TL-[A-Z\d-]+)', banner, re.IGNORECASE)
+        if model_match: intel['model'] = model_match.group(1)
+
+    # Generic Firmware Version patterns
+    fw_match = re.search(r'Firmware[:\s]+v?([0-9]+\.[0-9.]+[a-zA-Z0-9-]*)', banner, re.IGNORECASE)
+    if fw_match: intel['fw_version'] = fw_match.group(1)
+
+    return intel
 
 def get_ssl_expiry(ip, port, timeout=3):
     """

@@ -502,6 +502,34 @@
                         </div>
                     </div>
 
+                    <div class="card" style="margin-top: 1rem; background: rgba(255,255,255,0.03)">
+                        <span class="section-title">System Intelligence</span>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; font-size: 0.85rem;">
+                            <div>
+                                <label
+                                    style="display: block; color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase;">Model</label>
+                                <span id="detail-intel-model">--</span>
+                            </div>
+                            <div>
+                                <label
+                                    style="display: block; color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase;">Operating
+                                    System</label>
+                                <span id="detail-intel-os">--</span>
+                            </div>
+                            <div>
+                                <label
+                                    style="display: block; color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase;">Firmware</label>
+                                <span id="detail-intel-fw">--</span>
+                            </div>
+                            <div>
+                                <label
+                                    style="display: block; color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase;">Hardare
+                                    Rev</label>
+                                <span id="detail-intel-hw">--</span>
+                            </div>
+                        </div>
+                    </div>
+
                     <div style="margin-top: 2rem; display: flex; gap: 1rem;">
                         <button class="btn btn-primary" style="flex: 1" onclick="saveAssetDetail()">Apply
                             Changes</button>
@@ -646,6 +674,12 @@
                                 onchange="toggleCol(this)"> Location</label>
                         <label class="col-option"><input type="checkbox" data-col="vendor" checked
                                 onchange="toggleCol(this)"> Manufacturer</label>
+                        <label class="col-option"><input type="checkbox" data-col="model" onchange="toggleCol(this)">
+                            Model</label>
+                        <label class="col-option"><input type="checkbox" data-col="os" onchange="toggleCol(this)">
+                            OS</label>
+                        <label class="col-option"><input type="checkbox" data-col="fw_version"
+                                onchange="toggleCol(this)"> Firmware</label>
                         <label class="col-option"><input type="checkbox" data-col="integrations" checked
                                 onchange="toggleCol(this)"> Identified Integrations</label>
                         <label class="col-option"><input type="checkbox" data-col="services" onchange="toggleCol(this)">
@@ -718,6 +752,9 @@
             risk: { label: 'Risk Priority', sort: 'risk' },
             location: { label: 'Location', sort: 'location' },
             vendor: { label: 'Manufacturer', sort: 'vendor' },
+            model: { label: 'Model', sort: 'model' },
+            os: { label: 'OS', sort: 'os' },
+            fw_version: { label: 'Firmware', sort: 'fw_version' },
             integrations: { label: 'Identified Integrations', sort: 'integrations' },
             services: { label: 'Open Services', sort: 'services' },
             type: { label: 'Category', sort: 'device_type' },
@@ -967,6 +1004,11 @@
                 document.getElementById('no-vulns').classList.remove('hidden');
                 vulnContainer.classList.add('hidden');
             }
+
+            document.getElementById('detail-intel-model').innerText = a.model || '--';
+            document.getElementById('detail-intel-os').innerText = a.os || '--';
+            document.getElementById('detail-intel-fw').innerText = a.fw_version || '--';
+            document.getElementById('detail-intel-hw').innerText = a.hw_version || '--';
 
             renderSuggestions(a);
             openModal('asset-detail');
