@@ -11,6 +11,7 @@ class Datastore:
     def __init__(self, db_path=DB_PATH):
         self.db_path = db_path
         self._init_db()
+        self._migrate_db()
 
     def _init_db(self):
         conn = sqlite3.connect(self.db_path)
@@ -58,6 +59,27 @@ class Datastore:
                 PRIMARY KEY (cve_id, mac_address)
             )
         ''')
+        
+        conn.commit()
+        conn.close()
+
+    def _migrate_db(self):
+        """
+        Handles schema migrations for existing databases.
+        """
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+        
+        # Check for 'interface' column in 'assets' table
+        c.execute("PRAGMA table_info(assets)")
+        columns = [info[1] for info in c.fetchall()]
+        
+        if 'interface' not in columns:
+            print("Migrating database: Adding 'interface' column to 'assets' table.")
+            try:
+                c.execute("ALTER TABLE assets ADD COLUMN interface TEXT")
+            except Exception as e:
+                print(f"Migration error: {e}")
         
         conn.commit()
         conn.close()
