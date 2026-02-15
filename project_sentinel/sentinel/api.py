@@ -62,7 +62,9 @@ def update_asset():
             custom_name=data.get('custom_name'),
             location=data.get('location'),
             device_type=data.get('device_type'),
-            tags=data.get('tags')
+            tags=data.get('tags'),
+            confirmed_integrations=data.get('confirmed_integrations'),
+            dismissed_integrations=data.get('dismissed_integrations')
         )
         return jsonify({"status": "success"})
     except Exception as e:
@@ -73,14 +75,57 @@ def update_asset():
 def get_stats():
     try:
         assets = db.get_assets()
-        vulnerabilities = db.get_all_vulnerabilities()
+        vulns = db.get_all_vulnerabilities()
         
-        critical_count = sum(1 for v in vulnerabilities if v.get('cvss_score', 0) >= 9.0)
+        # Risk Distribution
+        risk_counts = {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0, "SECURE": 0}
+        asset_risks = {} # mac -> max_score
         
+        for v in vulns:
+            mac = v['mac_address']
+            score = v['cvss_score'] or 0
+            if mac not in asset_risks or score > asset_risks[mac]:
+                asset_risks[mac] = score
+        
+        priority_list = []
+        categorized_count = 0
+        named_count = 0
+        integrated_count = 0
+        
+        for a in assets:
+            mac = a['mac_address']
+            score = asset_risks.get(mac, 0)
+            if score >= 9: risk_counts["CRITICAL"] += 1
+            elif score >= 7: risk_counts["HIGH"] += 1
+            elif score >= 4: risk_counts["MEDIUM"] += 1
+            elif score > 0: risk_counts["LOW"] += 1
+            else: risk_counts["SECURE"] += 1
+            
+            if a.get('device_type') and a['device_type'] != 'Unknown': categorized_count += 1
+            if a.get('custom_name'): named_count += 1
+            if a.get('confirmed_integrations') and a['confirmed_integrations'] != '[]': integrated_count += 1
+            
+            if score >= 7:
+                priority_list.append({
+                    "mac": mac,
+                    "name": a.get('custom_name') or a.get('hostname') or a.get('ip_address'),
+                    "score": score,
+                    "type": a.get('device_type') or 'Unknown'
+                })
+        
+        priority_list.sort(key=lambda x: x['score'], reverse=True)
+
         return jsonify({
             "total_assets": len(assets),
-            "total_vulnerabilities": len(vulnerabilities),
-            "critical_vulnerabilities": critical_count
+            "total_vulnerabilities": len(vulns),
+            "risk_distribution": risk_counts,
+            "governance": {
+                "categorized": categorized_count,
+                "named": named_count,
+                "integrated": integrated_count,
+                "total": len(assets)
+            },
+            "priority_queue": priority_list[:5]
         })
     except Exception as e:
         logger.error(f"Error fetching stats: {e}")

@@ -98,12 +98,23 @@ class Datastore:
             'parent_mac': 'TEXT'
         }
 
+        new_columns = {
+            'approved': 'INTEGER DEFAULT 0',
+            'tags': "TEXT DEFAULT '[]'",
+            'custom_name': 'TEXT',
+            'location': 'TEXT',
+            'device_type': 'TEXT',
+            'original_device_type': 'TEXT',
+            'parent_mac': 'TEXT',
+            'confirmed_integrations': "TEXT DEFAULT '[]'",
+            'dismissed_integrations': "TEXT DEFAULT '[]'"
+        }
+
         for col, col_type in new_columns.items():
             if col not in columns:
                 print(f"Migrating database: Adding '{col}' column to 'assets' table.")
                 try:
                     c.execute(f"ALTER TABLE assets ADD COLUMN {col} {col_type}")
-                    # If we just added 'approved', set it to 1 for existing devices
                     if col == 'approved':
                         c.execute("UPDATE assets SET approved = 1")
                 except Exception as e:
@@ -182,7 +193,7 @@ class Datastore:
         conn.commit()
         conn.close()
 
-    def update_asset_governance(self, mac, custom_name=None, location=None, device_type=None, tags=None):
+    def update_asset_governance(self, mac, custom_name=None, location=None, device_type=None, tags=None, confirmed_integrations=None, dismissed_integrations=None):
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
         if custom_name is not None:
@@ -191,6 +202,10 @@ class Datastore:
             c.execute("UPDATE assets SET location=? WHERE mac_address=?", (location, mac))
         if device_type is not None:
             c.execute("UPDATE assets SET device_type=? WHERE mac_address=?", (device_type, mac))
+        if confirmed_integrations is not None:
+            c.execute("UPDATE assets SET confirmed_integrations=? WHERE mac_address=?", (confirmed_integrations, mac))
+        if dismissed_integrations is not None:
+            c.execute("UPDATE assets SET dismissed_integrations=? WHERE mac_address=?", (dismissed_integrations, mac))
         if tags is not None:
             import json
             c.execute("UPDATE assets SET tags=? WHERE mac_address=?", (json.dumps(tags), mac))

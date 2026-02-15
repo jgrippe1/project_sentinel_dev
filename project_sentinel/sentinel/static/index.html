@@ -481,9 +481,21 @@
                             style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px;"></div>
                     </div>
 
-                    <span class="section-title" style="margin-top: 2rem;">Suggested Integrations</span>
+                    <span class="section-title" style="margin-top: 2rem;">Integration Center</span>
+                    <div id="active-integrations" style="margin-bottom: 1rem;">
+                        <!-- confirmed integrations -->
+                    </div>
                     <div id="integration-list">
                         <!-- suggestions injected here -->
+                    </div>
+                    <div id="manual-integration-search" style="margin-top: 1rem;">
+                        <div style="display: flex; gap: 0.5rem;">
+                            <select id="manual-int-select"
+                                style="flex: 1; padding: 0.5rem; border-radius: 8px; background: rgba(0,0,0,0.2); color: white; border: 1px solid var(--glass-border);">
+                                <option value="">+ Manually Link Integration...</option>
+                            </select>
+                            <button class="btn btn-ghost" onclick="addManualIntegration()">Add</button>
+                        </div>
                     </div>
 
                     <div style="margin-top: 2rem; display: flex; gap: 1rem;">
@@ -531,7 +543,9 @@
             <h1>Sentinel 🛰️</h1>
         </div>
         <ul class="nav-links">
-            <li class="nav-item"><a class="nav-link active" onclick="showTab('inbox')"><span>📥</span> Inbox <div
+            <li class="nav-item"><a class="nav-link active" onclick="showTab('dashboard')"><span>📊</span> Dashboard</a>
+            </li>
+            <li class="nav-item"><a class="nav-link" onclick="showTab('inbox')"><span>📥</span> Inbox <div
                         class="inbox-badge" id="badge-inbox">0</div></a></li>
             <li class="nav-item"><a class="nav-link" onclick="showTab('inventory')"><span>📋</span> Inventory</a></li>
             <li class="nav-item"><a class="nav-link" onclick="showTab('security')"><span>🛡️</span> Security</a></li>
@@ -542,8 +556,64 @@
     </nav>
 
     <main>
+        <!-- Tab: Dashboard (Landing Page) -->
+        <div id="tab-dashboard" class="tab-content active">
+            <div class="page-header">
+                <div class="page-title">
+                    <h2>Executive Summary</h2>
+                    <p>Network governance & risk posture at a glance</p>
+                </div>
+            </div>
+
+            <!-- Summary Stats -->
+            <div
+                style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+                <div class="card" style="text-align: center; margin-bottom: 0;">
+                    <span class="section-title">Inventory Health</span>
+                    <h2 id="dash-total-assets">--</h2>
+                    <p style="font-size: 0.8rem; color: var(--text-muted);">Discovered Assets</p>
+                </div>
+                <div class="card" style="text-align: center; margin-bottom: 0; border-color: var(--danger)">
+                    <span class="section-title">Active Threats</span>
+                    <h2 id="dash-total-vulns">--</h2>
+                    <p style="font-size: 0.8rem; color: var(--text-muted);">Known Risk Items</p>
+                </div>
+                <div class="card" style="text-align: center; margin-bottom: 0;">
+                    <span class="section-title">Governance Coverage</span>
+                    <h2 id="dash-gov-percent">0%</h2>
+                    <p style="font-size: 0.8rem; color: var(--text-muted);">Categorized & Named</p>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem;">
+                <!-- Priority Queue -->
+                <div>
+                    <span class="section-title">Critical Triage Queue</span>
+                    <div class="card" style="padding: 0;">
+                        <table id="dash-priority-table">
+                            <thead>
+                                <tr>
+                                    <th>Asset</th>
+                                    <th>Risk</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dash-priority-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <!-- Best Practices -->
+                <div>
+                    <span class="section-title">Security Posture List</span>
+                    <div id="dash-checklist" class="card" style="display: flex; flex-direction: column; gap: 1rem;">
+                        <!-- checklist items -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Tab: Inbox -->
-        <div id="tab-inbox" class="tab-content active">
+        <div id="tab-inbox" class="tab-content">
             <div class="page-header">
                 <div class="page-title">
                     <h2>Inbox Queue</h2>
@@ -670,6 +740,7 @@
                 const resVulns = await fetch('api/vulnerabilities');
                 allVulns = await resVulns.json();
 
+                renderDashboard();
                 renderInbox();
                 initColumnSelector();
                 sortInventory(sortConfig.key, true); // initial sort
@@ -897,31 +968,124 @@
             openModal('asset-detail');
         }
 
+        const MASTER_INTEGRATIONS = [
+            { id: 'nginx', match: 'Nginx', icon: '🌐', label: 'Nginx Proxy Manager', url: 'https://www.home-assistant.io/integrations/nginx_proxy_manager' },
+            { id: 'ssh', match: 'SSH', icon: '💻', label: 'SSH & Web Terminal', url: 'https://github.com/hassio-addons/addon-ssh' },
+            { id: 'esphome', match: 'ESPHome', icon: '🔋', label: 'ESPHome Node', url: 'https://www.home-assistant.io/integrations/esphome' },
+            { id: 'generic_camera', match: 'Generic', icon: '🔌', label: 'Generic IP Camera', url: 'https://www.home-assistant.io/integrations/generic' },
+            { id: 'adguard', match: 'AdGuard', icon: '🛡️', label: 'AdGuard Home', url: 'https://www.home-assistant.io/integrations/adguard' },
+            { id: 'mqtt', match: 'MQTT', icon: '📡', label: 'MQTT Broker', url: 'https://www.home-assistant.io/integrations/mqtt' },
+            { id: 'unifi', match: 'UniFi', icon: '🛰️', label: 'UniFi Network', url: 'https://www.home-assistant.io/integrations/unifi' },
+            { id: 'plex', match: 'Plex', icon: '🎬', label: 'Plex Media Server', url: 'https://www.home-assistant.io/integrations/plex' },
+            { id: 'zigbee2mqtt', match: 'Zigbee', icon: '🐝', label: 'Zigbee2MQTT', url: 'https://www.home-assistant.io/integrations/zigbee' },
+            { id: 'homekit', match: 'HomeKit', icon: '🏠', label: 'HomeKit Device', url: 'https://www.home-assistant.io/integrations/homekit' },
+            { id: 'shelly', match: 'Shelly', icon: '💡', label: 'Shelly Smart Home', url: 'https://www.home-assistant.io/integrations/shelly' },
+            { id: 'tasmota', match: 'Tasmota', icon: '⚙️', label: 'Tasmota Device', url: 'https://www.home-assistant.io/integrations/tasmota' },
+            { id: 'philips_hue', match: 'Hue', icon: '🌈', label: 'Philips Hue', url: 'https://www.home-assistant.io/integrations/hue' },
+            { id: 'sonos', match: 'Sonos', icon: '🔊', label: 'Sonos Speaker', url: 'https://www.home-assistant.io/integrations/sonos' },
+            { id: 'wled', match: 'WLED', icon: '✨', label: 'WLED Strip', url: 'https://www.home-assistant.io/integrations/wled' },
+            { id: 'frigate', match: 'Frigate', icon: '🐱', label: 'Frigate Video', url: 'https://www.home-assistant.io/integrations/frigate' },
+            { id: 'homeassistant', match: 'HASS', icon: '🏠', label: 'Remote Home Assistant', url: 'https://www.home-assistant.io/integrations/homeassistant' },
+            { id: 'tuya', match: 'Tuya', icon: '☁️', label: 'Tuya Smart Life', url: 'https://www.home-assistant.io/integrations/tuya' },
+            { id: 'tp_link', match: 'Kasa', icon: '🔌', label: 'TP-Link Kasa', url: 'https://www.home-assistant.io/integrations/tplink' },
+            { id: 'pihole', match: 'Pi-hole', icon: '🕳️', label: 'Pi-hole', url: 'https://www.home-assistant.io/integrations/pi_hole' }
+        ];
+
+        function initManualSelect() {
+            const select = document.getElementById('manual-int-select');
+            if (select.children.length > 1) return;
+            MASTER_INTEGRATIONS.forEach(int => {
+                const opt = document.createElement('option');
+                opt.value = int.id;
+                opt.innerText = `${int.icon} ${int.label}`;
+                select.appendChild(opt);
+            });
+        }
+
         function getMatchedIntegrations(a) {
-            const rules = [
-                { match: 'Nginx', icon: '🌐', label: 'Nginx Proxy Manager', url: 'https://www.home-assistant.io/integrations/nginx_proxy_manager' },
-                { match: 'SSH', icon: '💻', label: 'SSH & Web Terminal', url: 'https://github.com/hassio-addons/addon-ssh' },
-                { match: 'ESPHome', icon: '🔋', label: 'ESPHome Node', url: 'https://www.home-assistant.io/integrations/esphome' },
-                { match: 'Generic', icon: '🔌', label: 'Generic IP Camera', url: 'https://www.home-assistant.io/integrations/generic' }
-            ];
             const services = (a.services || []).map(s => s.banner + s.service_name).join(' ');
-            return rules.filter(r => services.toLowerCase().includes(r.match.toLowerCase()));
+            return MASTER_INTEGRATIONS.filter(r => services.toLowerCase().includes(r.match.toLowerCase()));
         }
 
         function renderSuggestions(a) {
+            initManualSelect();
             const list = document.getElementById('integration-list');
-            const found = getMatchedIntegrations(a);
+            const activeList = document.getElementById('active-integrations');
 
-            if (found.length === 0) list.innerHTML = '<p style="color: var(--text-muted); font-size: 0.8rem;">No custom integrations identified.</p>';
-            else list.innerHTML = found.map(r => `
-                <div class="integration-item">
+            const confirmedIds = JSON.parse(a.confirmed_integrations || '[]');
+            const dismissedIds = JSON.parse(a.dismissed_integrations || '[]');
+
+            const detected = getMatchedIntegrations(a);
+
+            // Render Active (Confirmed or Manual)
+            const active = MASTER_INTEGRATIONS.filter(r => confirmedIds.includes(r.id));
+            activeList.innerHTML = active.map(r => `
+                <div class="integration-item" style="border-color: var(--primary); background: rgba(99, 102, 241, 0.1);">
                     <span>${r.icon}</span>
-                    <div style="flex-grow: 1;">
-                        <strong>${r.label}</strong>
-                    </div>
-                    <button class="btn btn-ghost" onclick="window.open('${r.url}', '_blank')">Link</button>
+                    <div style="flex-grow: 1;"><strong>${r.label}</strong> (Active)</div>
+                    <button class="btn btn-ghost" onclick="updateIntStatus('${a.mac_address}', '${r.id}', 'remove')">✕</button>
+                    <button class="btn btn-ghost" onclick="window.open('${r.url}', '_blank')">🔗</button>
                 </div>
             `).join('');
+
+            // Filter out already confirmed or dismissed
+            const filteredSuggestions = detected.filter(r => !confirmedIds.includes(r.id) && !dismissedIds.includes(r.id));
+
+            if (filteredSuggestions.length === 0 && active.length === 0) {
+                list.innerHTML = '<p style="color: var(--text-muted); font-size: 0.8rem;">No suggestions identified.</p>';
+            } else {
+                list.innerHTML = filteredSuggestions.map(r => `
+                    <div class="integration-item">
+                        <span>${r.icon}</span>
+                        <div style="flex-grow: 1;"><strong>${r.label}</strong> (Suggested)</div>
+                        <div style="display: flex; gap: 0.2rem;">
+                            <button class="btn btn-ghost" style="color: var(--success)" onclick="updateIntStatus('${a.mac_address}', '${r.id}', 'confirm')">✓</button>
+                            <button class="btn btn-ghost" style="color: var(--danger)" onclick="updateIntStatus('${a.mac_address}', '${r.id}', 'dismiss')">✕</button>
+                            <button class="btn btn-ghost" onclick="window.open('${r.url}', '_blank')">🔗</button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        async function updateIntStatus(mac, intId, action) {
+            const a = allAssets.find(x => x.mac_address === mac);
+            let confirmed = JSON.parse(a.confirmed_integrations || '[]');
+            let dismissed = JSON.parse(a.dismissed_integrations || '[]');
+
+            if (action === 'confirm') {
+                if (!confirmed.includes(intId)) confirmed.push(intId);
+                dismissed = dismissed.filter(i => i !== intId);
+            } else if (action === 'dismiss') {
+                if (!dismissed.includes(intId)) dismissed.push(intId);
+                confirmed = confirmed.filter(i => i !== intId);
+            } else if (action === 'remove') {
+                confirmed = confirmed.filter(i => i !== intId);
+            } else if (action === 'add') {
+                if (!confirmed.includes(intId)) confirmed.push(intId);
+            }
+
+            a.confirmed_integrations = JSON.stringify(confirmed);
+            a.dismissed_integrations = JSON.stringify(dismissed);
+
+            await fetch('api/assets/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    mac,
+                    confirmed_integrations: a.confirmed_integrations,
+                    dismissed_integrations: a.dismissed_integrations
+                })
+            });
+            renderSuggestions(a);
+        }
+
+        async function addManualIntegration() {
+            const mac = document.getElementById('detail-mac').value;
+            const intId = document.getElementById('manual-int-select').value;
+            if (!intId) return;
+            await updateIntStatus(mac, intId, 'add');
+            document.getElementById('manual-int-select').value = "";
         }
 
         async function saveAssetDetail() {
@@ -997,6 +1161,49 @@
 
             html += '</div>';
             container.innerHTML = html;
+        }
+
+        async function renderDashboard() {
+            const res = await fetch('api/stats');
+            const stats = await res.json();
+
+            document.getElementById('dash-total-assets').innerText = stats.total_assets;
+            document.getElementById('dash-total-vulns').innerText = stats.total_vulnerabilities;
+
+            const gov = stats.governance;
+            const avgPct = gov.total > 0 ? Math.round(((gov.categorized / gov.total) + (gov.named / gov.total) + (gov.integrated / gov.total)) / 3 * 100) : 0;
+            document.getElementById('dash-gov-percent').innerText = `${avgPct}%`;
+
+            // Priority Queue
+            const priorityBody = document.getElementById('dash-priority-body');
+            if (!stats.priority_queue || stats.priority_queue.length === 0) {
+                priorityBody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 2rem; color: var(--text-muted);">No critical risks detected. System secure.</td></tr>';
+            } else {
+                priorityBody.innerHTML = stats.priority_queue.map(a => `
+                    <tr class="clickable" onclick="openAssetDetail('${a.mac}')">
+                        <td><strong>${a.name}</strong><br><span style="font-size: 0.7rem; color: var(--text-muted)">${a.type}</span></td>
+                        <td>${getRiskBadge(a.score)}</td>
+                        <td><span style="color: var(--danger)">Triage Needed</span></td>
+                    </tr>
+                `).join('');
+            }
+
+            // Checklist
+            const checklist = document.getElementById('dash-checklist');
+            const checks = [
+                { label: "All Assets Categorized", pass: gov.total > 0 && gov.categorized === gov.total },
+                { label: "Critical Risks Remediated", pass: stats.risk_distribution.CRITICAL === 0 },
+                { label: "High Risks Addressed", pass: stats.risk_distribution.HIGH === 0 },
+                { label: "Core Governance (Names)", pass: gov.total > 0 && gov.named > (gov.total * 0.8) },
+                { label: "Integration Coverage", pass: gov.total > 0 && gov.integrated > (gov.total * 0.5) }
+            ];
+
+            checklist.innerHTML = checks.map(c => `
+                <div style="display: flex; align-items: center; gap: 1rem; color: ${c.pass ? 'var(--text)' : 'var(--text-muted)'}">
+                    <span style="font-family: serif; color: ${c.pass ? 'var(--success)' : 'var(--danger)'}; font-weight: 800;">${c.pass ? '✓' : '○'}</span>
+                    <span style="font-size: 0.9rem;">${c.label}</span>
+                </div>
+            `).join('');
         }
 
         window.onload = loadData;
