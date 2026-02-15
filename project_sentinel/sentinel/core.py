@@ -52,6 +52,21 @@ def process_host(ip, mac, ports, db, nvd):
             version_string=version
         )
         
+        # 2.5 SSL Certificate Check (Certificate Sentinel)
+        if port in [443, 8443, 8123]: # Common SSL ports
+            from sentinel.analysis import get_ssl_expiry
+            expiry = get_ssl_expiry(ip, port)
+            if expiry:
+                db.upsert_service(
+                    mac=mac,
+                    port=port,
+                    proto="tcp",
+                    service_name="unknown",
+                    banner=banner,
+                    version_string=version,
+                    cert_expiry=expiry
+                )
+        
         if product and version:
             logger.info(f"Identified {product} {version} on {ip}:{port}")
             
@@ -135,7 +150,8 @@ def main():
                     mac = asset['mac']
                     ip = asset['ip']
                     interface = asset.get('interface')
-                    db.upsert_asset(mac=mac, ip=ip, interface=interface)
+                    # Router discovery knows the 'parent' (the router itself)
+                    db.upsert_asset(mac=mac, ip=ip, interface=interface, parent_mac=router_host)
                     processed_macs.add(mac)
                     
                     # If active scan also found it, use its ports

@@ -25,6 +25,12 @@ class Datastore:
                 hostname TEXT,
                 vendor TEXT,
                 interface TEXT,
+                approved INTEGER DEFAULT 0,
+                tags TEXT DEFAULT '[]',
+                owner TEXT,
+                location TEXT,
+                device_type TEXT,
+                parent_mac TEXT,
                 first_seen DATETIME,
                 last_seen DATETIME,
                 status TEXT DEFAULT 'active'
@@ -41,6 +47,7 @@ class Datastore:
                 service_name TEXT,
                 banner TEXT,
                 version_string TEXT,
+                cert_expiry DATETIME,
                 last_seen DATETIME,
                 FOREIGN KEY(mac_address) REFERENCES assets(mac_address),
                 UNIQUE(mac_address, port, proto)
@@ -79,12 +86,42 @@ class Datastore:
             try:
                 c.execute("ALTER TABLE assets ADD COLUMN interface TEXT")
             except Exception as e:
-                print(f"Migration error: {e}")
+                print(f"Migration error (interface): {e}")
+
+        new_columns = {
+            'approved': 'INTEGER DEFAULT 0',
+            'tags': "TEXT DEFAULT '[]'",
+            'owner': 'TEXT',
+            'location': 'TEXT',
+            'device_type': 'TEXT',
+            'parent_mac': 'TEXT'
+        }
+
+        for col, col_type in new_columns.items():
+            if col not in columns:
+                print(f"Migrating database: Adding '{col}' column to 'assets' table.")
+                try:
+                    c.execute(f"ALTER TABLE assets ADD COLUMN {col} {col_type}")
+                    # If we just added 'approved', set it to 1 for existing devices
+                    if col == 'approved':
+                        c.execute("UPDATE assets SET approved = 1")
+                except Exception as e:
+                    print(f"Migration error ({col}): {e}")
+
+        # Check for 'cert_expiry' in 'services' table
+        c.execute("PRAGMA table_info(services)")
+        service_columns = [info[1] for info in c.fetchall()]
+        if 'cert_expiry' not in service_columns:
+            print("Migrating database: Adding 'cert_expiry' column to 'services' table.")
+            try:
+                c.execute("ALTER TABLE services ADD COLUMN cert_expiry DATETIME")
+            except Exception as e:
+                print(f"Migration error (cert_expiry): {e}")
         
         conn.commit()
         conn.close()
 
-    def upsert_asset(self, mac, ip, hostname=None, vendor=None, interface=None):
+    def upsert_asset(self, mac, ip, hostname=None, vendor=None, interface=None, parent_mac=None):
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
         now = datetime.datetime.now()
@@ -105,28 +142,53 @@ class Datastore:
                  c.execute("UPDATE assets SET vendor=? WHERE mac_address=?", (vendor, mac))
             if interface:
                  c.execute("UPDATE assets SET interface=? WHERE mac_address=?", (interface, mac))
+            if parent_mac:
+                 c.execute("UPDATE assets SET parent_mac=? WHERE mac_address=?", (parent_mac, mac))
         else:
             c.execute('''
-                INSERT INTO assets (mac_address, ip_address, hostname, vendor, interface, first_seen, last_seen)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (mac, ip, hostname, vendor, interface, now, now))
+                INSERT INTO assets (mac_address, ip_address, hostname, vendor, interface, parent_mac, first_seen, last_seen)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (mac, ip, hostname, vendor, interface, parent_mac, now, now))
             
         conn.commit()
         conn.close()
 
-    def upsert_service(self, mac, port, proto, service_name, banner, version_string):
+    def approve_asset(self, mac):
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+        c.execute("UPDATE assets SET approved=1 WHERE mac_address=?", (mac,))
+        conn.commit()
+        conn.close()
+
+    def update_asset_governance(self, mac, owner=None, location=None, device_type=None, tags=None):
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+        if owner is not None:
+            c.execute("UPDATE assets SET owner=? WHERE mac_address=?", (owner, mac))
+        if location is not None:
+            c.execute("UPDATE assets SET location=? WHERE mac_address=?", (location, mac))
+        if device_type is not None:
+            c.execute("UPDATE assets SET device_type=? WHERE mac_address=?", (device_type, mac))
+        if tags is not None:
+            import json
+            c.execute("UPDATE assets SET tags=? WHERE mac_address=?", (json.dumps(tags), mac))
+        conn.commit()
+        conn.close()
+
+    def upsert_service(self, mac, port, proto, service_name, banner, version_string, cert_expiry=None):
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
         now = datetime.datetime.now()
         
         c.execute('''
-            INSERT INTO services (mac_address, port, proto, service_name, banner, version_string, last_seen)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO services (mac_address, port, proto, service_name, banner, version_string, cert_expiry, last_seen)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(mac_address, port, proto) DO UPDATE SET
             banner=excluded.banner,
             version_string=excluded.version_string,
+            cert_expiry=excluded.cert_expiry,
             last_seen=excluded.last_seen
-        ''', (mac, port, proto, service_name, banner, version_string, now))
+        ''', (mac, port, proto, service_name, banner, version_string, cert_expiry, now))
         
         conn.commit()
         conn.close()

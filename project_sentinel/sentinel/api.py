@@ -1,6 +1,6 @@
 import logging
 import os
-from flask import Flask, jsonify, send_from_directory
+from flask import Flask, jsonify, send_from_directory, request
 from sentinel.datastore import Datastore
 
 # Configure Logging
@@ -34,6 +34,39 @@ def get_vulnerabilities():
         return jsonify(vulnerabilities)
     except Exception as e:
         logger.error(f"Error fetching vulnerabilities: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/assets/approve', methods=['POST'])
+def approve_asset():
+    try:
+        data = request.json
+        mac = data.get('mac')
+        if not mac:
+            return jsonify({"error": "MAC address required"}), 400
+        db.approve_asset(mac)
+        return jsonify({"status": "success"})
+    except Exception as e:
+        logger.error(f"Error approving asset: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/assets/update', methods=['POST'])
+def update_asset():
+    try:
+        data = request.json
+        mac = data.get('mac')
+        if not mac:
+            return jsonify({"error": "MAC address required"}), 400
+        
+        db.update_asset_governance(
+            mac=mac,
+            owner=data.get('owner'),
+            location=data.get('location'),
+            device_type=data.get('device_type'),
+            tags=data.get('tags')
+        )
+        return jsonify({"status": "success"})
+    except Exception as e:
+        logger.error(f"Error updating asset: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/stats')

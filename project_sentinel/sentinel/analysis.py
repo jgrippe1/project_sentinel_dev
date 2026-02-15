@@ -1,5 +1,8 @@
-import socket
 import re
+import ssl
+import socket
+import datetime
+from datetime import timezone
 
 def grab_banner(ip, port, timeout=2):
     """
@@ -52,3 +55,25 @@ def analyze_banner(banner):
         return generic_match.group(1), generic_match.group(2)
             
     return None, None
+
+def get_ssl_expiry(ip, port, timeout=3):
+    """
+    Attempts to retrieve the SSL certificate expiry date for a given IP and port.
+    Returns a datetime object or None.
+    """
+    try:
+        context = ssl.create_default_context()
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+        
+        with socket.create_connection((ip, port), timeout=timeout) as sock:
+            with context.wrap_socket(sock, server_hostname=ip) as ssock:
+                cert_dict = ssock.getpeercert()
+                if cert_dict and 'notAfter' in cert_dict:
+                    expiry_str = cert_dict['notAfter']
+                    # Example: 'Aug 21 12:00:00 2026 GMT'
+                    return datetime.datetime.strptime(expiry_str, '%b %d %H:%M:%S %Y %Z')
+        
+    except Exception:
+        pass
+    return None
