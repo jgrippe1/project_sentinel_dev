@@ -505,8 +505,6 @@
                     <div style="margin-top: 2rem; display: flex; gap: 1rem;">
                         <button class="btn btn-primary" style="flex: 1" onclick="saveAssetDetail()">Apply
                             Changes</button>
-                        <button class="btn btn-danger" data-tooltip="Blocks device traffic at the Firewall level"
-                            onclick="alert('Sent isolation command to router API')">Isolate IP</button>
                     </div>
                 </div>
 
@@ -1172,8 +1170,9 @@
                 <p style="margin-bottom: 2rem; line-height: 1.6;">${v.description}</p>
                 <span class="section-title">Automated Playbooks</span>
                 <div style="display: flex; flex-direction: column; gap: 1rem;">
-                    <button class="btn btn-primary" onclick="alert('Patch check initiated via HACS API')">Check for Patch via HACS</button>
-                    <button class="btn btn-danger" data-tooltip="Blocks device traffic at the Firewall level">Isolate IP ${v.ip_address}</button>
+                    <div class="card" style="text-align: center; color: var(--text-muted); padding: 1rem;">
+                        No automated playbooks currently available for this CVE. Manual remediation required.
+                    </div>
                 </div>
             `;
             openModal('remediation');
