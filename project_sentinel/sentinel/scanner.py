@@ -1,8 +1,8 @@
 import socket
 import ipaddress
 import concurrent.futures
-import time
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -39,9 +39,16 @@ class RouterDiscovery:
 
         try:
             if self.ssh_key:
-                logger.debug(f"Connecting to router {self.host} with SSH key")
-                ssh.connect(self.host, port=self.port, username=self.username, key_filename=self.ssh_key, timeout=10)
-            else:
+                if not os.path.exists(self.ssh_key):
+                    logger.error(f"SSH Key file not found at: {self.ssh_key}")
+                    # If password exists, try falling back
+                    if not self.password:
+                        return []
+                else:
+                    logger.debug(f"Connecting to router {self.host} with SSH key: {self.ssh_key}")
+                    ssh.connect(self.host, port=self.port, username=self.username, key_filename=self.ssh_key, timeout=10)
+            
+            if not self.ssh_key or (self.password and not ssh.get_transport()):
                 logger.debug(f"Connecting to router {self.host} with password")
                 ssh.connect(self.host, port=self.port, username=self.username, password=self.password, timeout=10)
 
