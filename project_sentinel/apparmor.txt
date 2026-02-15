@@ -1,5 +1,5 @@
 # Project Sentinel AppArmor Profile
-# Using the mandatory ###SLUG### placeholder for Home Assistant compatibility.
+# Updated for s6-overlay v3 compatibility in Home Assistant.
 
 #include <tunables/global>
 
@@ -8,31 +8,40 @@ profile ###SLUG### flags=(attach_disconnected,mediate_deleted) {
   #include <abstractions/python>
   #include <abstractions/nameservice>
 
-  # Allow common system execution paths
+  # Core s6-overlay v3 execution permissions
+  /init rmix,
   /bin/** rmix,
   /sbin/** rmix,
   /usr/bin/** rmix,
   /usr/sbin/** rmix,
   /lib/** rmix,
   /usr/lib/** rmix,
-
-  # Allow the s6-overlay /init system
-  /init rmix,
+  /usr/libexec/** rmix,
+  
+  # s6-overlay specific runtime paths
+  /run/s6/** rmix,
+  /run/s6-rc*/** rmix,
+  /run/service/** rmix,
+  
+  # Capabilities required for init and network scanning
+  capability net_admin,
+  capability net_raw,
+  capability setuid,
+  capability setgid,
+  capability sys_chroot,
 
   # Network access
   network,
-  capability net_admin,
-  capability net_raw,
 
-  # Filesystem access for database and options
+  # Filesystem access
   /share/sentinel.db* rw,
   /data/** rw,
   /tmp/** rw,
   /run/** rw,
   /proc/** r,
   /sys/** r,
-
-  # Python specific
+  
+  # Python specifics
   /usr/local/lib/python*/** r,
   /usr/local/bin/python* rmix,
 
