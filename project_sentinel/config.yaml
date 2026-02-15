@@ -1,5 +1,5 @@
 name: "Project Sentinel"
-version: "0.1.37"
+version: "0.1.38"
 slug: "project_sentinel"
 description: "Home Network Governance & Risk Management"
 url: "https://github.com/jgrippe1/project_sentinel_dev"
@@ -15,6 +15,7 @@ privileged:
   - NET_ADMIN
   - NET_RAW
 auth_api: true
+homeassistant_api: true
 apparmor: true
 options:
   scan_interval: 15
