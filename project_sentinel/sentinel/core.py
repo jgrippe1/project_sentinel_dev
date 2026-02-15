@@ -21,6 +21,7 @@ def load_config():
         "log_level": "info",
         "nvd_api_key": "",
         "router_host": "192.168.50.1",
+        "router_port": 22,
         "router_username": "",
         "router_password": "",
         "router_ssh_key": ""
@@ -113,6 +114,7 @@ def main():
                     from sentinel.scanner import RouterDiscovery
                     rd = RouterDiscovery(
                         host=router_host,
+                        port=config.get("router_port", 22),
                         username=router_user,
                         password=config.get("router_password"),
                         ssh_key=config.get("router_ssh_key")

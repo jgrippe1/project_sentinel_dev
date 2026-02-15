@@ -1,5 +1,5 @@
 name: "Project Sentinel"
-version: "0.1.18"
+version: "0.1.19"
 slug: "project_sentinel"
 description: "Home Network Governance & Risk Management"
 url: "https://github.com/jgrippe1/project_sentinel_dev"
@@ -22,6 +22,7 @@ options:
   log_level: "info"
   nvd_api_key: ""
   router_host: "192.168.50.1"
+  router_port: 22
   router_username: ""
   router_password: ""
   router_ssh_key: ""
@@ -32,6 +33,7 @@ schema:
   log_level: list(debug, info, warning)
   nvd_api_key: str?
   router_host: str?
+  router_port: int?
   router_username: str?
   router_password: password?
   router_ssh_key: str?
