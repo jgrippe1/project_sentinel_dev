@@ -79,7 +79,23 @@ class RouterDiscovery:
                 except Exception:
                     continue
 
-            # 2. Get ARP Table
+            # 2. Get DHCP / Client List (Often has names/types on ASUS)
+            # Try /tmp/client_list first (Merlin/Stock ASUS)
+            stdin, stdout, stderr = ssh.exec_command("cat /tmp/client_list")
+            client_output = stdout.read().decode().strip()
+            
+            # Format is often: Interface>MAC>IP>Name>Type>...
+            router_metadata = {}
+            if client_output and "No such file" not in client_output:
+                for line in client_output.splitlines():
+                    parts = line.split('>')
+                    if len(parts) >= 5:
+                        mac = parts[1].upper()
+                        name = parts[3]
+                        dev_type = parts[4] # This is often an icon ID or type name
+                        router_metadata[mac] = {"name": name, "type": dev_type}
+
+            # 3. Get ARP Table
             stdin, stdout, stderr = ssh.exec_command("cat /proc/net/arp")
             arp_output = stdout.read().decode().splitlines()
             for line in arp_output[1:]:
@@ -88,14 +104,17 @@ class RouterDiscovery:
                     ip = parts[0]
                     mac = parts[3].upper()
                     if mac != "00:00:00:00:00:00":
+                        meta = router_metadata.get(mac, {})
                         clients.append({
                             "ip": ip,
                             "mac": mac,
-                            "interface": "Wireless" if mac in wireless_macs else "Wired"
+                            "interface": "Wireless" if mac in wireless_macs else "Wired",
+                            "hostname": meta.get("name"),
+                            "type": meta.get("type")
                         })
             
             ssh.close()
-            logger.info(f"Successfully fetched {len(clients)} clients from router.")
+            logger.info(f"Successfully fetched {len(clients)} clients from router with metadata.")
         except Exception as e:
             logger.error(f"Failed to fetch clients from router: {e}")
         

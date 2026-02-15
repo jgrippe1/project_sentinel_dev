@@ -417,13 +417,24 @@
                         <label>Infrastructure Category</label>
                         <select id="detail-type">
                             <option value="IoT">IoT / Smart Home</option>
+                            <option value="Security">Security / Alarm</option>
+                            <option value="Camera">Surveillance / Camera</option>
+                            <option value="Light">Smart Lighting</option>
+                            <option value="Plug">Smart Plug / Power</option>
+                            <option value="Sensor">Environmental Sensor</option>
                             <option value="Workstation">Workstation / Laptop</option>
                             <option value="Mobile">Mobile Device</option>
                             <option value="Server">Server Infrastructure</option>
-                            <option value="Media">Media / Entertainment</option>
-                            <option value="Network">Core Networking</option>
+                            <option value="NAS">Network Attached Storage</option>
+                            <option value="Gaming">Gaming Console</option>
+                            <option value="Media">Media / Entertainment / TV</option>
+                            <option value="Network">Core Networking / Router</option>
+                            <option value="Printer">Printer / Scanner</option>
+                            <option value="Voice">Voice Assistant (Alexa/Google)</option>
                             <option value="Unknown">Unknown / Other</option>
                         </select>
+                        <div id="detail-original-type"
+                            style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px;"></div>
                     </div>
 
                     <span class="section-title" style="margin-top: 2rem;">Suggested Integrations</span>
@@ -707,7 +718,17 @@
             document.getElementById('detail-subtitle').innerText = `MAC: ${mac} | IP: ${a.ip_address}`;
             document.getElementById('detail-custom-name').value = a.custom_name || '';
             document.getElementById('detail-location').value = a.location || '';
-            document.getElementById('detail-type').value = a.device_type || 'IoT';
+
+            // Set category: Use manually selected device_type, fall back to original discovery, default to Unknown
+            document.getElementById('detail-type').value = a.device_type || a.original_device_type || 'Unknown';
+
+            const originalType = document.getElementById('detail-original-type');
+            if (a.original_device_type) {
+                originalType.innerText = `Originally discovered as: ${a.original_device_type}`;
+                originalType.classList.remove('hidden');
+            } else {
+                originalType.classList.add('hidden');
+            }
 
             const assetVulns = allVulns.filter(v => v.mac_address === mac);
             const vulnContainer = document.getElementById('detail-vuln-list');

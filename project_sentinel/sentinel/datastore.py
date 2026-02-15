@@ -30,6 +30,7 @@ class Datastore:
                 custom_name TEXT,
                 location TEXT,
                 device_type TEXT,
+                original_device_type TEXT,
                 parent_mac TEXT,
                 first_seen DATETIME,
                 last_seen DATETIME,
@@ -108,6 +109,14 @@ class Datastore:
                 except Exception as e:
                     print(f"Migration error ({col}): {e}")
 
+        # Check for 'original_device_type' in 'assets' table
+        if 'original_device_type' not in columns:
+            print("Migrating database: Adding 'original_device_type' column to 'assets' table.")
+            try:
+                c.execute("ALTER TABLE assets ADD COLUMN original_device_type TEXT")
+            except Exception as e:
+                print(f"Migration error (original_device_type): {e}")
+
         # Check for 'custom_name' in 'assets' table
         if 'custom_name' not in columns:
             print("Migrating database: Adding 'custom_name' column to 'assets' table.")
@@ -132,7 +141,7 @@ class Datastore:
         conn.commit()
         conn.close()
 
-    def upsert_asset(self, mac, ip, hostname=None, vendor=None, interface=None, parent_mac=None):
+    def upsert_asset(self, mac, ip, hostname=None, vendor=None, interface=None, parent_mac=None, original_device_type=None):
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
         now = datetime.datetime.now()
@@ -155,11 +164,13 @@ class Datastore:
                  c.execute("UPDATE assets SET interface=? WHERE mac_address=?", (interface, mac))
             if parent_mac:
                  c.execute("UPDATE assets SET parent_mac=? WHERE mac_address=?", (parent_mac, mac))
+            if original_device_type:
+                 c.execute("UPDATE assets SET original_device_type=? WHERE mac_address=?", (original_device_type, mac))
         else:
             c.execute('''
-                INSERT INTO assets (mac_address, ip_address, hostname, vendor, interface, parent_mac, first_seen, last_seen)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (mac, ip, hostname, vendor, interface, parent_mac, now, now))
+                INSERT INTO assets (mac_address, ip_address, hostname, vendor, interface, parent_mac, original_device_type, first_seen, last_seen)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (mac, ip, hostname, vendor, interface, parent_mac, original_device_type, now, now))
             
         conn.commit()
         conn.close()

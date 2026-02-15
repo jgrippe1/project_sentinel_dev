@@ -150,8 +150,10 @@ def main():
                     mac = asset['mac']
                     ip = asset['ip']
                     interface = asset.get('interface')
+                    hostname = asset.get('hostname')
+                    original_type = asset.get('type')
                     # Router discovery knows the 'parent' (the router itself)
-                    db.upsert_asset(mac=mac, ip=ip, interface=interface, parent_mac=router_host)
+                    db.upsert_asset(mac=mac, ip=ip, hostname=hostname, interface=interface, parent_mac=router_host, original_device_type=original_type)
                     processed_macs.add(mac)
                     
                     # If active scan also found it, use its ports
