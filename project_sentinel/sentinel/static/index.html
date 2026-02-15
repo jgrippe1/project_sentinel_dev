@@ -340,11 +340,80 @@
             display: none !important;
         }
 
-        /* Remediation Cards */
-        .remediation-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 1.5rem;
+        /* Modals */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .modal-card {
+            background: var(--sidebar-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            width: 90%;
+            max-width: 500px;
+            padding: 2.5rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            transform: scale(0.95);
+            transition: transform 0.3s ease;
+        }
+
+        .modal-overlay.active .modal-card {
+            transform: scale(1);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .modal-body {
+            margin-bottom: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            padding: 0.8rem;
+            border-radius: 12px;
+            color: white;
+            outline: none;
+        }
+
+        .form-group input:focus {
+            border-color: var(--primary);
         }
     </style>
 </head>
@@ -352,6 +421,60 @@
 <body>
     <div id="loader">
         <div class="spinner"></div>
+    </div>
+
+    <!-- Modals -->
+    <div id="modal-edit" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>Edit Asset Metadata</h3>
+                <button class="btn btn-ghost" onclick="closeModal('edit')">✕</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="edit-mac">
+                <div class="form-group">
+                    <label>MAC Address</label>
+                    <input type="text" id="edit-mac-display" disabled>
+                </div>
+                <div class="form-group">
+                    <label>Asset Owner</label>
+                    <input type="text" id="edit-owner" placeholder="e.g. John Doe">
+                </div>
+                <div class="form-group">
+                    <label>Location / Area</label>
+                    <input type="text" id="edit-location" placeholder="e.g. Living Room">
+                </div>
+                <div class="form-group">
+                    <label>Device Type</label>
+                    <select id="edit-type">
+                        <option value="Laptop">Laptop</option>
+                        <option value="Smartphone">Smartphone</option>
+                        <option value="IoT">IoT Device</option>
+                        <option value="Server">Server</option>
+                        <option value="Infrastructure">Infrastructure</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; gap: 1rem;">
+                <button class="btn btn-primary" style="flex: 2" onclick="saveAsset()">Save Changes</button>
+                <button class="btn btn-ghost" style="flex: 1" onclick="closeModal('edit')">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-remediation" class="modal-overlay">
+        <div class="modal-card" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3>Vulnerability Remediation</h3>
+                <button class="btn btn-ghost" onclick="closeModal('remediation')">✕</button>
+            </div>
+            <div class="modal-body" id="remediation-body">
+                <!-- Content injected here -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" style="width: 100%" onclick="closeModal('remediation')">Close</button>
+            </div>
+        </div>
     </div>
 
     <nav>
@@ -457,7 +580,7 @@
             <div class="page-header">
                 <div class="page-title">
                     <h2>Network Topology</h2>
-                    <p>Visual relationship graph of your infrastructure</p>
+                    <p>Hierarchical visual of your network infrastructure</p>
                 </div>
                 <button class="btn btn-ghost" onclick="initTopology()">Relayout Graph</button>
             </div>
@@ -479,6 +602,66 @@
             if (tabId === 'topology') initTopology();
         }
 
+        function openModal(id) { document.getElementById(`modal-${id}`).classList.add('active'); }
+        function closeModal(id) { document.getElementById(`modal-${id}`).classList.remove('active'); }
+
+        function openEditModal(mac) {
+            const asset = allAssets.find(a => a.mac_address === mac);
+            if (!asset) return;
+
+            document.getElementById('edit-mac').value = mac;
+            document.getElementById('edit-mac-display').value = mac;
+            document.getElementById('edit-owner').value = asset.owner || '';
+            document.getElementById('edit-location').value = asset.location || '';
+            document.getElementById('edit-type').value = asset.device_type || 'IoT';
+
+            openModal('edit');
+        }
+
+        async function saveAsset() {
+            const mac = document.getElementById('edit-mac').value;
+            const payload = {
+                mac,
+                owner: document.getElementById('edit-owner').value,
+                location: document.getElementById('edit-location').value,
+                device_type: document.getElementById('edit-type').value
+            };
+
+            try {
+                const res = await fetch('api/assets/update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    closeModal('edit');
+                    loadData();
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        function openRemediationModal(vulnIndex) {
+            const v = allVulns[vulnIndex];
+            if (!v) return;
+
+            const body = document.getElementById('remediation-body');
+            body.innerHTML = `
+                <div style="margin-bottom: 1.5rem;">
+                    <span style="background: var(--danger); color: white; padding: 2px 8px; border-radius: 6px; font-weight: 800; font-size: 0.8rem;">CVE ALERT</span>
+                    <h2 style="margin: 1rem 0 0.5rem 0;">${v.cve_id}</h2>
+                    <p style="color: var(--text-muted); font-size: 0.9rem;">Target: ${v.ip_address} | CVSS Score: ${v.cvss_score}</p>
+                </div>
+                <div class="card" style="background: rgba(255,255,255,0.03); margin-bottom: 2rem;">
+                    <p style="line-height: 1.6; font-size: 0.95rem;">${v.description}</p>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 1rem;">
+                    <button class="btn btn-primary">Download Manufacturer Patch</button>
+                    <button class="btn btn-danger">Isolate IP ${v.ip_address}</button>
+                </div>
+            `;
+            openModal('remediation');
+        }
+
         async function approveAsset(mac) {
             try {
                 const res = await fetch('api/assets/approve', {
@@ -492,11 +675,9 @@
 
         async function loadData() {
             try {
-                // Fetch Assets
                 const resAssets = await fetch('api/assets');
                 allAssets = await resAssets.json();
 
-                // Fetch Vulnerabilities
                 const resVulns = await fetch('api/vulnerabilities');
                 allVulns = await resVulns.json();
 
@@ -553,14 +734,14 @@
                         <span style="font-size: 0.7rem;">via ${a.interface || 'LAN'}</span>
                     </td>
                     <td>
-                        <span style="color: var(--text-muted); font-size: 0.8rem;">${a.owner || 'Unassigned'}</span><br>
-                        <span>${a.location || 'Unknown'}</span>
+                        <span style="color: var(--text); font-weight: 600;">${a.owner || 'Unassigned'}</span><br>
+                        <span style="font-size: 0.8rem; color: var(--text-muted);">${a.location || 'No Location'}</span>
                     </td>
                     <td>
                         <span class="btn" style="padding: 2px 8px; font-size: 0.7rem; background: rgba(16,185,129,0.1); color: var(--success);">TRUSTED</span>
                     </td>
                     <td>
-                        <button class="btn btn-ghost" style="padding: 4px 8px;">Edit</button>
+                        <button class="btn btn-ghost" style="padding: 4px 8px;" onclick="openEditModal('${a.mac_address}')">Edit</button>
                     </td>
                 </tr>
             `).join('');
@@ -573,7 +754,7 @@
             document.getElementById('stat-total-v').innerText = allVulns.length;
             document.getElementById('stat-critical-v').innerText = criticals.length;
 
-            container.innerHTML = criticals.slice(0, 4).map(v => `
+            container.innerHTML = criticals.slice(0, 4).map((v, idx) => `
                 <div class="card" style="border-top: 4px solid var(--danger); margin-bottom: 0;">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
                         <span style="background: var(--danger); color: white; padding: 2px 8px; border-radius: 6px; font-weight: 800; font-size: 0.8rem;">CRITICAL</span>
@@ -584,7 +765,7 @@
                         ${v.description.substring(0, 100)}...
                     </p>
                     <div class="item-actions">
-                        <button class="btn btn-primary" style="width: 100%;">View Remediation</button>
+                        <button class="btn btn-primary" style="width: 100%;" onclick="openRemediationModal(${idx})">View Remediation</button>
                     </div>
                 </div>
             `).join('');
@@ -592,10 +773,11 @@
 
         function initTopology() {
             const elements = [];
-            // Add central router node
-            elements.push({ data: { id: 'router', label: 'Router (192.168.50.1)', type: 'core' } });
+            elements.push({ data: { id: 'router', label: 'Gateway: 192.168.50.1', type: 'core' } });
 
+            // Group devices by parent_mac or interface
             allAssets.forEach(a => {
+                const parentId = a.parent_mac === '192.168.50.1' ? 'router' : (a.parent_mac || 'router');
                 elements.push({
                     data: {
                         id: a.mac_address,
@@ -603,11 +785,9 @@
                         type: a.interface === 'Wireless' ? 'wireless' : 'wired'
                     }
                 });
-
-                // Link to router
                 elements.push({
                     data: {
-                        source: 'router',
+                        source: parentId,
                         target: a.mac_address,
                         style: a.interface === 'Wireless' ? 'dashed' : 'solid'
                     }
@@ -626,19 +806,37 @@
                             'color': '#fff',
                             'font-size': '10px',
                             'text-valign': 'bottom',
-                            'width': '30px', 'height': '30px'
+                            'width': '30px', 'height': '30px',
+                            'text-margin-y': 5
                         }
                     },
                     {
                         selector: 'node[type="core"]',
-                        style: { 'background-color': '#f43f5e', 'width': '50px', 'height': '50px', 'font-size': '12px' }
+                        style: { 'background-color': '#f43f5e', 'width': '50px', 'height': '50px', 'font-size': '12px', 'font-weight': 'bold' }
+                    },
+                    {
+                        selector: 'node[type="wireless"]',
+                        style: { 'background-color': '#0ea5e9' }
                     },
                     {
                         selector: 'edge',
-                        style: { 'width': 2, 'line-color': 'rgba(255,255,255,0.1)', 'curve-style': 'bezier' }
+                        style: {
+                            'width': 2,
+                            'line-color': 'rgba(255,255,255,0.1)',
+                            'curve-style': 'taxi',
+                            'line-style': 'data(style)',
+                            'target-arrow-shape': 'triangle',
+                            'target-arrow-color': 'rgba(255,255,255,0.1)'
+                        }
                     }
                 ],
-                layout: { name: 'cose', animate: true }
+                layout: {
+                    name: 'breadthfirst',
+                    directed: true,
+                    padding: 40,
+                    animate: true,
+                    spacingFactor: 1.2
+                }
             });
         }
 
