@@ -8,8 +8,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
-    <!-- Cytoscape for Topology -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.26.0/cytoscape.min.js"></script>
     <style>
         :root {
             --primary: #6366f1;
@@ -67,7 +65,6 @@
             -webkit-background-clip: text;
             background-clip: text;
             -webkit-text-fill-color: transparent;
-            letter-spacing: -0.5px;
         }
 
         .nav-links {
@@ -139,57 +136,7 @@
             }
         }
 
-        /* Header UI */
-        .page-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 2.5rem;
-        }
-
-        .page-title h2 {
-            font-size: 2rem;
-            font-weight: 700;
-            margin-bottom: 0.25rem;
-        }
-
-        .page-title p {
-            color: var(--text-muted);
-            font-size: 0.95rem;
-        }
-
-        /* Cards & Stats */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 3rem;
-        }
-
-        .stat-card {
-            background: var(--card-bg);
-            backdrop-filter: blur(12px);
-            border: 1px solid var(--glass-border);
-            padding: 1.5rem;
-            border-radius: 20px;
-            transition: transform 0.3s ease;
-        }
-
-        .stat-value {
-            font-size: 2.2rem;
-            font-weight: 800;
-            display: block;
-            margin-bottom: 0.2rem;
-        }
-
-        .stat-label {
-            color: var(--text-muted);
-            font-size: 0.8rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        /* Tables & Lists */
+        /* Shared Components */
         .card {
             background: var(--card-bg);
             backdrop-filter: blur(16px);
@@ -200,73 +147,6 @@
             overflow-x: auto;
         }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th {
-            text-align: left;
-            padding: 1rem;
-            color: var(--text-muted);
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            border-bottom: 1px solid var(--glass-border);
-        }
-
-        td {
-            padding: 1rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-            font-size: 0.9rem;
-        }
-
-        /* Inbox Style */
-        .inbox-item {
-            display: flex;
-            align-items: center;
-            gap: 1.5rem;
-            padding: 1.25rem;
-            background: rgba(255, 255, 255, 0.02);
-            border-radius: 16px;
-            margin-bottom: 1rem;
-            border: 1px solid transparent;
-            transition: all 0.2s ease;
-        }
-
-        .inbox-item:hover {
-            border-color: var(--primary-glow);
-            background: rgba(255, 255, 255, 0.04);
-        }
-
-        .device-icon {
-            width: 48px;
-            height: 48px;
-            background: rgba(99, 102, 241, 0.1);
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-        }
-
-        .item-info {
-            flex-grow: 1;
-        }
-
-        .item-info h4 {
-            margin-bottom: 0.2rem;
-        }
-
-        .item-info span {
-            color: var(--text-muted);
-            font-size: 0.8rem;
-        }
-
-        .item-actions {
-            display: flex;
-            gap: 0.5rem;
-        }
-
         .btn {
             padding: 0.6rem 1rem;
             border-radius: 10px;
@@ -275,6 +155,7 @@
             font-weight: 600;
             font-size: 0.85rem;
             transition: all 0.2s ease;
+            position: relative;
         }
 
         .btn-primary {
@@ -298,16 +179,178 @@
             filter: brightness(1.2);
         }
 
-        /* Topology Container */
-        #topology-container {
-            width: 100%;
-            height: 600px;
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 20px;
+        /* Tooltips */
+        .btn[data-tooltip]:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1e293b;
+            color: white;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            white-space: nowrap;
+            z-index: 10;
             border: 1px solid var(--glass-border);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
         }
 
-        /* Loading */
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            text-align: left;
+            padding: 1rem;
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        td {
+            padding: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+            font-size: 0.9rem;
+        }
+
+        tr.clickable:hover {
+            background: rgba(255, 255, 255, 0.02);
+            cursor: pointer;
+        }
+
+        /* Tree List Topology */
+        .tree-node {
+            margin-left: 1.5rem;
+            border-left: 1px solid var(--glass-border);
+            padding-left: 1rem;
+        }
+
+        .tree-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.5rem 0;
+        }
+
+        .tree-icon {
+            width: 24px;
+            text-align: center;
+        }
+
+        /* Detail Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(12px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .modal-card {
+            background: var(--sidebar-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 28px;
+            width: 95%;
+            max-width: 900px;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+        }
+
+        .modal-content {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 2.5rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2.5rem;
+        }
+
+        .modal-header {
+            padding: 1.5rem 2.5rem;
+            border-bottom: 1px solid var(--glass-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .section-title {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+            margin-bottom: 1rem;
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            padding: 0.8rem;
+            border-radius: 12px;
+            color: white;
+            outline: none;
+        }
+
+        .vuln-item {
+            background: rgba(244, 63, 94, 0.05);
+            border: 1px solid rgba(244, 63, 94, 0.1);
+            padding: 1rem;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+        }
+
+        .integration-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 1rem;
+            border-radius: 12px;
+            margin-bottom: 0.5rem;
+            border: 1px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .integration-item:hover {
+            border-color: var(--primary);
+            background: rgba(99, 102, 241, 0.05);
+        }
+
         #loader {
             position: fixed;
             top: 0;
@@ -339,82 +382,6 @@
         .hidden {
             display: none !important;
         }
-
-        /* Modals */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(8px);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 2000;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s ease;
-        }
-
-        .modal-overlay.active {
-            opacity: 1;
-            pointer-events: all;
-        }
-
-        .modal-card {
-            background: var(--sidebar-bg);
-            border: 1px solid var(--glass-border);
-            border-radius: 24px;
-            width: 90%;
-            max-width: 500px;
-            padding: 2.5rem;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-            transform: scale(0.95);
-            transition: transform 0.3s ease;
-        }
-
-        .modal-overlay.active .modal-card {
-            transform: scale(1);
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 2rem;
-        }
-
-        .modal-body {
-            margin-bottom: 2rem;
-        }
-
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 0.5rem;
-            color: var(--text-muted);
-            font-size: 0.85rem;
-        }
-
-        .form-group input,
-        .form-group select {
-            width: 100%;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid var(--glass-border);
-            padding: 0.8rem;
-            border-radius: 12px;
-            color: white;
-            outline: none;
-        }
-
-        .form-group input:focus {
-            border-color: var(--primary);
-        }
     </style>
 </head>
 
@@ -424,55 +391,82 @@
     </div>
 
     <!-- Modals -->
-    <div id="modal-edit" class="modal-overlay">
+    <div id="modal-asset-detail" class="modal-overlay">
         <div class="modal-card">
             <div class="modal-header">
-                <h3>Edit Asset Metadata</h3>
-                <button class="btn btn-ghost" onclick="closeModal('edit')">✕</button>
+                <div>
+                    <h2 id="detail-title">Asset Detail</h2>
+                    <p id="detail-subtitle" style="color: var(--text-muted); font-size: 0.85rem;"></p>
+                </div>
+                <button class="btn btn-ghost" onclick="closeModal('asset-detail')">✕</button>
             </div>
-            <div class="modal-body">
-                <input type="hidden" id="edit-mac">
-                <div class="form-group">
-                    <label>MAC Address</label>
-                    <input type="text" id="edit-mac-display" disabled>
+            <div class="modal-content">
+                <!-- Left: Governance & Info -->
+                <div class="modal-column">
+                    <span class="section-title">Governance & Identity</span>
+                    <input type="hidden" id="detail-mac">
+                    <div class="form-group">
+                        <label>Friendly Custom Name</label>
+                        <input type="text" id="detail-custom-name" placeholder="Name this asset...">
+                    </div>
+                    <div class="form-group">
+                        <label>Physical Location / Area</label>
+                        <input type="text" id="detail-location" placeholder="e.g. Server Closet, Kitchen">
+                    </div>
+                    <div class="form-group">
+                        <label>Infrastructure Category</label>
+                        <select id="detail-type">
+                            <option value="IoT">IoT / Smart Home</option>
+                            <option value="Workstation">Workstation / Laptop</option>
+                            <option value="Mobile">Mobile Device</option>
+                            <option value="Server">Server Infrastructure</option>
+                            <option value="Media">Media / Entertainment</option>
+                            <option value="Network">Core Networking</option>
+                            <option value="Unknown">Unknown / Other</option>
+                        </select>
+                    </div>
+
+                    <span class="section-title" style="margin-top: 2rem;">Suggested Integrations</span>
+                    <div id="integration-list">
+                        <!-- suggestions injected here -->
+                    </div>
+
+                    <div style="margin-top: 2rem; display: flex; gap: 1rem;">
+                        <button class="btn btn-primary" style="flex: 1" onclick="saveAssetDetail()">Apply
+                            Changes</button>
+                        <button class="btn btn-danger" data-tooltip="Blocks device traffic at the Firewall level"
+                            onclick="alert('Sent isolation command to router API')">Isolate IP</button>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>Asset Owner</label>
-                    <input type="text" id="edit-owner" placeholder="e.g. John Doe">
+
+                <!-- Right: Security & Vulnerabilities -->
+                <div class="modal-column">
+                    <span class="section-title">Security Intelligence</span>
+                    <div id="detail-vuln-list">
+                        <!-- vulnerabilities here -->
+                    </div>
+                    <div id="no-vulns" class="card" style="text-align:center; padding: 2rem;">
+                        <span style="font-size: 2rem;">🛡️</span>
+                        <p style="margin-top: 1rem;">No known CVEs for this asset.</p>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>Location / Area</label>
-                    <input type="text" id="edit-location" placeholder="e.g. Living Room">
-                </div>
-                <div class="form-group">
-                    <label>Device Type</label>
-                    <select id="edit-type">
-                        <option value="Laptop">Laptop</option>
-                        <option value="Smartphone">Smartphone</option>
-                        <option value="IoT">IoT Device</option>
-                        <option value="Server">Server</option>
-                        <option value="Infrastructure">Infrastructure</option>
-                    </select>
-                </div>
-            </div>
-            <div class="modal-footer" style="display: flex; gap: 1rem;">
-                <button class="btn btn-primary" style="flex: 2" onclick="saveAsset()">Save Changes</button>
-                <button class="btn btn-ghost" style="flex: 1" onclick="closeModal('edit')">Cancel</button>
             </div>
         </div>
     </div>
 
+    <!-- Remediation Modal (Global) -->
     <div id="modal-remediation" class="modal-overlay">
         <div class="modal-card" style="max-width: 600px;">
             <div class="modal-header">
-                <h3>Vulnerability Remediation</h3>
+                <h3>Technical Remediation</h3>
                 <button class="btn btn-ghost" onclick="closeModal('remediation')">✕</button>
             </div>
-            <div class="modal-body" id="remediation-body">
+            <div class="modal-body" id="remediation-body" style="padding: 2.5rem;">
                 <!-- Content injected here -->
             </div>
-            <div class="modal-footer">
-                <button class="btn btn-ghost" style="width: 100%" onclick="closeModal('remediation')">Close</button>
+            <div class="modal-footer"
+                style="padding: 1.5rem 2.5rem; text-align: right; border-top: 1px solid var(--glass-border);">
+                <button class="btn btn-ghost" onclick="closeModal('remediation')">Close</button>
             </div>
         </div>
     </div>
@@ -482,30 +476,14 @@
             <h1>Sentinel 🛰️</h1>
         </div>
         <ul class="nav-links">
-            <li class="nav-item">
-                <a class="nav-link active" onclick="showTab('inbox')">
-                    <span>📥</span> Inbox <div class="inbox-badge" id="badge-inbox">0</div>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" onclick="showTab('inventory')">
-                    <span>📋</span> Inventory
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" onclick="showTab('security')">
-                    <span>🛡️</span> Security
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" onclick="showTab('topology')">
-                    <span>🕸️</span> Topology
-                </a>
-            </li>
+            <li class="nav-item"><a class="nav-link active" onclick="showTab('inbox')"><span>📥</span> Inbox <div
+                        class="inbox-badge" id="badge-inbox">0</div></a></li>
+            <li class="nav-item"><a class="nav-link" onclick="showTab('inventory')"><span>📋</span> Inventory</a></li>
+            <li class="nav-item"><a class="nav-link" onclick="showTab('security')"><span>🛡️</span> Security</a></li>
+            <li class="nav-item"><a class="nav-link" onclick="showTab('topology')"><span>🕸️</span> Topology</a></li>
         </ul>
-        <div style="margin-top: auto; padding-top: 2rem;">
-            <a class="nav-link" onclick="loadData()"><span>↻</span> Force Sync</a>
-        </div>
+        <div style="margin-top: auto; padding-top: 2rem;"><a class="nav-link" onclick="loadData()"><span>↻</span> Force
+                Sync</a></div>
     </nav>
 
     <main>
@@ -513,15 +491,13 @@
         <div id="tab-inbox" class="tab-content active">
             <div class="page-header">
                 <div class="page-title">
-                    <h2>Sentinel Inbox</h2>
-                    <p>Approve or triage newly discovered network entities</p>
+                    <h2>Inbox Queue</h2>
+                    <p>Sentinel discovery triage</p>
                 </div>
             </div>
-            <div id="inbox-list">
-                <!-- Data injected here -->
-            </div>
+            <div id="inbox-list"></div>
             <div id="inbox-empty" class="card hidden" style="text-align: center; padding: 4rem;">
-                <p style="color: var(--text-muted);">Inbox is clean. No new devices targeting the network.</p>
+                <p style="color: var(--text-muted);">Network is clean. No pending approvals.</p>
             </div>
         </div>
 
@@ -529,24 +505,21 @@
         <div id="tab-inventory" class="tab-content">
             <div class="page-header">
                 <div class="page-title">
-                    <h2>Asset Governance</h2>
-                    <p>Managed inventory and ownership lifecycle</p>
+                    <h2>Global Inventory</h2>
+                    <p>Click any asset for advanced governance & risk details</p>
                 </div>
             </div>
-            <div class="card">
+            <div class="card" style="padding: 0;">
                 <table>
                     <thead>
                         <tr>
-                            <th>Device</th>
-                            <th>IP / Net</th>
-                            <th>Owner / Area</th>
-                            <th>Status</th>
-                            <th>Actions</th>
+                            <th>Asset Name</th>
+                            <th>Network Info</th>
+                            <th>Location</th>
+                            <th>Net Status</th>
                         </tr>
                     </thead>
-                    <tbody id="inventory-table">
-                        <!-- Data injected here -->
-                    </tbody>
+                    <tbody id="inventory-table"></tbody>
                 </table>
             </div>
         </div>
@@ -555,23 +528,22 @@
         <div id="tab-security" class="tab-content">
             <div class="page-header">
                 <div class="page-title">
-                    <h2>Risk Intelligence</h2>
-                    <p>Real-time vulnerability and remediation pathfinder</p>
+                    <h2>Threat Intelligence</h2>
+                    <p>Unified vulnerability ledger</p>
                 </div>
             </div>
-            <div class="stats-grid">
-                <div class="stat-card" style="border-left: 4px solid var(--danger);">
-                    <span class="stat-value" id="stat-critical-v">0</span>
-                    <span class="stat-label">Critical Risks</span>
-                </div>
-                <div class="stat-card" style="border-left: 4px solid var(--warning);">
-                    <span class="stat-value" id="stat-total-v">0</span>
-                    <span class="stat-label">Active CVEs</span>
-                </div>
-            </div>
-            <h3>Critical Remediation Cards</h3>
-            <div class="remediation-grid" id="remediation-list" style="margin-top: 1rem;">
-                <!-- Data injected here -->
+            <div class="card" style="padding: 0;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Severity</th>
+                            <th>CVE ID</th>
+                            <th>Asset</th>
+                            <th>Remediation Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="security-table"></tbody>
+                </table>
             </div>
         </div>
 
@@ -579,12 +551,13 @@
         <div id="tab-topology" class="tab-content">
             <div class="page-header">
                 <div class="page-title">
-                    <h2>Network Topology</h2>
-                    <p>Hierarchical visual of your network infrastructure</p>
+                    <h2>Network Map</h2>
+                    <p>Hierarchical tree-list of connected infrastructure</p>
                 </div>
-                <button class="btn btn-ghost" onclick="initTopology()">Relayout Graph</button>
             </div>
-            <div id="topology-container"></div>
+            <div class="card" id="topology-tree-container" style="min-height: 500px;">
+                <!-- Tree list rendered here -->
+            </div>
         </div>
     </main>
 
@@ -595,96 +568,24 @@
         function showTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-
             document.getElementById(`tab-${tabId}`).classList.add('active');
             event.currentTarget.classList.add('active');
-
-            if (tabId === 'topology') initTopology();
+            if (tabId === 'topology') renderTopology();
         }
 
         function openModal(id) { document.getElementById(`modal-${id}`).classList.add('active'); }
         function closeModal(id) { document.getElementById(`modal-${id}`).classList.remove('active'); }
 
-        function openEditModal(mac) {
-            const asset = allAssets.find(a => a.mac_address === mac);
-            if (!asset) return;
-
-            document.getElementById('edit-mac').value = mac;
-            document.getElementById('edit-mac-display').value = mac;
-            document.getElementById('edit-owner').value = asset.owner || '';
-            document.getElementById('edit-location').value = asset.location || '';
-            document.getElementById('edit-type').value = asset.device_type || 'IoT';
-
-            openModal('edit');
-        }
-
-        async function saveAsset() {
-            const mac = document.getElementById('edit-mac').value;
-            const payload = {
-                mac,
-                owner: document.getElementById('edit-owner').value,
-                location: document.getElementById('edit-location').value,
-                device_type: document.getElementById('edit-type').value
-            };
-
-            try {
-                const res = await fetch('api/assets/update', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                if (res.ok) {
-                    closeModal('edit');
-                    loadData();
-                }
-            } catch (err) { console.error(err); }
-        }
-
-        function openRemediationModal(vulnIndex) {
-            const v = allVulns[vulnIndex];
-            if (!v) return;
-
-            const body = document.getElementById('remediation-body');
-            body.innerHTML = `
-                <div style="margin-bottom: 1.5rem;">
-                    <span style="background: var(--danger); color: white; padding: 2px 8px; border-radius: 6px; font-weight: 800; font-size: 0.8rem;">CVE ALERT</span>
-                    <h2 style="margin: 1rem 0 0.5rem 0;">${v.cve_id}</h2>
-                    <p style="color: var(--text-muted); font-size: 0.9rem;">Target: ${v.ip_address} | CVSS Score: ${v.cvss_score}</p>
-                </div>
-                <div class="card" style="background: rgba(255,255,255,0.03); margin-bottom: 2rem;">
-                    <p style="line-height: 1.6; font-size: 0.95rem;">${v.description}</p>
-                </div>
-                <div style="display: flex; flex-direction: column; gap: 1rem;">
-                    <button class="btn btn-primary">Download Manufacturer Patch</button>
-                    <button class="btn btn-danger">Isolate IP ${v.ip_address}</button>
-                </div>
-            `;
-            openModal('remediation');
-        }
-
-        async function approveAsset(mac) {
-            try {
-                const res = await fetch('api/assets/approve', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ mac })
-                });
-                if (res.ok) loadData();
-            } catch (err) { console.error(err); }
-        }
-
         async function loadData() {
             try {
                 const resAssets = await fetch('api/assets');
                 allAssets = await resAssets.json();
-
                 const resVulns = await fetch('api/vulnerabilities');
                 allVulns = await resVulns.json();
 
                 renderInbox();
                 renderInventory();
                 renderSecurity();
-
                 document.getElementById('loader').classList.add('hidden');
             } catch (err) { console.error(err); }
         }
@@ -692,152 +593,186 @@
         function renderInbox() {
             const inbox = allAssets.filter(a => a.approved === 0);
             const container = document.getElementById('inbox-list');
-            const badge = document.getElementById('badge-inbox');
+            document.getElementById('badge-inbox').innerText = inbox.length;
 
-            badge.innerText = inbox.length;
             if (inbox.length === 0) {
                 container.classList.add('hidden');
                 document.getElementById('inbox-empty').classList.remove('hidden');
                 return;
             }
-
-            document.getElementById('inbox-empty').classList.add('hidden');
             container.classList.remove('hidden');
+            document.getElementById('inbox-empty').classList.add('hidden');
 
             container.innerHTML = inbox.map(a => `
-                <div class="inbox-item">
-                    <div class="device-icon">🛰️</div>
-                    <div class="item-info">
-                        <h4>${a.hostname || a.ip_address}</h4>
-                        <span>MAC: ${a.mac_address} | Found on: ${a.interface || 'Scanner'}</span>
+                <div class="card" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <div>
+                        <h4 style="color: var(--warning)">NEW DISCOVERY: ${a.hostname || a.ip_address}</h4>
+                        <p style="font-size: 0.8rem; color: var(--text-muted)">MAC: ${a.mac_address} | Vendor: ${a.vendor || 'Unknown'}</p>
                     </div>
-                    <div class="item-actions">
+                    <div style="display: flex; gap: 0.5rem;">
                         <button class="btn btn-primary" onclick="approveAsset('${a.mac_address}')">Approve</button>
-                        <button class="btn btn-ghost">Ignore</button>
+                        <button class="btn btn-ghost">Dismiss</button>
                     </div>
                 </div>
             `).join('');
         }
 
-        function renderInventory() {
-            const container = document.getElementById('inventory-table');
-            const inventory = allAssets.filter(a => a.approved === 1);
+        async function approveAsset(mac) {
+            await fetch('api/assets/approve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mac }) });
+            loadData();
+        }
 
-            container.innerHTML = inventory.map(a => `
-                <tr>
+        function renderInventory() {
+            const table = document.getElementById('inventory-table');
+            const approved = allAssets.filter(a => a.approved === 1);
+            table.innerHTML = approved.map(a => `
+                <tr class="clickable" onclick="openAssetDetail('${a.mac_address}')">
                     <td>
-                        <strong>${a.hostname || 'Unnamed Asset'}</strong><br>
-                        <span style="font-size: 0.75rem; color: var(--text-muted);">${a.mac_address}</span>
+                        <strong>${a.custom_name || a.hostname || 'Unnamed Hardware'}</strong><br>
+                        <span style="font-size: 0.75rem; color: var(--text-muted)">${a.mac_address}</span>
                     </td>
                     <td>
                         <code>${a.ip_address}</code><br>
-                        <span style="font-size: 0.7rem;">via ${a.interface || 'LAN'}</span>
+                        <span style="font-size: 0.75rem;">via ${a.interface || 'Scanner'}</span>
                     </td>
-                    <td>
-                        <span style="color: var(--text); font-weight: 600;">${a.owner || 'Unassigned'}</span><br>
-                        <span style="font-size: 0.8rem; color: var(--text-muted);">${a.location || 'No Location'}</span>
-                    </td>
-                    <td>
-                        <span class="btn" style="padding: 2px 8px; font-size: 0.7rem; background: rgba(16,185,129,0.1); color: var(--success);">TRUSTED</span>
-                    </td>
-                    <td>
-                        <button class="btn btn-ghost" style="padding: 4px 8px;" onclick="openEditModal('${a.mac_address}')">Edit</button>
-                    </td>
+                    <td>${a.location || '--'}</td>
+                    <td><span style="color: var(--success); font-weight: 800;">●</span> ACTIVE</td>
                 </tr>
             `).join('');
         }
 
-        function renderSecurity() {
-            const container = document.getElementById('remediation-list');
-            const criticals = allVulns.filter(v => v.cvss_score >= 9);
+        function openAssetDetail(mac) {
+            const a = allAssets.find(x => x.mac_address === mac);
+            if (!a) return;
 
-            document.getElementById('stat-total-v').innerText = allVulns.length;
-            document.getElementById('stat-critical-v').innerText = criticals.length;
+            document.getElementById('detail-mac').value = mac;
+            document.getElementById('detail-title').innerText = a.custom_name || a.hostname || 'Unknown Hardware';
+            document.getElementById('detail-subtitle').innerText = `MAC: ${mac} | IP: ${a.ip_address}`;
+            document.getElementById('detail-custom-name').value = a.custom_name || '';
+            document.getElementById('detail-location').value = a.location || '';
+            document.getElementById('detail-type').value = a.device_type || 'IoT';
 
-            container.innerHTML = criticals.slice(0, 4).map((v, idx) => `
-                <div class="card" style="border-top: 4px solid var(--danger); margin-bottom: 0;">
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
-                        <span style="background: var(--danger); color: white; padding: 2px 8px; border-radius: 6px; font-weight: 800; font-size: 0.8rem;">CRITICAL</span>
-                        <code style="color: var(--primary); font-weight: bold;">${v.cve_id}</code>
+            const assetVulns = allVulns.filter(v => v.mac_address === mac);
+            const vulnContainer = document.getElementById('detail-vuln-list');
+            if (assetVulns.length > 0) {
+                document.getElementById('no-vulns').classList.add('hidden');
+                vulnContainer.classList.remove('hidden');
+                vulnContainer.innerHTML = assetVulns.map(v => `
+                    <div class="vuln-item">
+                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                            <strong>${v.cve_id}</strong>
+                            <span style="color: var(--danger); font-weight: 800;">${v.cvss_score}</span>
+                        </div>
+                        <p style="font-size: 0.8rem; margin: 0.5rem 0; color: var(--text-muted);">${v.description.substring(0, 80)}...</p>
+                        <button class="btn btn-ghost" style="padding: 2px 8px; font-size: 0.7rem;" onclick="openRemediationModal('${v.cve_id}', '${v.mac_address}')">Remediate</button>
                     </div>
-                    <h4 style="margin-bottom: 0.5rem;">Target: ${v.ip_address}</h4>
-                    <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.4; margin-bottom: 1.5rem;">
-                        ${v.description.substring(0, 100)}...
-                    </p>
-                    <div class="item-actions">
-                        <button class="btn btn-primary" style="width: 100%;" onclick="openRemediationModal(${idx})">View Remediation</button>
+                `).join('');
+            } else {
+                document.getElementById('no-vulns').classList.remove('hidden');
+                vulnContainer.classList.add('hidden');
+            }
+
+            renderSuggestions(a);
+            openModal('asset-detail');
+        }
+
+        function renderSuggestions(a) {
+            const list = document.getElementById('integration-list');
+            const rules = [
+                { match: 'Nginx', icon: '🌐', label: 'Nginx Proxy Manager', url: 'https://www.home-assistant.io/integrations/nginx_proxy_manager' },
+                { match: 'SSH', icon: '💻', label: 'SSH & Web Terminal', url: 'https://github.com/hassio-addons/addon-ssh' },
+                { match: 'ESPHome', icon: '🔋', label: 'ESPHome Node', url: 'https://www.home-assistant.io/integrations/esphome' },
+                { match: 'Generic', icon: '🔌', label: 'Generic IP Camera', url: 'https://www.home-assistant.io/integrations/generic' }
+            ];
+
+            const services = (a.services || []).map(s => s.banner + s.service_name).join(' ');
+            const found = rules.filter(r => services.toLowerCase().includes(r.match.toLowerCase()));
+
+            if (found.length === 0) list.innerHTML = '<p style="color: var(--text-muted); font-size: 0.8rem;">No custom integrations identified.</p>';
+            else list.innerHTML = found.map(r => `
+                <div class="integration-item">
+                    <span>${r.icon}</span>
+                    <div style="flex-grow: 1;">
+                        <strong>${r.label}</strong>
                     </div>
+                    <button class="btn btn-ghost" onclick="window.open('${r.url}', '_blank')">Link</button>
                 </div>
             `).join('');
         }
 
-        function initTopology() {
-            const elements = [];
-            elements.push({ data: { id: 'router', label: 'Gateway: 192.168.50.1', type: 'core' } });
+        async function saveAssetDetail() {
+            const mac = document.getElementById('detail-mac').value;
+            const payload = {
+                mac,
+                custom_name: document.getElementById('detail-custom-name').value,
+                location: document.getElementById('detail-location').value,
+                device_type: document.getElementById('detail-type').value
+            };
+            await fetch('api/assets/update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            closeModal('asset-detail');
+            loadData();
+        }
 
-            // Group devices by parent_mac or interface
-            allAssets.forEach(a => {
-                const parentId = a.parent_mac === '192.168.50.1' ? 'router' : (a.parent_mac || 'router');
-                elements.push({
-                    data: {
-                        id: a.mac_address,
-                        label: a.hostname || a.ip_address,
-                        type: a.interface === 'Wireless' ? 'wireless' : 'wired'
-                    }
-                });
-                elements.push({
-                    data: {
-                        source: parentId,
-                        target: a.mac_address,
-                        style: a.interface === 'Wireless' ? 'dashed' : 'solid'
-                    }
-                });
-            });
+        function renderSecurity() {
+            const table = document.getElementById('security-table');
+            table.innerHTML = allVulns.map(v => `
+                <tr>
+                    <td><span style="background: ${v.cvss_score >= 9 ? 'var(--danger)' : v.cvss_score >= 7 ? 'var(--warning)' : 'var(--primary)'}; border-radius: 4px; padding: 2px 6px; font-weight: 800; font-size: 0.75rem; color: white;">${v.cvss_score >= 9 ? 'CRITICAL' : v.cvss_score >= 7 ? 'HIGH' : 'MEDIUM'}</span></td>
+                    <td><code>${v.cve_id}</code></td>
+                    <td>${v.ip_address}</td>
+                    <td><button class="btn btn-primary" style="padding: 4px 10px;" onclick="openRemediationModal('${v.cve_id}', '${v.mac_address}')">Remediate</button></td>
+                </tr>
+            `).join('');
+        }
 
-            cytoscape({
-                container: document.getElementById('topology-container'),
-                elements: elements,
-                style: [
-                    {
-                        selector: 'node',
-                        style: {
-                            'background-color': '#6366f1',
-                            'label': 'data(label)',
-                            'color': '#fff',
-                            'font-size': '10px',
-                            'text-valign': 'bottom',
-                            'width': '30px', 'height': '30px',
-                            'text-margin-y': 5
-                        }
-                    },
-                    {
-                        selector: 'node[type="core"]',
-                        style: { 'background-color': '#f43f5e', 'width': '50px', 'height': '50px', 'font-size': '12px', 'font-weight': 'bold' }
-                    },
-                    {
-                        selector: 'node[type="wireless"]',
-                        style: { 'background-color': '#0ea5e9' }
-                    },
-                    {
-                        selector: 'edge',
-                        style: {
-                            'width': 2,
-                            'line-color': 'rgba(255,255,255,0.1)',
-                            'curve-style': 'taxi',
-                            'line-style': 'data(style)',
-                            'target-arrow-shape': 'triangle',
-                            'target-arrow-color': 'rgba(255,255,255,0.1)'
-                        }
-                    }
-                ],
-                layout: {
-                    name: 'breadthfirst',
-                    directed: true,
-                    padding: 40,
-                    animate: true,
-                    spacingFactor: 1.2
-                }
-            });
+        function openRemediationModal(cveId, mac) {
+            const v = allVulns.find(x => x.cve_id === cveId && x.mac_address === mac);
+            if (!v) return;
+            document.getElementById('remediation-body').innerHTML = `
+                <span class="section-title">Risk Description</span>
+                <p style="margin-bottom: 2rem; line-height: 1.6;">${v.description}</p>
+                <span class="section-title">Automated Playbooks</span>
+                <div style="display: flex; flex-direction: column; gap: 1rem;">
+                    <button class="btn btn-primary" onclick="alert('Patch check initiated via HACS API')">Check for Patch via HACS</button>
+                    <button class="btn btn-danger" data-tooltip="Blocks device traffic at the Firewall level">Isolate IP ${v.ip_address}</button>
+                </div>
+            `;
+            openModal('remediation');
+        }
+
+        function renderTopology() {
+            const container = document.getElementById('topology-tree-container');
+            const gateway = 'router';
+
+            let html = `
+                <div class="tree-item" style="background: rgba(244, 63, 94, 0.1); padding: 1rem; border-radius: 12px; border: 1px solid rgba(244, 63, 94, 0.2)">
+                    <span class="tree-icon">🛰️</span>
+                    <div>
+                        <strong>CORE GATEWAY (192.168.50.1)</strong><br>
+                        <span style="font-size: 0.75rem; color: var(--text-muted);">Master Node | Uplink Active</span>
+                    </div>
+                </div>
+                <div class="tree-node">
+            `;
+
+            // Sort assets by interface then name
+            const sorted = [...allAssets].sort((a, b) => (a.interface || '').localeCompare(b.interface || ''));
+
+            html += sorted.map(a => `
+                <div class="tree-item clickable" onclick="openAssetDetail('${a.mac_address}')">
+                    <span class="tree-icon">${a.interface === 'Wireless' ? '📶' : '🔌'}</span>
+                    <div>
+                        <strong>${a.custom_name || a.hostname || a.ip_address}</strong>
+                        <span style="font-size: 0.75rem; color: var(--text-muted); margin-left: 10px;">${a.mac_address}</span>
+                    </div>
+                    <div style="margin-left: auto;">
+                        <span style="font-size: 0.7rem; color: var(--text-muted); border: 1px solid var(--glass-border); padding: 2px 6px; border-radius: 4px;">${a.device_type || 'IoT'}</span>
+                    </div>
+                </div>
+            `).join('');
+
+            html += '</div>';
+            container.innerHTML = html;
         }
 
         window.onload = loadData;

@@ -59,7 +59,7 @@ def update_asset():
         
         db.update_asset_governance(
             mac=mac,
-            owner=data.get('owner'),
+            custom_name=data.get('custom_name'),
             location=data.get('location'),
             device_type=data.get('device_type'),
             tags=data.get('tags')

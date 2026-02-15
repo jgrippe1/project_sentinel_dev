@@ -27,7 +27,7 @@ class Datastore:
                 interface TEXT,
                 approved INTEGER DEFAULT 0,
                 tags TEXT DEFAULT '[]',
-                owner TEXT,
+                custom_name TEXT,
                 location TEXT,
                 device_type TEXT,
                 parent_mac TEXT,
@@ -108,6 +108,17 @@ class Datastore:
                 except Exception as e:
                     print(f"Migration error ({col}): {e}")
 
+        # Check for 'custom_name' in 'assets' table
+        if 'custom_name' not in columns:
+            print("Migrating database: Adding 'custom_name' column to 'assets' table.")
+            try:
+                c.execute("ALTER TABLE assets ADD COLUMN custom_name TEXT")
+                # If 'owner' exists, we can migrate it
+                if 'owner' in columns:
+                    c.execute("UPDATE assets SET custom_name = owner")
+            except Exception as e:
+                print(f"Migration error (custom_name): {e}")
+
         # Check for 'cert_expiry' in 'services' table
         c.execute("PRAGMA table_info(services)")
         service_columns = [info[1] for info in c.fetchall()]
@@ -160,11 +171,11 @@ class Datastore:
         conn.commit()
         conn.close()
 
-    def update_asset_governance(self, mac, owner=None, location=None, device_type=None, tags=None):
+    def update_asset_governance(self, mac, custom_name=None, location=None, device_type=None, tags=None):
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
-        if owner is not None:
-            c.execute("UPDATE assets SET owner=? WHERE mac_address=?", (owner, mac))
+        if custom_name is not None:
+            c.execute("UPDATE assets SET custom_name=? WHERE mac_address=?", (custom_name, mac))
         if location is not None:
             c.execute("UPDATE assets SET location=? WHERE mac_address=?", (location, mac))
         if device_type is not None:
