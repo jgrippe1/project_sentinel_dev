@@ -130,14 +130,22 @@ def process_host(ip, mac, ports, db, nvd):
                 )
                 logger.info(f"Logged vulnerability {cve_id} (Score: {cvss_score}) for {ip}")
     
-    # Final step: Update asset with aggregated high-fidelity intelligence
+    # Final step: Merge base intelligence with mining results
+    from sentinel.analysis import get_vendor_from_mac
+    oui_vendor = get_vendor_from_mac(mac)
+    
+    final_vendor = aggregated_intel['vendor'] or oui_vendor
+    if final_vendor:
+        logger.info(f"Final Intelligence Baseline for {ip}: Vendor={final_vendor}, Model={aggregated_intel['model']}, OS={aggregated_intel['os']}")
+
+    # Commit to database
     db.upsert_asset(
         mac=mac, 
         ip=ip, 
         os=aggregated_intel['os'], 
         model=aggregated_intel['model'], 
         fw_version=aggregated_intel['fw_version'],
-        vendor=aggregated_intel['vendor']
+        vendor=final_vendor
     )
 
 def main():

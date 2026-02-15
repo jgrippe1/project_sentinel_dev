@@ -4,6 +4,54 @@ import socket
 import datetime
 from datetime import timezone
 
+# Common IEEE OUIs (Manufacturer Prefixes)
+OUI_MAP = {
+    "08:3A:8D": "ASUSTek Computer Inc.",
+    "B0:4E:26": "TP-Link",
+    "EC:08:6B": "TP-Link",
+    "C4:AD:34": "TP-Link",
+    "4C:ED:FB": "TP-Link",
+    "70:4F:57": "Ubiquiti",
+    "F4:92:BF": "Ubiquiti",
+    "74:AC:B9": "Ubiquiti",
+    "80:2A:A8": "Ubiquiti",
+    "DC:9F:DB": "Ubiquiti",
+    "00:11:32": "Synology",
+    "00:08:9B": "Synology",
+    "D8:3B:BF": "Synology",
+    "8C:CE:4E": "Synology",
+    "E8:DB:84": "Shelly / Allterco",
+    "84:F3:EB": "Shelly / Allterco",
+    "3C:61:05": "Shelly / Allterco",
+    "D4:D4:DA": "Shelly / Allterco",
+    "C8:2B:96": "Shelly / Allterco",
+    "A8:48:FA": "Shelly / Allterco",
+    "CA:97:0B": "Shelly / Allterco",
+    "48:3F:DA": "Shelly / Allterco",
+    "B4:E6:2D": "Shelly / Allterco",
+    "00:E0:4C": "Realtek (IoT Module)",
+    "24:A1:60": "Espressif (ESPHome/Tasmota)",
+    "30:AE:A4": "Espressif (ESPHome/Tasmota)",
+    "A4:CF:12": "Espressif (ESPHome/Tasmota)",
+    "C8:2B:96": "Espressif (ESPHome/Tasmota)",
+    "D8:F1:5B": "Espressif (ESPHome/Tasmota)",
+    "EC:FA:BC": "Espressif (ESPHome/Tasmota)",
+    "00:21:2F": "Sonos",
+    "5C:AA:FD": "Sonos",
+    "94:9F:3E": "Sonos",
+    "B8:27:EB": "Raspberry Pi Foundation",
+    "DC:A6:32": "Raspberry Pi Foundation",
+    "E4:5F:01": "Raspberry Pi Foundation",
+    "00:17:88": "Philips Hue",
+    "EC:B5:FA": "Philips Hue",
+}
+
+def get_vendor_from_mac(mac):
+    """Returns a manufacturer name based on the MAC OUI."""
+    if not mac or len(mac) < 8: return None
+    prefix = mac[:8].upper()
+    return OUI_MAP.get(prefix)
+
 def grab_banner(ip, port, timeout=3):
     """
     Connects to an IP and port to grab the banner.
@@ -16,9 +64,12 @@ def grab_banner(ip, port, timeout=3):
             context.verify_mode = ssl.CERT_NONE
             with socket.create_connection((ip, port), timeout=timeout) as sock:
                 with context.wrap_socket(sock, server_hostname=ip) as ssock:
-                    # For HTTPS, we send a HEAD request and try to get the Server header
+                    # For HTTPS, try HEAD first, then GET/ if generic
                     ssock.sendall(b"HEAD / HTTP/1.1\r\nHost: " + ip.encode() + b"\r\n\r\n")
                     banner = ssock.recv(2048).decode('utf-8', errors='ignore').strip()
+                    if not banner or "HTTP/1.1" in banner and "Server:" not in banner:
+                        ssock.sendall(b"GET / HTTP/1.1\r\nHost: " + ip.encode() + b"\r\nConnection: close\r\n\r\n")
+                        banner = ssock.recv(4096).decode('utf-8', errors='ignore').strip()
                     return banner
         
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -26,7 +77,20 @@ def grab_banner(ip, port, timeout=3):
             s.connect((ip, port))
             
             if port in [80, 8080, 8123]:
+                # Try HEAD first
                 s.sendall(b"HEAD / HTTP/1.1\r\nHost: " + ip.encode() + b"\r\n\r\n")
+                banner = s.recv(2048).decode('utf-8', errors='ignore').strip()
+                
+                # If banner is generic or empty, try a full GET /
+                if not banner or ("HTTP/1.1" in banner and "Server:" not in banner):
+                    # Reconnect for GET
+                    s.close()
+                    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    s.settimeout(timeout)
+                    s.connect((ip, port))
+                    s.sendall(b"GET / HTTP/1.1\r\nHost: " + ip.encode() + b"\r\nConnection: close\r\n\r\n")
+                    banner = s.recv(4096).decode('utf-8', errors='ignore').strip()
+                return banner
             
             banner = s.recv(2048).decode('utf-8', errors='ignore').strip()
             return banner
@@ -111,6 +175,10 @@ def analyze_device_intelligence(banner):
         if "uap" in banner_l or "unifi ap" in banner_l: intel['model'] = "UniFi AP"
 
     # IoT Platform Detection
+    if "mongoose" in banner_l:
+        intel['vendor'] = "Mongoose"
+        if "mongoose/6." in banner_l: intel['fw_version'] = "6.x"
+        
     if "esphome" in banner_l: intel['os'] = "ESPHome"
     if "tasmota" in banner_l: intel['os'] = "Tasmota"
     if "shelly" in banner_l: 
