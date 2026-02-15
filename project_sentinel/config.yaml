@@ -26,3 +26,5 @@ schema:
 map:
   - config:rw
   - share:rw
+ingress: true
+ingress_port: 8099

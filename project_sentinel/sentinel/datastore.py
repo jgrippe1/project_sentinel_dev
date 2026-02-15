@@ -131,3 +131,34 @@ class Datastore:
         
         conn.commit()
         conn.close()
+
+    def get_assets_with_services(self):
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        
+        # Get all assets
+        c.execute("SELECT * FROM assets")
+        assets = [dict(row) for row in c.fetchall()]
+        
+        # For each asset, get its services
+        for asset in assets:
+            c.execute("SELECT * FROM services WHERE mac_address=?", (asset['mac_address'],))
+            asset['services'] = [dict(row) for row in c.fetchall()]
+            
+        conn.close()
+        return assets
+
+    def get_all_vulnerabilities(self):
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        c.execute('''
+            SELECT v.*, a.ip_address 
+            FROM vulnerabilities v
+            JOIN assets a ON v.mac_address = a.mac_address
+            ORDER BY v.cvss_score DESC
+        ''')
+        rows = [dict(row) for row in c.fetchall()]
+        conn.close()
+        return rows

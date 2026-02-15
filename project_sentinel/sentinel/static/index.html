@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Sentinel Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-glow: rgba(79, 70, 229, 0.4);
+            --bg: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --text: #f1f5f9;
+            --text-muted: #94a3b8;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --success: #10b981;
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(79, 70, 229, 0.1) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(14, 165, 233, 0.1) 0px, transparent 50%);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 3rem;
+        }
+
+        .logo h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -1px;
+        }
+
+        .logo p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            font-weight: 300;
+        }
+
+        .refresh-btn {
+            background: var(--card-bg);
+            border: 1px solid var(--glass-border);
+            color: var(--text);
+            padding: 0.75rem 1.5rem;
+            border-radius: 12px;
+            cursor: pointer;
+            backdrop-filter: blur(12px);
+            transition: all 0.3s ease;
+            font-family: inherit;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .refresh-btn:hover {
+            background: rgba(255, 255, 255, 0.05);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            padding: 2rem;
+            border-radius: 24px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: scale(1.02);
+        }
+
+        .stat-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: var(--primary);
+        }
+
+        .stat-card.danger::after { background: var(--danger); }
+        .stat-card.warning::after { background: var(--warning); }
+
+        .stat-value {
+            font-size: 3rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+
+        .stat-label {
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+
+        .content-section {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2rem;
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 2rem;
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        th {
+            text-align: left;
+            padding: 1rem;
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        td {
+            padding: 1.25rem 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+            font-size: 0.95rem;
+        }
+
+        .status-badge {
+            padding: 0.4rem 0.8rem;
+            border-radius: 99px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge-danger { background: rgba(239, 68, 68, 0.1); color: var(--danger); }
+        .badge-warning { background: rgba(245, 158, 11, 0.1); color: var(--warning); }
+        .badge-success { background: rgba(16, 185, 129, 0.1); color: var(--success); }
+
+        .service-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .service-tag {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 0.2rem 0.6rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .cve-id {
+            font-family: monospace;
+            font-weight: bold;
+            color: #818cf8;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            transition: opacity 0.5s ease;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255, 255, 255, 0.1);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="loading-overlay" id="loader">
+        <div class="spinner"></div>
+    </div>
+
+    <div class="container" id="main-content">
+        <header>
+            <div class="logo">
+                <h1>Sentinel Dashboard</h1>
+                <p>Network Governance & Risk Monitor</p>
+            </div>
+            <button class="refresh-btn" onclick="loadData()">
+                <span>↻</span> Refresh Data
+            </button>
+        </header>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <span class="stat-value" id="stat-assets">0</span>
+                <span class="stat-label">Total Assets</span>
+            </div>
+            <div class="stat-card warning">
+                <span class="stat-value" id="stat-vulns">0</span>
+                <span class="stat-label">Active Vulnerabilities</span>
+            </div>
+            <div class="stat-card danger">
+                <span class="stat-value" id="stat-critical">0</span>
+                <span class="stat-label">Critical Risks</span>
+            </div>
+        </div>
+
+        <div class="content-section">
+            <section>
+                <h2><span>📡</span> Discovered Assets</h2>
+                <div class="card">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Status</th>
+                                <th>IP Address</th>
+                                <th>Hostname</th>
+                                <th>Services</th>
+                                <th>Last Seen</th>
+                            </tr>
+                        </thead>
+                        <tbody id="assets-table">
+                            <!-- Data injected here -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section style="margin-top: 3rem;">
+                <h2><span>⚠️</span> Top Vulnerabilities</h2>
+                <div class="card">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Score</th>
+                                <th>CVE ID</th>
+                                <th>IP Affected</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody id="vulns-table">
+                            <!-- Data injected here -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script>
+        async function loadData() {
+            try {
+                // Fetch stats
+                const statsRes = await fetch('/api/stats');
+                const stats = await statsRes.json();
+                document.getElementById('stat-assets').innerText = stats.total_assets;
+                document.getElementById('stat-vulns').innerText = stats.total_vulnerabilities;
+                document.getElementById('stat-critical').innerText = stats.critical_vulnerabilities;
+
+                // Fetch assets
+                const assetsRes = await fetch('/api/assets');
+                const assets = await assetsRes.json();
+                const assetsTable = document.getElementById('assets-table');
+                assetsTable.innerHTML = assets.map(asset => `
+                    <tr>
+                        <td><span class="status-badge badge-success">Active</span></td>
+                        <td><strong>${asset.ip_address}</strong></td>
+                        <td>${asset.hostname || '<span style="color: grey; font-style: italic;">Unknown</span>'}</td>
+                        <td class="service-list">
+                            ${(asset.services || []).map(s => `<span class="service-tag">${s.port}/${s.version_string || 'unknown'}</span>`).join('')}
+                        </td>
+                        <td style="color: var(--text-muted); font-size: 0.8rem;">${new Date(asset.last_seen).toLocaleString()}</td>
+                    </tr>
+                `).join('');
+
+                // Fetch vulnerabilities
+                const vulnsRes = await fetch('/api/vulnerabilities');
+                const vulns = await vulnsRes.json();
+                const vulnsTable = document.getElementById('vulns-table');
+                vulnsTable.innerHTML = vulns.slice(0, 10).map(v => `
+                    <tr>
+                        <td><span class="status-badge ${v.cvss_score >= 9 ? 'badge-danger' : 'badge-warning'}">${v.cvss_score}</span></td>
+                        <td><span class="cve-id">${v.cve_id}</span></td>
+                        <td>${v.ip_address}</td>
+                        <td style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.4;">
+                            ${v.description.length > 120 ? v.description.substring(0, 120) + '...' : v.description}
+                        </td>
+                    </tr>
+                `).join('');
+
+                // Hide loader
+                document.getElementById('loader').classList.add('hidden');
+            } catch (err) {
+                console.error("Failed to load dashboard data:", err);
+            }
+        }
+
+        // Initial load
+        window.onload = loadData;
+    </script>
+</body>
+</html>
