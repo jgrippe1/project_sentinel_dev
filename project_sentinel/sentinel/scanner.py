@@ -13,10 +13,10 @@ except ImportError:
 
 class RouterDiscovery:
     def __init__(self, host, username, password=None, ssh_key=None, port=22):
-        self.host = host
-        self.username = username
-        self.password = password
-        self.ssh_key = ssh_key
+        self.host = host.strip() if host else host
+        self.username = username.strip() if username else username
+        self.password = password.strip() if password else password
+        self.ssh_key = ssh_key.strip() if ssh_key else ssh_key
         self.port = port
 
     def get_asus_clients(self):
