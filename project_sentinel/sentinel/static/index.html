@@ -242,6 +242,45 @@
             text-align: center;
         }
 
+        /* Column Selector */
+        .column-select-popover {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: var(--sidebar-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 1rem;
+            z-index: 100;
+            display: none;
+            flex-direction: column;
+            gap: 0.5rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            min-width: 200px;
+        }
+
+        .column-select-popover.active {
+            display: flex;
+        }
+
+        .col-option {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.85rem;
+            cursor: pointer;
+            color: var(--text-muted);
+        }
+
+        .col-option:hover {
+            color: var(--text);
+        }
+
+        .col-option input {
+            cursor: pointer;
+            width: auto;
+        }
+
         /* Detail Modal */
         .modal-overlay {
             position: fixed;
@@ -519,20 +558,38 @@
 
         <!-- Tab: Inventory -->
         <div id="tab-inventory" class="tab-content">
-            <div class="page-header">
+            <div class="page-header" style="display: flex; justify-content: space-between; align-items: end;">
                 <div class="page-title">
                     <h2>Global Inventory</h2>
                     <p>Click any asset for advanced governance & risk details</p>
                 </div>
+                <div style="position: relative;">
+                    <button class="btn btn-ghost" onclick="toggleColumnSelector()">⚙️ Columns</button>
+                    <div id="column-selector" class="column-select-popover">
+                        <span class="section-title" style="font-size: 0.65rem; margin-bottom: 0.5rem;">Toggle
+                            Visibility</span>
+                        <label class="col-option"><input type="checkbox" data-col="risk" checked
+                                onchange="toggleCol(this)"> Risk Priority</label>
+                        <label class="col-option"><input type="checkbox" data-col="location" checked
+                                onchange="toggleCol(this)"> Location</label>
+                        <label class="col-option"><input type="checkbox" data-col="vendor" checked
+                                onchange="toggleCol(this)"> Manufacturer</label>
+                        <label class="col-option"><input type="checkbox" data-col="integrations" checked
+                                onchange="toggleCol(this)"> Integrations</label>
+                        <label class="col-option"><input type="checkbox" data-col="type" checked
+                                onchange="toggleCol(this)"> Category</label>
+                        <label class="col-option"><input type="checkbox" data-col="status" checked
+                                onchange="toggleCol(this)"> Net Status</label>
+                    </div>
+                </div>
             </div>
             <div class="card" style="padding: 0;">
-                <table>
+                <table id="main-inventory-table">
                     <thead>
-                        <tr>
+                        <tr id="inventory-header">
                             <th data-sort="name" onclick="sortInventory('name')">Asset Name</th>
                             <th data-sort="ip_address" onclick="sortInventory('ip_address')">Network Info</th>
-                            <th data-sort="location" onclick="sortInventory('location')">Location</th>
-                            <th>Net Status</th>
+                            <!-- dynamic columns -->
                         </tr>
                     </thead>
                     <tbody id="inventory-table"></tbody>
@@ -581,6 +638,16 @@
         let allAssets = [];
         let allVulns = [];
         let sortConfig = { key: 'ip_address', direction: 'asc' };
+        let visibleCols = JSON.parse(localStorage.getItem('sentinel_columns')) || ['risk', 'location', 'vendor', 'integrations', 'type', 'status'];
+
+        const COL_MAP = {
+            risk: { label: 'Risk Priority', sort: 'risk' },
+            location: { label: 'Location', sort: 'location' },
+            vendor: { label: 'Manufacturer', sort: 'vendor' },
+            integrations: { label: 'Integrations', sort: 'integrations' },
+            type: { label: 'Category', sort: 'device_type' },
+            status: { label: 'Net Status', sort: 'status' }
+        };
 
         function showTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
@@ -601,6 +668,7 @@
                 allVulns = await resVulns.json();
 
                 renderInbox();
+                initColumnSelector();
                 sortInventory(sortConfig.key, true); // initial sort
                 renderSecurity();
                 document.getElementById('loader').classList.add('hidden');
@@ -627,7 +695,13 @@
             allAssets.sort((a, b) => {
                 let valA, valB;
 
-                if (key === 'name') {
+                if (key === 'risk') {
+                    valA = calculateRiskScore(a);
+                    valB = calculateRiskScore(b);
+                } else if (key === 'integrations') {
+                    valA = (a.services || []).length;
+                    valB = (b.services || []).length;
+                } else if (key === 'name') {
                     valA = (a.custom_name || a.hostname || '').toLowerCase();
                     valB = (b.custom_name || b.hostname || '').toLowerCase();
                 } else if (key === 'ip_address') {
@@ -645,6 +719,20 @@
 
             renderInventory();
             updateSortUI();
+        }
+
+        function calculateRiskScore(asset) {
+            const assetVulns = allVulns.filter(v => v.mac_address === asset.mac_address);
+            if (assetVulns.length === 0) return 0;
+            return Math.max(...assetVulns.map(v => v.cvss_score || 0));
+        }
+
+        function getRiskBadge(score) {
+            if (score >= 9) return `<span style="color: var(--danger); font-weight: 800;">CRITICAL</span>`;
+            if (score >= 7) return `<span style="color: var(--warning); font-weight: 800;">HIGH</span>`;
+            if (score >= 4) return `<span style="color: var(--primary); font-weight: 800;">MEDIUM</span>`;
+            if (score > 0) return `<span style="color: var(--success); font-weight: 800;">LOW</span>`;
+            return `<span style="color: var(--text-muted);">SECURE</span>`;
         }
 
         function updateSortUI() {
@@ -696,6 +784,14 @@
         }
 
         function renderInventory() {
+            // Update Headers
+            const header = document.getElementById('inventory-header');
+            header.innerHTML = `
+                <th data-sort="name" onclick="sortInventory('name')">Asset Name</th>
+                <th data-sort="ip_address" onclick="sortInventory('ip_address')">Network Info</th>
+                ${visibleCols.map(col => `<th data-sort="${COL_MAP[col].sort}" onclick="sortInventory('${COL_MAP[col].sort}')">${COL_MAP[col].label}</th>`).join('')}
+            `;
+
             const table = document.getElementById('inventory-table');
             const approved = allAssets.filter(a => a.approved === 1);
             table.innerHTML = approved.map(a => `
@@ -708,10 +804,42 @@
                         <code>${a.ip_address}</code><br>
                         <span style="font-size: 0.75rem;">via ${a.interface || 'Scanner'}</span>
                     </td>
-                    <td>${a.location || '--'}</td>
-                    <td><span style="color: var(--success); font-weight: 800;">●</span> ACTIVE</td>
+                    ${renderDynamicCells(a)}
                 </tr>
             `).join('');
+        }
+
+        function renderDynamicCells(a) {
+            return visibleCols.map(col => {
+                if (col === 'risk') return `<td>${getRiskBadge(calculateRiskScore(a))}</td>`;
+                if (col === 'integrations') return `<td>${(a.services || []).length} items</td>`;
+                if (col === 'status') return `<td><span style="color: var(--success); font-weight: 800;">●</span> ACTIVE</td>`;
+                if (col === 'vendor') return `<td>${a.vendor || '--'}</td>`;
+                if (col === 'type') return `<td>${a.device_type || a.original_device_type || '--'}</td>`;
+                return `<td>${a[col] || '--'}</td>`;
+            }).join('');
+        }
+
+        function toggleColumnSelector() {
+            document.getElementById('column-selector').classList.toggle('active');
+        }
+
+        function initColumnSelector() {
+            document.querySelectorAll('#column-selector input').forEach(input => {
+                input.checked = visibleCols.includes(input.getAttribute('data-col'));
+            });
+        }
+
+        function toggleCol(input) {
+            const col = input.getAttribute('data-col');
+            if (input.checked) {
+                if (!visibleCols.includes(col)) visibleCols.push(col);
+            } else {
+                visibleCols = visibleCols.filter(c => c !== col);
+            }
+            localStorage.setItem('sentinel_columns', JSON.stringify(visibleCols));
+            renderInventory();
+            updateSortUI();
         }
 
         function openAssetDetail(mac) {
