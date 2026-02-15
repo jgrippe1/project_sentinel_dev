@@ -508,31 +508,30 @@
                             <div>
                                 <label
                                     style="display: block; color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase;">Model</label>
-                                <input type="text" id="detail-intel-model" class="input-minimal" placeholder="--">
+                                <span id="detail-intel-model">--</span>
                             </div>
                             <div>
                                 <label
                                     style="display: block; color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase;">Operating
                                     System</label>
-                                <input type="text" id="detail-intel-os" class="input-minimal" placeholder="--">
+                                <span id="detail-intel-os">--</span>
                             </div>
                             <div>
                                 <label
                                     style="display: block; color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase;">Firmware</label>
-                                <input type="text" id="detail-intel-fw" class="input-minimal" placeholder="--">
+                                <span id="detail-intel-fw">--</span>
                             </div>
                             <div>
                                 <label
                                     style="display: block; color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase;">Hardware
                                     Rev</label>
-                                <input type="text" id="detail-intel-hw" class="input-minimal" placeholder="--">
+                                <span id="detail-intel-hw">--</span>
                             </div>
                             <div>
                                 <label
                                     style="display: block; color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase;">Manufacturer
                                     (OUI)</label>
-                                <input type="text" id="detail-intel-oui" class="input-minimal" placeholder="--" readonly
-                                    style="background: transparent; border: none; padding-left: 0;">
+                                <span id="detail-intel-oui">--</span>
                             </div>
                         </div>
                     </div>
@@ -1012,11 +1011,11 @@
                 vulnContainer.classList.add('hidden');
             }
 
-            document.getElementById('detail-intel-model').value = a.model || '';
-            document.getElementById('detail-intel-os').value = a.os || '';
-            document.getElementById('detail-intel-fw').value = a.fw_version || '';
-            document.getElementById('detail-intel-hw').value = a.hw_version || '';
-            document.getElementById('detail-intel-oui').value = a.oui_vendor || '--';
+            document.getElementById('detail-intel-model').innerText = a.model || '--';
+            document.getElementById('detail-intel-os').innerText = a.os || '--';
+            document.getElementById('detail-intel-fw').innerText = a.fw_version || '--';
+            document.getElementById('detail-intel-hw').innerText = a.hw_version || '--';
+            document.getElementById('detail-intel-oui').innerText = a.oui_vendor || '--';
 
             renderSuggestions(a);
             openModal('asset-detail');
@@ -1194,11 +1193,7 @@
                 mac,
                 custom_name: document.getElementById('detail-custom-name').value,
                 location: document.getElementById('detail-location').value,
-                device_type: document.getElementById('detail-type').value,
-                model: document.getElementById('detail-intel-model').value,
-                os: document.getElementById('detail-intel-os').value,
-                fw_version: document.getElementById('detail-intel-fw').value,
-                hw_version: document.getElementById('detail-intel-hw').value
+                device_type: document.getElementById('detail-type').value
             };
             await fetch('api/assets/update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             closeModal('asset-detail');

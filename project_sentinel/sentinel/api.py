@@ -65,12 +65,7 @@ def update_asset():
             device_type=data.get('device_type'),
             tags=data.get('tags'),
             confirmed_integrations=data.get('confirmed_integrations'),
-            dismissed_integrations=data.get('dismissed_integrations'),
-            model=data.get('model'),
-            os=data.get('os'),
-            fw_version=data.get('fw_version'),
-            hw_version=data.get('hw_version'),
-            vendor=data.get('vendor')
+            dismissed_integrations=data.get('dismissed_integrations')
         )
         return jsonify({"status": "success"})
     except Exception as e:

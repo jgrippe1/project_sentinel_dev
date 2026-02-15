@@ -232,7 +232,7 @@ class Datastore:
         conn.commit()
         conn.close()
 
-    def update_asset_governance(self, mac, custom_name=None, location=None, device_type=None, tags=None, confirmed_integrations=None, dismissed_integrations=None, model=None, os=None, fw_version=None, hw_version=None, vendor=None):
+    def update_asset_governance(self, mac, custom_name=None, location=None, device_type=None, tags=None, confirmed_integrations=None, dismissed_integrations=None):
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
         if custom_name is not None:
@@ -245,16 +245,6 @@ class Datastore:
             c.execute("UPDATE assets SET confirmed_integrations=? WHERE mac_address=?", (confirmed_integrations, mac))
         if dismissed_integrations is not None:
             c.execute("UPDATE assets SET dismissed_integrations=? WHERE mac_address=?", (dismissed_integrations, mac))
-        if model is not None:
-            c.execute("UPDATE assets SET model=? WHERE mac_address=?", (model, mac))
-        if os is not None:
-            c.execute("UPDATE assets SET os=? WHERE mac_address=?", (os, mac))
-        if fw_version is not None:
-            c.execute("UPDATE assets SET fw_version=? WHERE mac_address=?", (fw_version, mac))
-        if hw_version is not None:
-            c.execute("UPDATE assets SET hw_version=? WHERE mac_address=?", (hw_version, mac))
-        if vendor is not None:
-            c.execute("UPDATE assets SET vendor=? WHERE mac_address=?", (vendor, mac))
         if tags is not None:
             import json
             c.execute("UPDATE assets SET tags=? WHERE mac_address=?", (json.dumps(tags), mac))
