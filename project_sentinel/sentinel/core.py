@@ -142,8 +142,9 @@ def main():
                 logger.info(f"Active scan discovered {len(scanned_hosts)} hosts in {subnet}")
                 
                 # 2. Merge and Process
-                # Track processed MACs to avoid redundant scans in same cycle
+                # Track processed MACs and IPs to avoid duplicates
                 processed_macs = set()
+                processed_ips = {} # ip -> mac
 
                 # Process Router Assets first (Best MAC/IP mapping)
                 for asset in router_assets:
@@ -152,9 +153,16 @@ def main():
                     interface = asset.get('interface')
                     hostname = asset.get('hostname')
                     original_type = asset.get('type')
-                    # Router discovery knows the 'parent' (the router itself)
+                    
+                    # Deduplication Cleanup: If a placeholder exists for this IP, remove it
+                    placeholder = f"mac_{ip.replace('.', '_')}"
+                    if db.get_asset(placeholder):
+                        logger.info(f"Deduplication: Merging placeholder {placeholder} into real MAC {mac} for {ip}")
+                        db.delete_asset(placeholder)
+
                     db.upsert_asset(mac=mac, ip=ip, hostname=hostname, interface=interface, parent_mac=router_host, original_device_type=original_type)
                     processed_macs.add(mac)
+                    processed_ips[ip] = mac
                     
                     # If active scan also found it, use its ports
                     ports = scanned_hosts.get(ip, [80, 443, 22, 8080]) 
@@ -162,11 +170,22 @@ def main():
 
                 # Process remaining active hosts (those not seen by router)
                 for ip, ports in scanned_hosts.items():
-                    # Create placeholder if we don't have a real MAC
-                    mac_placeholder = f"mac_{ip.replace('.', '_')}"
-                    if mac_placeholder not in processed_macs:
-                        db.upsert_asset(mac=mac_placeholder, ip=ip)
-                        process_host(ip, mac_placeholder, ports, db, nvd)
+                    if ip in processed_ips:
+                        continue # Already handled via router discovery
+
+                    # Check if we already have a real MAC for this IP in the DB (from previous runs)
+                    stored_asset = db.get_asset_by_ip(ip)
+                    if stored_asset and not stored_asset['mac_address'].startswith('mac_'):
+                        mac = stored_asset['mac_address']
+                        logger.debug(f"Discovery: Mapping {ip} to existing real MAC {mac}")
+                    else:
+                        mac = f"mac_{ip.replace('.', '_')}"
+                    
+                    if mac not in processed_macs:
+                        db.upsert_asset(mac=mac, ip=ip)
+                        process_host(ip, mac, ports, db, nvd)
+                        processed_macs.add(mac)
+                        processed_ips[ip] = mac
 
             except Exception as e:
                 logger.error(f"Error during scan of {subnet}: {e}")

@@ -193,6 +193,19 @@ class Datastore:
         conn.commit()
         conn.close()
 
+    def delete_asset(self, mac):
+        """
+        Deletes an asset and its associated vulnerabilities and services.
+        Used for deduplication/merging.
+        """
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+        c.execute("DELETE FROM assets WHERE mac_address=?", (mac,))
+        c.execute("DELETE FROM services WHERE mac_address=?", (mac,))
+        c.execute("DELETE FROM vulnerabilities WHERE mac_address=?", (mac,))
+        conn.commit()
+        conn.close()
+
     def update_asset_governance(self, mac, custom_name=None, location=None, device_type=None, tags=None, confirmed_integrations=None, dismissed_integrations=None):
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
@@ -238,6 +251,24 @@ class Datastore:
         rows = [dict(row) for row in c.fetchall()]
         conn.close()
         return rows
+
+    def get_asset(self, mac):
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        c.execute("SELECT * FROM assets WHERE mac_address=?", (mac,))
+        row = c.fetchone()
+        conn.close()
+        return dict(row) if row else None
+
+    def get_asset_by_ip(self, ip):
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        c.execute("SELECT * FROM assets WHERE ip_address=?", (ip,))
+        row = c.fetchone()
+        conn.close()
+        return dict(row) if row else None
 
     def upsert_vulnerability(self, mac, cve_id, cvss_score, description):
         conn = sqlite3.connect(self.db_path)
