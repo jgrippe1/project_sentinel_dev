@@ -1,5 +1,5 @@
 name: "Project Sentinel"
-version: "0.1.5"
+version: "0.1.6"
 slug: "project_sentinel"
 description: "Home Network Governance & Risk Management"
 url: "https://github.com/jgrippe1/project_sentinel_dev"
@@ -11,7 +11,11 @@ startup: application
 boot: auto
 init: false
 host_network: true
-full_access: true
+privileged:
+  - NET_ADMIN
+  - NET_RAW
+auth_api: true
+apparmor: true
 options:
   scan_interval: 15
   subnets: []

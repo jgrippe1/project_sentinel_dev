@@ -1,0 +1,32 @@
+# Project Sentinel AppArmor Profile
+# This profile allows the add-on to perform network-related administrative tasks
+# required for scanning and discovery while limiting general system access.
+
+#include <tunables/global>
+
+profile project_sentinel_profile flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+  #include <abstractions/python>
+
+  # Network access
+  network inet stream,
+  network inet dgram,
+  network inet raw,
+  network inet6 stream,
+  network inet6 dgram,
+  network inet6 raw,
+
+  # Allow specific capabilities for Scapy
+  capability net_admin,
+  capability net_raw,
+
+  # Allow access to shared storage for the SQLite database
+  /share/sentinel.db* rw,
+  /data/options.json r,
+  /data/sentinel.db* rw,
+
+  # Deny common sensitive paths
+  deny /etc/passwd r,
+  deny /etc/shadow r,
+  deny /root/** rw,
+}
