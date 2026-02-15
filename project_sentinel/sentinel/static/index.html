@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -30,7 +31,7 @@
         body {
             font-family: 'Outfit', sans-serif;
             background-color: var(--bg);
-            background-image: 
+            background-image:
                 radial-gradient(at 0% 0%, rgba(79, 70, 229, 0.1) 0px, transparent 50%),
                 radial-gradient(at 100% 100%, rgba(14, 165, 233, 0.1) 0px, transparent 50%);
             color: var(--text);
@@ -55,6 +56,7 @@
             font-weight: 800;
             background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%);
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
             letter-spacing: -1px;
         }
@@ -84,7 +86,7 @@
         .refresh-btn:hover {
             background: rgba(255, 255, 255, 0.05);
             transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
         }
 
         .stats-grid {
@@ -120,8 +122,13 @@
             background: var(--primary);
         }
 
-        .stat-card.danger::after { background: var(--danger); }
-        .stat-card.warning::after { background: var(--warning); }
+        .stat-card.danger::after {
+            background: var(--danger);
+        }
+
+        .stat-card.warning::after {
+            background: var(--warning);
+        }
 
         .stat-value {
             font-size: 3rem;
@@ -191,9 +198,20 @@
             font-weight: 600;
         }
 
-        .badge-danger { background: rgba(239, 68, 68, 0.1); color: var(--danger); }
-        .badge-warning { background: rgba(245, 158, 11, 0.1); color: var(--warning); }
-        .badge-success { background: rgba(16, 185, 129, 0.1); color: var(--success); }
+        .badge-danger {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+        }
+
+        .badge-warning {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--warning);
+        }
+
+        .badge-success {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+        }
 
         .service-list {
             display: flex;
@@ -239,16 +257,18 @@
         }
 
         @keyframes spin {
-            to { transform: rotate(360deg); }
+            to {
+                transform: rotate(360deg);
+            }
         }
 
         .hidden {
             opacity: 0;
             pointer-events: none;
         }
-
     </style>
 </head>
+
 <body>
     <div class="loading-overlay" id="loader">
         <div class="spinner"></div>
@@ -374,4 +394,5 @@
         window.onload = loadData;
     </script>
 </body>
+
 </html>
