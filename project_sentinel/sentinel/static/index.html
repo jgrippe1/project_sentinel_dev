@@ -490,10 +490,10 @@
                     </div>
                     <div id="manual-integration-search" style="margin-top: 1rem;">
                         <div style="display: flex; gap: 0.5rem;">
-                            <select id="manual-int-select"
+                            <input list="manual-int-list" id="manual-int-input"
+                                placeholder="+ Manually Link Integration..."
                                 style="flex: 1; padding: 0.5rem; border-radius: 8px; background: rgba(0,0,0,0.2); color: white; border: 1px solid var(--glass-border);">
-                                <option value="">+ Manually Link Integration...</option>
-                            </select>
+                            <datalist id="manual-int-list"></datalist>
                             <button class="btn btn-ghost" onclick="addManualIntegration()">Add</button>
                         </div>
                     </div>
@@ -1022,13 +1022,20 @@
         }
 
         function initManualSelect() {
-            const select = document.getElementById('manual-int-select');
-            if (select.children.length > 1) return;
-            installedIntegrations.forEach(int => {
+            const list = document.getElementById('manual-int-list');
+            if (list.children.length > 0) return;
+
+            // Merge installed with master metadata for common suggestions
+            const suggestions = new Set();
+            installedIntegrations.forEach(int => suggestions.add(int.id));
+            Object.keys(MASTER_METADATA).forEach(key => suggestions.add(key));
+
+            suggestions.forEach(id => {
                 const opt = document.createElement('option');
-                opt.value = int.id;
-                opt.innerText = `${int.icon} ${int.label}`;
-                select.appendChild(opt);
+                opt.value = id;
+                const meta = MASTER_METADATA[id];
+                if (meta) opt.innerText = `${meta.icon} ${meta.label}`;
+                list.appendChild(opt);
             });
         }
 
@@ -1048,13 +1055,22 @@
             const detected = getMatchedIntegrations(a);
 
             // Render Active (Confirmed or Manual)
-            const active = installedIntegrations.filter(r => confirmedIds.includes(r.id));
+            const active = confirmedIds.map(id => {
+                const meta = MASTER_METADATA[id];
+                const inst = installedIntegrations.find(i => i.id === id);
+                return {
+                    id,
+                    icon: meta ? meta.icon : (inst ? inst.icon : '🧩'),
+                    label: meta ? meta.label : (inst ? inst.label : id.charAt(0).toUpperCase() + id.slice(1).replace('_', ' '))
+                };
+            });
+
             activeList.innerHTML = active.map(r => `
                 <div class="integration-item" style="border-color: var(--primary); background: rgba(99, 102, 241, 0.1);">
                     <span>${r.icon}</span>
                     <div style="flex-grow: 1;"><strong>${r.label}</strong> (Active)</div>
                     <button class="btn btn-ghost" onclick="updateIntStatus('${a.mac_address}', '${r.id}', 'remove')">✕</button>
-                    <button class="btn btn-ghost" onclick="window.open('${r.url}', '_blank')">🔗</button>
+                    <button class="btn btn-ghost" onclick="window.open('https://www.home-assistant.io/integrations/${r.id}', '_blank')">🔗</button>
                 </div>
             `).join('');
 
@@ -1112,10 +1128,11 @@
 
         async function addManualIntegration() {
             const mac = document.getElementById('detail-mac').value;
-            const intId = document.getElementById('manual-int-select').value;
+            const input = document.getElementById('manual-int-input');
+            const intId = input.value.trim().toLowerCase();
             if (!intId) return;
             await updateIntStatus(mac, intId, 'add');
-            document.getElementById('manual-int-select').value = "";
+            input.value = "";
         }
 
         async function saveAssetDetail() {
