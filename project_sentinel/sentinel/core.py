@@ -220,17 +220,24 @@ def main():
                     process_host(ip, mac, ports, db, nvd)
 
                 # Process remaining active hosts (those not seen by router)
+                from sentinel.scanner import resolve_mac
                 for ip, ports in scanned_hosts.items():
                     if ip in processed_ips:
                         continue # Already handled via router discovery
 
-                    # Check if we already have a real MAC for this IP in the DB (from previous runs)
+                    # 1. Check if we already have a real MAC for this IP in the DB (from previous runs)
                     stored_asset = db.get_asset_by_ip(ip)
                     if stored_asset and not stored_asset['mac_address'].startswith('mac_'):
                         mac = stored_asset['mac_address']
                         logger.debug(f"Discovery: Mapping {ip} to existing real MAC {mac}")
                     else:
-                        mac = f"mac_{ip.replace('.', '_')}"
+                        # 2. Try to resolve MAC locally (ARP/Neighbor)
+                        resolved_mac = resolve_mac(ip)
+                        if resolved_mac:
+                            mac = resolved_mac
+                            logger.info(f"Discovery: Resolved {ip} to local MAC {mac}")
+                        else:
+                            mac = f"mac_{ip.replace('.', '_')}"
                     
                     if mac not in processed_macs:
                         db.upsert_asset(mac=mac, ip=ip)

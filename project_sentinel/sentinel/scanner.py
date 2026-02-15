@@ -144,6 +144,45 @@ def scan_host(ip, ports=[80, 443, 22, 8080, 53, 445, 5000, 8123, 8000]):
             open_ports.append(port)
     return open_ports
 
+def resolve_mac(ip):
+    """
+    Attempts to resolve the MAC address for an IP address using local system tables.
+    1. Parses /proc/net/arp (Linux standard)
+    2. Fallback: Executes 'ip neighbor show'
+    """
+    ip_str = str(ip)
+    
+    # 1. Try /proc/net/arp
+    if os.path.exists("/proc/net/arp"):
+        try:
+            with open("/proc/net/arp", "r") as f:
+                lines = f.readlines()[1:] # Skip header
+                for line in lines:
+                    parts = line.split()
+                    if len(parts) >= 4 and parts[0] == ip_str:
+                        mac = parts[3].upper()
+                        if mac != "00:00:00:00:00:00":
+                            return mac
+        except Exception as e:
+            logger.debug(f"Failed to read /proc/net/arp: {e}")
+
+    # 2. Try 'ip neighbor show' command (Requires iproute2)
+    try:
+        import subprocess
+        output = subprocess.check_output(["ip", "neighbor", "show", ip_str], timeout=2).decode()
+        # Format: 192.168.1.100 dev eth0 lladdr 00:11:22:33:44:55 REACHABLE
+        if "lladdr" in output:
+            parts = output.split()
+            for i, p in enumerate(parts):
+                if p == "lladdr" and i + 1 < len(parts):
+                    mac = parts[i+1].upper()
+                    if ":" in mac and len(mac) == 17:
+                        return mac
+    except Exception as e:
+        logger.debug(f"Failed to run ip neighbor: {e}")
+
+    return None
+
 def scan_subnet(cidr, ports=[80, 443, 22, 8080], max_threads=100):
     """
     Scans a subnet for active hosts with open ports.
