@@ -575,7 +575,9 @@
                         <label class="col-option"><input type="checkbox" data-col="vendor" checked
                                 onchange="toggleCol(this)"> Manufacturer</label>
                         <label class="col-option"><input type="checkbox" data-col="integrations" checked
-                                onchange="toggleCol(this)"> Integrations</label>
+                                onchange="toggleCol(this)"> Identified Integrations</label>
+                        <label class="col-option"><input type="checkbox" data-col="services" onchange="toggleCol(this)">
+                            Open Services</label>
                         <label class="col-option"><input type="checkbox" data-col="type" checked
                                 onchange="toggleCol(this)"> Category</label>
                         <label class="col-option"><input type="checkbox" data-col="status" checked
@@ -644,7 +646,8 @@
             risk: { label: 'Risk Priority', sort: 'risk' },
             location: { label: 'Location', sort: 'location' },
             vendor: { label: 'Manufacturer', sort: 'vendor' },
-            integrations: { label: 'Integrations', sort: 'integrations' },
+            integrations: { label: 'Identified Integrations', sort: 'integrations' },
+            services: { label: 'Open Services', sort: 'services' },
             type: { label: 'Category', sort: 'device_type' },
             status: { label: 'Net Status', sort: 'status' }
         };
@@ -699,6 +702,9 @@
                     valA = calculateRiskScore(a);
                     valB = calculateRiskScore(b);
                 } else if (key === 'integrations') {
+                    valA = getMatchedIntegrations(a).length;
+                    valB = getMatchedIntegrations(b).length;
+                } else if (key === 'services') {
                     valA = (a.services || []).length;
                     valB = (b.services || []).length;
                 } else if (key === 'name') {
@@ -812,7 +818,11 @@
         function renderDynamicCells(a) {
             return visibleCols.map(col => {
                 if (col === 'risk') return `<td>${getRiskBadge(calculateRiskScore(a))}</td>`;
-                if (col === 'integrations') return `<td>${(a.services || []).length} items</td>`;
+                if (col === 'integrations') {
+                    const count = getMatchedIntegrations(a).length;
+                    return `<td>${count > 0 ? `<span style="color: var(--primary)">${count} identified</span>` : '<span style="color: var(--text-muted)">--</span>'}</td>`;
+                }
+                if (col === 'services') return `<td>${(a.services || []).length} ports</td>`;
                 if (col === 'status') return `<td><span style="color: var(--success); font-weight: 800;">●</span> ACTIVE</td>`;
                 if (col === 'vendor') return `<td>${a.vendor || '--'}</td>`;
                 if (col === 'type') return `<td>${a.device_type || a.original_device_type || '--'}</td>`;
@@ -887,17 +897,20 @@
             openModal('asset-detail');
         }
 
-        function renderSuggestions(a) {
-            const list = document.getElementById('integration-list');
+        function getMatchedIntegrations(a) {
             const rules = [
                 { match: 'Nginx', icon: '🌐', label: 'Nginx Proxy Manager', url: 'https://www.home-assistant.io/integrations/nginx_proxy_manager' },
                 { match: 'SSH', icon: '💻', label: 'SSH & Web Terminal', url: 'https://github.com/hassio-addons/addon-ssh' },
                 { match: 'ESPHome', icon: '🔋', label: 'ESPHome Node', url: 'https://www.home-assistant.io/integrations/esphome' },
                 { match: 'Generic', icon: '🔌', label: 'Generic IP Camera', url: 'https://www.home-assistant.io/integrations/generic' }
             ];
-
             const services = (a.services || []).map(s => s.banner + s.service_name).join(' ');
-            const found = rules.filter(r => services.toLowerCase().includes(r.match.toLowerCase()));
+            return rules.filter(r => services.toLowerCase().includes(r.match.toLowerCase()));
+        }
+
+        function renderSuggestions(a) {
+            const list = document.getElementById('integration-list');
+            const found = getMatchedIntegrations(a);
 
             if (found.length === 0) list.innerHTML = '<p style="color: var(--text-muted); font-size: 0.8rem;">No custom integrations identified.</p>';
             else list.innerHTML = found.map(r => `
