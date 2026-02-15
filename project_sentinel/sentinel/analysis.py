@@ -85,27 +85,48 @@ def analyze_banner(banner):
 def analyze_device_intelligence(banner):
     """
     Specifically looks for Hardware/Model/Firmware details in banners.
-    Used for high-fidelity mining.
+    Includes aggressive hunting in HTML body if present.
     """
     if not banner: return {}
     intel = {}
+    banner_l = banner.lower()
 
-    # ASUS Router Detection
-    if "asus" in banner.lower():
+    # Specialized Manufacturer Hunters
+    if "asus" in banner_l:
         model_match = re.search(r'(RT-[A-Z0-9-]+|GT-[A-Z0-9-]+)', banner, re.IGNORECASE)
         if model_match: intel['model'] = model_match.group(1).upper()
     
-    # Synology Detection
-    if "synology" in banner.lower():
+    if "synology" in banner_l:
         intel['vendor'] = "Synology"
         model_match = re.search(r'(DS\d+[a-z+]*)', banner, re.IGNORECASE)
         if model_match: intel['model'] = model_match.group(1).upper()
 
-    # TP-Link Detection
-    if "tp-link" in banner.lower():
+    if "tp-link" in banner_l:
         intel['vendor'] = "TP-Link"
         model_match = re.search(r'(Archer\s?[A-Z\d]+|RE\d+|TL-[A-Z\d-]+)', banner, re.IGNORECASE)
         if model_match: intel['model'] = model_match.group(1)
+
+    if "ubiquiti" in banner_l or "unifi" in banner_l:
+        intel['vendor'] = "Ubiquiti"
+        if "uap" in banner_l or "unifi ap" in banner_l: intel['model'] = "UniFi AP"
+
+    # IoT Platform Detection
+    if "esphome" in banner_l: intel['os'] = "ESPHome"
+    if "tasmota" in banner_l: intel['os'] = "Tasmota"
+    if "shelly" in banner_l: 
+        intel['vendor'] = "Shelly"
+        intel['os'] = "ShellyOS"
+        
+    # HTML Body / Title Hunting
+    title_match = re.search(r'<title>([^<]+)</title>', banner, re.IGNORECASE)
+    if title_match:
+        title = title_match.group(1).strip()
+        if not intel.get('model') and any(v in title.lower() for v in ['router', 'modem', 'gateway', 'storage']):
+            intel['model'] = title # Fallback to page title if it looks like a model/type
+        
+        # OS Detection via Title
+        if "home assistant" in title.lower(): intel['os'] = "Home Assistant OS"
+        if "adguard" in title.lower(): intel['os'] = "AdGuard Home"
 
     # Generic Firmware Version patterns
     fw_match = re.search(r'Firmware[:\s]+v?([0-9]+\.[0-9.]+[a-zA-Z0-9-]*)', banner, re.IGNORECASE)

@@ -49,6 +49,9 @@ def process_host(ip, mac, ports, db, nvd):
 
     for port in ports:
         banner = grab_banner(ip, port)
+        if banner:
+            logger.info(f"DEBUG: Raw Banner from {ip}:{port} -> {banner[:100]}...")
+        
         product, version, os_found = analyze_banner(banner)
         
         # 2.5a Advanced Intelligence Mining
