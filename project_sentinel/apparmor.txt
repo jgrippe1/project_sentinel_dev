@@ -9,7 +9,10 @@ profile ###SLUG### flags=(attach_disconnected,mediate_deleted) {
   # Allow all file operations within the container
   file,
   
-  # Filesystem access
+  # Allow all network operations
+  network,
+  
+  # Specific filesystem access for config keys
   /share/sentinel.db* rw,
   /config/** r,
   /data/** rw,
