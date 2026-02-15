@@ -1,38 +1,42 @@
-# Project Sentinel AppArmor Rules
-# Rules only, no profile header needed for Home Assistant Add-ons.
+# Project Sentinel AppArmor Profile
+# Using the mandatory ###SLUG### placeholder for Home Assistant compatibility.
 
-#include <abstractions/base>
-#include <abstractions/python>
-#include <abstractions/nameservice>
+#include <tunables/global>
 
-# Allow common system execution paths
-/bin/** rmix,
-/sbin/** rmix,
-/usr/bin/** rmix,
-/usr/sbin/** rmix,
-/lib/** rmix,
-/usr/lib/** rmix,
+profile ###SLUG### flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+  #include <abstractions/python>
+  #include <abstractions/nameservice>
 
-# Allow the s6-overlay /init system
-/init rmix,
+  # Allow common system execution paths
+  /bin/** rmix,
+  /sbin/** rmix,
+  /usr/bin/** rmix,
+  /usr/sbin/** rmix,
+  /lib/** rmix,
+  /usr/lib/** rmix,
 
-# Network access
-network,
-capability net_admin,
-capability net_raw,
+  # Allow the s6-overlay /init system
+  /init rmix,
 
-# Filesystem access for database and options
-/share/sentinel.db* rw,
-/data/** rw,
-/tmp/** rw,
-/run/** rw,
-/proc/** r,
-/sys/** r,
+  # Network access
+  network,
+  capability net_admin,
+  capability net_raw,
 
-# Python specific
-/usr/local/lib/python*/** r,
-/usr/local/bin/python* rmix,
+  # Filesystem access for database and options
+  /share/sentinel.db* rw,
+  /data/** rw,
+  /tmp/** rw,
+  /run/** rw,
+  /proc/** r,
+  /sys/** r,
 
-# Deny critical host files
-deny /etc/passwd r,
-deny /etc/shadow r,
+  # Python specific
+  /usr/local/lib/python*/** r,
+  /usr/local/bin/python* rmix,
+
+  # Deny critical host files
+  deny /etc/passwd r,
+  deny /etc/shadow r,
+}
