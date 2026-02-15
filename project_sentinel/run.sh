@@ -5,7 +5,7 @@ echo "Starting Project Sentinel..."
 # Export configuration for python to pick up
 export LOG_LEVEL=$(bashio::config 'log_level')
 export SENTINEL_DB_PATH="/share/sentinel.db"
-export PYTHONPATH=$PYTHONPATH:/app
+export PYTHONPATH="${PYTHONPATH:-}:/app"
 
 # Start the Web API (Ingress) in the background with logging
 echo "Starting Project Sentinel Dashboard on port 8099..."
