@@ -19,7 +19,11 @@ def load_config():
         "scan_interval": 15,
         "subnets": [],
         "log_level": "info",
-        "nvd_api_key": ""
+        "nvd_api_key": "",
+        "router_host": "192.168.50.1",
+        "router_username": "",
+        "router_password": "",
+        "router_ssh_key": ""
     }
     if os.path.exists(OPTIONS_PATH):
         try:
@@ -29,6 +33,54 @@ def load_config():
         except Exception as e:
             logger.error(f"Failed to load options: {e}")
     return config
+
+def process_host(ip, mac, ports, db, nvd):
+    """
+    Performs service enrichment and vulnerability lookup for a single host.
+    """
+    for port in ports:
+        banner = grab_banner(ip, port)
+        product, version = analyze_banner(banner)
+        
+        db.upsert_service(
+            mac=mac,
+            port=port,
+            proto="tcp",
+            service_name="unknown",
+            banner=banner,
+            version_string=version
+        )
+        
+        if product and version:
+            logger.info(f"Identified {product} {version} on {ip}:{port}")
+            
+            # 3. Vulnerability Lookup
+            logger.info(f"Querying NVD for {product} {version}...")
+            vulnerabilities = nvd.lookup_cpe(product, version)
+            
+            for item in vulnerabilities:
+                cve = item.get('cve', {})
+                cve_id = cve.get('id')
+                descriptions = cve.get('descriptions', [{}])
+                description = descriptions[0].get('value', 'No description')
+                
+                # Extract CVSS score (checking for v3.1, then v3.0, then v2)
+                metrics = cve.get('metrics', {})
+                cvss_score = 0
+                if 'cvssMetricV31' in metrics:
+                    cvss_score = metrics['cvssMetricV31'][0]['cvssData']['baseScore']
+                elif 'cvssMetricV30' in metrics:
+                    cvss_score = metrics['cvssMetricV30'][0]['cvssData']['baseScore']
+                elif 'cvssMetricV2' in metrics:
+                    cvss_score = metrics['cvssMetricV2'][0]['cvssData']['baseScore']
+                
+                db.upsert_vulnerability(
+                    mac=mac,
+                    cve_id=cve_id,
+                    cvss_score=cvss_score,
+                    description=description
+                )
+                logger.info(f"Logged vulnerability {cve_id} (Score: {cvss_score}) for {ip}")
 
 def main():
     logger.info("Starting Project Sentinel Core...")
@@ -52,59 +104,49 @@ def main():
         
         for subnet in subnets:
             try:
-                # 1. Discovery
-                hosts = scan_subnet(subnet)
-                logger.info(f"Discovered {len(hosts)} hosts in {subnet}")
+                # 0. Optional Router Discovery (Seeding)
+                router_host = config.get("router_host")
+                router_user = config.get("router_username")
                 
-                for ip, ports in hosts.items():
-                    mac_placeholder = f"mac_{ip.replace('.', '_')}" 
-                    db.upsert_asset(mac=mac_placeholder, ip=ip)
+                router_assets = []
+                if router_user:
+                    from sentinel.scanner import RouterDiscovery
+                    rd = RouterDiscovery(
+                        host=router_host,
+                        username=router_user,
+                        password=config.get("router_password"),
+                        ssh_key=config.get("router_ssh_key")
+                    )
+                    router_assets = rd.get_asus_clients()
+                    logger.info(f"Router discovery found {len(router_assets)} devices.")
+
+                # 1. Active Discovery
+                scanned_hosts = scan_subnet(subnet)
+                logger.info(f"Active scan discovered {len(scanned_hosts)} hosts in {subnet}")
+                
+                # 2. Merge and Process
+                # Track processed MACs to avoid redundant scans in same cycle
+                processed_macs = set()
+
+                # Process Router Assets first (Best MAC/IP mapping)
+                for asset in router_assets:
+                    mac = asset['mac']
+                    ip = asset['ip']
+                    db.upsert_asset(mac=mac, ip=ip)
+                    processed_macs.add(mac)
                     
-                    # 2. Enrichment
-                    for port in ports:
-                        banner = grab_banner(ip, port)
-                        product, version = analyze_banner(banner)
-                        
-                        db.upsert_service(
-                            mac=mac_placeholder,
-                            port=port,
-                            proto="tcp",
-                            service_name="unknown",
-                            banner=banner,
-                            version_string=version
-                        )
-                        
-                        if product and version:
-                            logger.info(f"Identified {product} {version} on {ip}:{port}")
-                            
-                            # 3. Vulnerability Lookup
-                            logger.info(f"Querying NVD for {product} {version}...")
-                            vulnerabilities = nvd.lookup_cpe(product, version)
-                            
-                            for item in vulnerabilities:
-                                cve = item.get('cve', {})
-                                cve_id = cve.get('id')
-                                descriptions = cve.get('descriptions', [{}])
-                                description = descriptions[0].get('value', 'No description')
-                                
-                                # Extract CVSS score (checking for v3.1, then v3.0, then v2)
-                                metrics = cve.get('metrics', {})
-                                cvss_score = 0
-                                if 'cvssMetricV31' in metrics:
-                                    cvss_score = metrics['cvssMetricV31'][0]['cvssData']['baseScore']
-                                elif 'cvssMetricV30' in metrics:
-                                    cvss_score = metrics['cvssMetricV30'][0]['cvssData']['baseScore']
-                                elif 'cvssMetricV2' in metrics:
-                                    cvss_score = metrics['cvssMetricV2'][0]['cvssData']['baseScore']
-                                
-                                db.upsert_vulnerability(
-                                    mac=mac_placeholder,
-                                    cve_id=cve_id,
-                                    cvss_score=cvss_score,
-                                    description=description
-                                )
-                                logger.info(f"Logged vulnerability {cve_id} (Score: {cvss_score}) for {ip}")
-                            
+                    # If active scan also found it, use its ports
+                    ports = scanned_hosts.get(ip, [80, 443, 22, 8080]) 
+                    process_host(ip, mac, ports, db, nvd)
+
+                # Process remaining active hosts (those not seen by router)
+                for ip, ports in scanned_hosts.items():
+                    # Create placeholder if we don't have a real MAC
+                    mac_placeholder = f"mac_{ip.replace('.', '_')}"
+                    if mac_placeholder not in processed_macs:
+                        db.upsert_asset(mac=mac_placeholder, ip=ip)
+                        process_host(ip, mac_placeholder, ports, db, nvd)
+
             except Exception as e:
                 logger.error(f"Error during scan of {subnet}: {e}")
 
