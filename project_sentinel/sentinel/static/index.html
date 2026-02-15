@@ -380,6 +380,7 @@
                     <tr>
                         <td><span class="status-badge badge-success">Active</span></td>
                         <td><strong>${asset.ip_address}</strong></td>
+                        <td><span style="font-size: 0.8rem; background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px;">${asset.interface || 'Normal'}</span></td>
                         <td>${asset.hostname || '<span style="color: grey; font-style: italic;">Unknown</span>'}</td>
                         <td class="service-list">
                             ${(asset.services || []).map(s => `<span class="service-tag">${s.port}/${s.version_string || 'unknown'}</span>`).join('')}

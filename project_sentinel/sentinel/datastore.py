@@ -23,6 +23,7 @@ class Datastore:
                 ip_address TEXT,
                 hostname TEXT,
                 vendor TEXT,
+                interface TEXT,
                 first_seen DATETIME,
                 last_seen DATETIME,
                 status TEXT DEFAULT 'active'
@@ -61,7 +62,7 @@ class Datastore:
         conn.commit()
         conn.close()
 
-    def upsert_asset(self, mac, ip, hostname=None, vendor=None):
+    def upsert_asset(self, mac, ip, hostname=None, vendor=None, interface=None):
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
         now = datetime.datetime.now()
@@ -80,11 +81,13 @@ class Datastore:
                  c.execute("UPDATE assets SET hostname=? WHERE mac_address=?", (hostname, mac))
             if vendor:
                  c.execute("UPDATE assets SET vendor=? WHERE mac_address=?", (vendor, mac))
+            if interface:
+                 c.execute("UPDATE assets SET interface=? WHERE mac_address=?", (interface, mac))
         else:
             c.execute('''
-                INSERT INTO assets (mac_address, ip_address, hostname, vendor, first_seen, last_seen)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ''', (mac, ip, hostname, vendor, now, now))
+                INSERT INTO assets (mac_address, ip_address, hostname, vendor, interface, first_seen, last_seen)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (mac, ip, hostname, vendor, interface, now, now))
             
         conn.commit()
         conn.close()

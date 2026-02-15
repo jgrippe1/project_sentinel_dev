@@ -132,7 +132,8 @@ def main():
                 for asset in router_assets:
                     mac = asset['mac']
                     ip = asset['ip']
-                    db.upsert_asset(mac=mac, ip=ip)
+                    interface = asset.get('interface')
+                    db.upsert_asset(mac=mac, ip=ip, interface=interface)
                     processed_macs.add(mac)
                     
                     # If active scan also found it, use its ports
