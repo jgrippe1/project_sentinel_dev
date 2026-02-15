@@ -131,9 +131,17 @@ def process_host(ip, mac, ports, db, nvd):
                 logger.info(f"Logged vulnerability {cve_id} (Score: {cvss_score}) for {ip}")
     
     # Final step: Merge base intelligence with mining results
-    from sentinel.analysis import get_vendor_from_mac
+    from sentinel.analysis import get_vendor_from_mac, OUI_MAP
     oui_vendor = get_vendor_from_mac(mac)
     
+    # Enhanced Logging for OUI
+    if oui_vendor:
+        prefix = mac[:8].upper()
+        if prefix in OUI_MAP:
+            logger.info(f"OUI Intelligence (Local Map) for {ip}: {oui_vendor}")
+        else:
+            logger.info(f"OUI Intelligence (Global API) for {ip}: {oui_vendor}")
+
     final_vendor = aggregated_intel['vendor'] or oui_vendor
     if final_vendor:
         logger.info(f"Final Intelligence Baseline for {ip}: Vendor={final_vendor}, Model={aggregated_intel['model']}, OS={aggregated_intel['os']}")

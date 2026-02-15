@@ -2,6 +2,8 @@ import re
 import ssl
 import socket
 import datetime
+import requests
+import time
 from datetime import timezone
 
 # Common IEEE OUIs (Manufacturer Prefixes)
@@ -46,11 +48,39 @@ OUI_MAP = {
     "EC:B5:FA": "Philips Hue",
 }
 
+def lookup_mac_vendor_remote(mac):
+    """
+    Queries api.macvendors.com for exhaustive manufacturer lookup.
+    Includes rate-limit handling and caching is expected at the caller level.
+    """
+    try:
+        # We only need the first 3 or 4 segments usually, but sending full MAC is fine
+        url = f"https://api.macvendors.com/{mac}"
+        response = requests.get(url, timeout=5)
+        
+        if response.status_code == 200:
+            return response.text.strip()
+        elif response.status_code == 429:
+            # Rate limited - api.macvendors.com allows 2 req/sec usually or 1000/day
+            # We'll just return None and let the next cycle try
+            return None
+        return None
+    except Exception:
+        return None
+
 def get_vendor_from_mac(mac):
     """Returns a manufacturer name based on the MAC OUI."""
     if not mac or len(mac) < 8: return None
+    
+    # 1. Check Local high-speed map first
     prefix = mac[:8].upper()
-    return OUI_MAP.get(prefix)
+    if prefix in OUI_MAP:
+        return OUI_MAP[prefix]
+    
+    # 2. Global API Fallback
+    # Note: Calling this directly can be risky if scanning many new devices.
+    # However, core.py logic only calls this for assets needing updates.
+    return lookup_mac_vendor_remote(mac)
 
 def grab_banner(ip, port, timeout=3):
     """
