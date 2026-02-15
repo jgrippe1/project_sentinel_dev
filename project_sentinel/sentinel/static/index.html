@@ -513,9 +513,9 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>Asset Name</th>
-                            <th>Network Info</th>
-                            <th>Location</th>
+                            <th data-sort="name" onclick="sortInventory('name')">Asset Name</th>
+                            <th data-sort="ip_address" onclick="sortInventory('ip_address')">Network Info</th>
+                            <th data-sort="location" onclick="sortInventory('location')">Location</th>
                             <th>Net Status</th>
                         </tr>
                     </thead>
@@ -564,6 +564,7 @@
     <script>
         let allAssets = [];
         let allVulns = [];
+        let sortConfig = { key: 'ip_address', direction: 'asc' };
 
         function showTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
@@ -584,10 +585,66 @@
                 allVulns = await resVulns.json();
 
                 renderInbox();
-                renderInventory();
+                sortInventory(sortConfig.key, true); // initial sort
                 renderSecurity();
                 document.getElementById('loader').classList.add('hidden');
             } catch (err) { console.error(err); }
+        }
+
+        function ipToLong(ip) {
+            if (!ip) return 0;
+            return ip.split('.').reduce((acc, octet) => (acc << 8) + parseInt(octet, 10), 0) >>> 0;
+        }
+
+        function sortInventory(key, preservedirection = false) {
+            if (!preservedirection) {
+                if (sortConfig.key === key) {
+                    sortConfig.direction = sortConfig.direction === 'asc' ? 'desc' : 'asc';
+                } else {
+                    sortConfig.key = key;
+                    sortConfig.direction = 'asc';
+                }
+            }
+
+            const dir = sortConfig.direction === 'asc' ? 1 : -1;
+
+            allAssets.sort((a, b) => {
+                let valA, valB;
+
+                if (key === 'name') {
+                    valA = (a.custom_name || a.hostname || '').toLowerCase();
+                    valB = (b.custom_name || b.hostname || '').toLowerCase();
+                } else if (key === 'ip_address') {
+                    valA = ipToLong(a.ip_address);
+                    valB = ipToLong(b.ip_address);
+                } else {
+                    valA = (a[key] || '').toLowerCase();
+                    valB = (b[key] || '').toLowerCase();
+                }
+
+                if (valA < valB) return -1 * dir;
+                if (valA > valB) return 1 * dir;
+                return 0;
+            });
+
+            renderInventory();
+            updateSortUI();
+        }
+
+        function updateSortUI() {
+            document.querySelectorAll('th[data-sort]').forEach(th => {
+                const key = th.getAttribute('data-sort');
+                th.style.cursor = 'pointer';
+                let icon = ' ↕️';
+                if (sortConfig.key === key) {
+                    icon = sortConfig.direction === 'asc' ? ' 🔼' : ' 🔽';
+                    th.style.color = 'var(--primary)';
+                } else {
+                    th.style.color = 'var(--text-muted)';
+                }
+                const baseText = th.innerText.replace(/[↕️🔼🔽]/g, '').trim();
+                th.innerHTML = `${baseText} <span style="font-size: 0.6rem;">${icon}</span>`;
+            });
         }
 
         function renderInbox() {
