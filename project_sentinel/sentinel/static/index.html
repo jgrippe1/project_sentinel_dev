@@ -740,6 +740,7 @@
                 const resVulns = await fetch('api/vulnerabilities');
                 allVulns = await resVulns.json();
 
+                await fetchInstalledIntegrations();
                 renderDashboard();
                 renderInbox();
                 initColumnSelector();
@@ -968,33 +969,62 @@
             openModal('asset-detail');
         }
 
-        const MASTER_INTEGRATIONS = [
-            { id: 'nginx', match: 'Nginx', icon: '🌐', label: 'Nginx Proxy Manager', url: 'https://www.home-assistant.io/integrations/nginx_proxy_manager' },
-            { id: 'ssh', match: 'SSH', icon: '💻', label: 'SSH & Web Terminal', url: 'https://github.com/hassio-addons/addon-ssh' },
-            { id: 'esphome', match: 'ESPHome', icon: '🔋', label: 'ESPHome Node', url: 'https://www.home-assistant.io/integrations/esphome' },
-            { id: 'generic_camera', match: 'Generic', icon: '🔌', label: 'Generic IP Camera', url: 'https://www.home-assistant.io/integrations/generic' },
-            { id: 'adguard', match: 'AdGuard', icon: '🛡️', label: 'AdGuard Home', url: 'https://www.home-assistant.io/integrations/adguard' },
-            { id: 'mqtt', match: 'MQTT', icon: '📡', label: 'MQTT Broker', url: 'https://www.home-assistant.io/integrations/mqtt' },
-            { id: 'unifi', match: 'UniFi', icon: '🛰️', label: 'UniFi Network', url: 'https://www.home-assistant.io/integrations/unifi' },
-            { id: 'plex', match: 'Plex', icon: '🎬', label: 'Plex Media Server', url: 'https://www.home-assistant.io/integrations/plex' },
-            { id: 'zigbee2mqtt', match: 'Zigbee', icon: '🐝', label: 'Zigbee2MQTT', url: 'https://www.home-assistant.io/integrations/zigbee' },
-            { id: 'homekit', match: 'HomeKit', icon: '🏠', label: 'HomeKit Device', url: 'https://www.home-assistant.io/integrations/homekit' },
-            { id: 'shelly', match: 'Shelly', icon: '💡', label: 'Shelly Smart Home', url: 'https://www.home-assistant.io/integrations/shelly' },
-            { id: 'tasmota', match: 'Tasmota', icon: '⚙️', label: 'Tasmota Device', url: 'https://www.home-assistant.io/integrations/tasmota' },
-            { id: 'philips_hue', match: 'Hue', icon: '🌈', label: 'Philips Hue', url: 'https://www.home-assistant.io/integrations/hue' },
-            { id: 'sonos', match: 'Sonos', icon: '🔊', label: 'Sonos Speaker', url: 'https://www.home-assistant.io/integrations/sonos' },
-            { id: 'wled', match: 'WLED', icon: '✨', label: 'WLED Strip', url: 'https://www.home-assistant.io/integrations/wled' },
-            { id: 'frigate', match: 'Frigate', icon: '🐱', label: 'Frigate Video', url: 'https://www.home-assistant.io/integrations/frigate' },
-            { id: 'homeassistant', match: 'HASS', icon: '🏠', label: 'Remote Home Assistant', url: 'https://www.home-assistant.io/integrations/homeassistant' },
-            { id: 'tuya', match: 'Tuya', icon: '☁️', label: 'Tuya Smart Life', url: 'https://www.home-assistant.io/integrations/tuya' },
-            { id: 'tp_link', match: 'Kasa', icon: '🔌', label: 'TP-Link Kasa', url: 'https://www.home-assistant.io/integrations/tplink' },
-            { id: 'pihole', match: 'Pi-hole', icon: '🕳️', label: 'Pi-hole', url: 'https://www.home-assistant.io/integrations/pi_hole' }
-        ];
+        let installedIntegrations = []; // Fetched from HA API
+
+        /**
+         * Rich UI metadata for common integrations.
+         * If an installed component matches the key, we use this icon/label/url.
+         */
+        const MASTER_METADATA = {
+            'nginx_proxy_manager': { icon: '🌐', label: 'Nginx Proxy Manager', url: 'https://www.home-assistant.io/integrations/nginx_proxy_manager', match: 'Nginx' },
+            'ssh_web_terminal': { icon: '💻', label: 'SSH & Web Terminal', url: 'https://github.com/hassio-addons/addon-ssh', match: 'SSH' },
+            'esphome': { icon: '🔋', label: 'ESPHome Node', url: 'https://www.home-assistant.io/integrations/esphome', match: 'ESPHome' },
+            'generic': { icon: '🔌', label: 'Generic IP Camera', url: 'https://www.home-assistant.io/integrations/generic', match: 'Generic' },
+            'adguard': { icon: '🛡️', label: 'AdGuard Home', url: 'https://www.home-assistant.io/integrations/adguard', match: 'AdGuard' },
+            'mqtt': { icon: '📡', label: 'MQTT Broker', url: 'https://www.home-assistant.io/integrations/mqtt', match: 'MQTT' },
+            'unifi': { icon: '🛰️', label: 'UniFi Network', url: 'https://www.home-assistant.io/integrations/unifi', match: 'UniFi' },
+            'plex': { icon: '🎬', label: 'Plex Media Server', url: 'https://www.home-assistant.io/integrations/plex', match: 'Plex' },
+            'zigbee2mqtt': { icon: '🐝', label: 'Zigbee2MQTT', url: 'https://www.home-assistant.io/integrations/zigbee', match: 'Zigbee' },
+            'homekit': { icon: '🏠', label: 'HomeKit Device', url: 'https://www.home-assistant.io/integrations/homekit', match: 'HomeKit' },
+            'shelly': { icon: '💡', label: 'Shelly Smart Home', url: 'https://www.home-assistant.io/integrations/shelly', match: 'Shelly' },
+            'tasmota': { icon: '⚙️', label: 'Tasmota Device', url: 'https://www.home-assistant.io/integrations/tasmota', match: 'Tasmota' },
+            'philips_hue': { icon: '🌈', label: 'Philips Hue', url: 'https://www.home-assistant.io/integrations/hue', match: 'Hue' },
+            'sonos': { icon: '🔊', label: 'Sonos Speaker', url: 'https://www.home-assistant.io/integrations/sonos', match: 'Sonos' },
+            'wled': { icon: '✨', label: 'WLED Strip', url: 'https://www.home-assistant.io/integrations/wled', match: 'WLED' },
+            'frigate': { icon: '🐱', label: 'Frigate Video', url: 'https://www.home-assistant.io/integrations/frigate', match: 'Frigate' },
+            'homeassistant': { icon: '🏠', label: 'Remote Home Assistant', url: 'https://www.home-assistant.io/integrations/homeassistant', match: 'HASS' },
+            'tuya': { icon: '☁️', label: 'Tuya Smart Life', url: 'https://www.home-assistant.io/integrations/tuya', match: 'Tuya' },
+            'tplink': { icon: '🔌', label: 'TP-Link Kasa', url: 'https://www.home-assistant.io/integrations/tplink', match: 'Kasa' },
+            'pi_hole': { icon: '🕳️', label: 'Pi-hole', url: 'https://www.home-assistant.io/integrations/pi_hole', match: 'Pi-hole' }
+        };
+
+        async function fetchInstalledIntegrations() {
+            try {
+                const res = await fetch('api/ha/integrations');
+                const components = await res.json();
+
+                // Map components to our rich metadata format
+                installedIntegrations = components.map(compId => {
+                    const meta = MASTER_METADATA[compId] || {};
+                    return {
+                        id: compId,
+                        icon: meta.icon || '🧩',
+                        label: meta.label || compId.charAt(0).toUpperCase() + compId.slice(1).replace('_', ' '),
+                        url: meta.url || `https://www.home-assistant.io/integrations/${compId}`,
+                        match: meta.match || compId
+                    };
+                });
+                console.log(`Discovered ${installedIntegrations.length} installed HA integrations.`);
+            } catch (e) {
+                console.error("Failed to fetch HA integrations:", e);
+                installedIntegrations = [];
+            }
+        }
 
         function initManualSelect() {
             const select = document.getElementById('manual-int-select');
             if (select.children.length > 1) return;
-            MASTER_INTEGRATIONS.forEach(int => {
+            installedIntegrations.forEach(int => {
                 const opt = document.createElement('option');
                 opt.value = int.id;
                 opt.innerText = `${int.icon} ${int.label}`;
@@ -1004,7 +1034,7 @@
 
         function getMatchedIntegrations(a) {
             const services = (a.services || []).map(s => s.banner + s.service_name).join(' ');
-            return MASTER_INTEGRATIONS.filter(r => services.toLowerCase().includes(r.match.toLowerCase()));
+            return installedIntegrations.filter(r => services.toLowerCase().includes(r.match.toLowerCase()));
         }
 
         function renderSuggestions(a) {
@@ -1018,7 +1048,7 @@
             const detected = getMatchedIntegrations(a);
 
             // Render Active (Confirmed or Manual)
-            const active = MASTER_INTEGRATIONS.filter(r => confirmedIds.includes(r.id));
+            const active = installedIntegrations.filter(r => confirmedIds.includes(r.id));
             activeList.innerHTML = active.map(r => `
                 <div class="integration-item" style="border-color: var(--primary); background: rgba(99, 102, 241, 0.1);">
                     <span>${r.icon}</span>

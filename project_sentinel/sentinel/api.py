@@ -1,5 +1,6 @@
 import logging
 import os
+import requests
 from flask import Flask, jsonify, send_from_directory, request
 from sentinel.datastore import Datastore
 
@@ -69,6 +70,34 @@ def update_asset():
         return jsonify({"status": "success"})
     except Exception as e:
         logger.error(f"Error updating asset: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/ha/integrations')
+def get_ha_integrations():
+    """
+    Fetches the list of installed integrations from Home Assistant Core.
+    Uses the SUPERVISOR_TOKEN provided in the add-on environment.
+    """
+    token = os.getenv("SUPERVISOR_TOKEN")
+    if not token:
+        # Fallback for local testing - return empty or a mock list
+        return jsonify(["nginx", "ssh", "esphome", "generic", "adguard"])
+    
+    try:
+        url = "http://supervisor/core/api/config"
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        }
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        config = response.json()
+        
+        # 'components' contains the list of installed integrations/platforms
+        components = config.get("components", [])
+        return jsonify(components)
+    except Exception as e:
+        logger.error(f"Error fetching HA integrations: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/stats')
