@@ -4,26 +4,33 @@ import socket
 import datetime
 from datetime import timezone
 
-def grab_banner(ip, port, timeout=2):
+def grab_banner(ip, port, timeout=3):
     """
     Connects to an IP and port to grab the banner.
-    Returns the banner string/bytes or None.
+    Supports SSL for port 443.
     """
     try:
+        if port == 443:
+            context = ssl.create_default_context()
+            context.check_hostname = False
+            context.verify_mode = ssl.CERT_NONE
+            with socket.create_connection((ip, port), timeout=timeout) as sock:
+                with context.wrap_socket(sock, server_hostname=ip) as ssock:
+                    # For HTTPS, we send a HEAD request and try to get the Server header
+                    ssock.sendall(b"HEAD / HTTP/1.1\r\nHost: " + ip.encode() + b"\r\n\r\n")
+                    banner = ssock.recv(2048).decode('utf-8', errors='ignore').strip()
+                    return banner
+        
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.settimeout(timeout)
             s.connect((ip, port))
             
-            # Send a basic HTTP request if port implies HTTP to trigger a response
-            if port in [80, 8080, 443]:
+            if port in [80, 8080, 8123]:
                 s.sendall(b"HEAD / HTTP/1.1\r\nHost: " + ip.encode() + b"\r\n\r\n")
             
-            try:
-                banner = s.recv(2048) # Increased buffer
-                return banner.decode('utf-8', errors='ignore').strip()
-            except socket.timeout:
-                return None
-    except Exception as e:
+            banner = s.recv(2048).decode('utf-8', errors='ignore').strip()
+            return banner
+    except Exception:
         return None
 
 def analyze_banner(banner):
@@ -42,9 +49,12 @@ def analyze_banner(banner):
         version = http_match.group(2)
         os_info = http_match.group(3)
         if os_info:
-            if any(x in os_info.lower() for x in ['ubuntu', 'debian', 'linux']): os_found = "Linux"
-            if 'win' in os_info.lower(): os_found = "Windows"
-            if 'macos' in os_info.lower(): os_found = "macOS"
+            os_info_l = os_info.lower()
+            if any(x in os_info_l for x in ['ubuntu', 'debian', 'linux', 'centos', 'fedora']): os_found = "Linux"
+            if any(x in os_info_l for x in ['win32', 'win64', 'windows']): os_found = "Windows"
+            if 'macos' in os_info_l or 'darwin' in os_info_l: os_found = "macOS"
+            if 'freebsd' in os_info_l: os_found = "FreeBSD"
+            if 'openbsd' in os_info_l: os_found = "OpenBSD"
 
     # SSH Banner: "SSH-2.0-OpenSSH_8.2p1 Ubuntu-4ubuntu0.5"
     if not product:

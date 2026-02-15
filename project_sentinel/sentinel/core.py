@@ -56,10 +56,21 @@ def process_host(ip, mac, ports, db, nvd):
         device_intel = analyze_device_intelligence(banner)
         
         # Merge intelligence
-        if os_found and not aggregated_intel['os']: aggregated_intel['os'] = os_found
-        if device_intel.get('model') and not aggregated_intel['model']: aggregated_intel['model'] = device_intel['model']
-        if device_intel.get('fw_version') and not aggregated_intel['fw_version']: aggregated_intel['fw_version'] = device_intel['fw_version']
-        if device_intel.get('vendor') and not aggregated_intel['vendor']: aggregated_intel['vendor'] = device_intel['vendor']
+        if os_found and not aggregated_intel['os']: 
+            aggregated_intel['os'] = os_found
+            logger.info(f"Mined High-Fidelity OS for {ip}: {os_found}")
+            
+        if device_intel.get('model') and not aggregated_intel['model']: 
+            aggregated_intel['model'] = device_intel['model']
+            logger.info(f"Mined High-Fidelity Model for {ip}: {device_intel['model']}")
+            
+        if device_intel.get('fw_version') and not aggregated_intel['fw_version']: 
+            aggregated_intel['fw_version'] = device_intel['fw_version']
+            logger.info(f"Mined High-Fidelity Firmware for {ip}: {device_intel['fw_version']}")
+            
+        if device_intel.get('vendor') and not aggregated_intel['vendor']: 
+            aggregated_intel['vendor'] = device_intel['vendor']
+            logger.info(f"Mined High-Fidelity Vendor for {ip}: {device_intel['vendor']}")
 
         db.upsert_service(
             mac=mac,
