@@ -7,6 +7,7 @@ from sentinel.scanner import scan_subnet
 from sentinel.analysis import grab_banner, analyze_banner
 from sentinel.datastore import Datastore
 from sentinel.nvd_client import NVDClient
+from sentinel.version_utils import is_safe_version, extract_affected_version
 
 # Configure Logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -122,13 +123,33 @@ def process_host(ip, mac, ports, db, nvd):
                 elif 'cvssMetricV2' in metrics:
                     cvss_score = metrics['cvssMetricV2'][0]['cvssData']['baseScore']
                 
+                # 3.1 Version-Based Suppression
+                status = 'active'
+                logic = None
+                reason = None
+                
+                asset = db.get_asset(mac)
+                actual_ver = asset.get('actual_fw_version')
+                if actual_ver and is_safe_version(actual_ver, description):
+                    status = 'suppressed'
+                    reason = "Software already patched"
+                    affected_limit = extract_affected_version(description)
+                    logic = f"Version Comparison: {actual_ver} > {affected_limit} (Threshold)"
+
                 db.upsert_vulnerability(
                     mac=mac,
                     cve_id=cve_id,
                     cvss_score=cvss_score,
-                    description=description
+                    description=description,
+                    status=status,
+                    suppression_reason=reason,
+                    suppression_logic=logic,
+                    user_version=actual_ver if status == 'suppressed' else None
                 )
-                logger.info(f"Logged vulnerability {cve_id} (Score: {cvss_score}) for {ip}")
+                if status == 'suppressed':
+                    logger.info(f"Auto-suppressed {cve_id} for {ip} (Version {actual_ver} is safe)")
+                else:
+                    logger.info(f"Logged vulnerability {cve_id} (Score: {cvss_score}) for {ip}")
     
     # Final step: Merge base intelligence with mining results
     from sentinel.analysis import get_vendor_from_mac, OUI_MAP

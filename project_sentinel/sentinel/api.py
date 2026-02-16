@@ -67,7 +67,8 @@ def update_asset():
             device_type=data.get('device_type'),
             tags=data.get('tags'),
             confirmed_integrations=data.get('confirmed_integrations'),
-            dismissed_integrations=data.get('dismissed_integrations')
+            dismissed_integrations=data.get('dismissed_integrations'),
+            actual_fw_version=data.get('actual_fw_version')
         )
         return jsonify({"status": "success"})
     except Exception as e:
@@ -160,6 +161,25 @@ def get_stats():
         })
     except Exception as e:
         logger.error(f"Error fetching stats: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/vulnerabilities/suppress', methods=['POST'])
+def suppress_vulnerability():
+    try:
+        data = request.json
+        mac = data.get('mac')
+        cve_id = data.get('cve_id')
+        reason = data.get('reason')
+        logic = data.get('logic')
+        user_ver = data.get('user_ver')
+        
+        if not mac or not cve_id:
+            return jsonify({"error": "MAC and CVE ID required"}), 400
+            
+        db.suppress_vulnerability(mac, cve_id, reason, logic, user_ver)
+        return jsonify({"status": "success"})
+    except Exception as e:
+        logger.error(f"Error suppressing vulnerability: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/report/security')

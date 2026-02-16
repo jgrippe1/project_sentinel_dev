@@ -518,7 +518,8 @@
                             </div>
                             <div>
                                 <label
-                                    style="display: block; color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase;">Firmware</label>
+                                    style="display: block; color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase;">Firmware
+                                    (Detected)</label>
                                 <span id="detail-intel-fw">--</span>
                             </div>
                             <div>
@@ -526,6 +527,17 @@
                                     style="display: block; color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase;">Hardware
                                     Rev</label>
                                 <span id="detail-intel-hw">--</span>
+                            </div>
+                            <div style="grid-column: span 2;">
+                                <label
+                                    style="display: block; color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase; margin-bottom: 0.25rem;">Actual
+                                    Firmware (Verified Truth)</label>
+                                <div style="display: flex; gap: 0.5rem;">
+                                    <input type="text" id="detail-actual-fw" class="input-minimal"
+                                        placeholder="Enter manual truth (e.g. 3.0.0.4.388)" style="flex: 1;">
+                                    <button class="btn btn-primary" style="padding: 0 0.75rem; font-size: 0.75rem;"
+                                        onclick="saveActualFirmware()">Verify</button>
+                                </div>
                             </div>
                             <div>
                                 <label
@@ -1017,6 +1029,7 @@
             document.getElementById('detail-intel-model').innerText = a.model || '--';
             document.getElementById('detail-intel-os').innerText = a.os || '--';
             document.getElementById('detail-intel-fw').innerText = a.fw_version || '--';
+            document.getElementById('detail-actual-fw').value = a.actual_fw_version || '';
             document.getElementById('detail-intel-hw').innerText = a.hw_version || '--';
             document.getElementById('detail-intel-oui').innerText = a.oui_vendor || '--';
 
@@ -1191,16 +1204,40 @@
         }
 
         async function saveAssetDetail() {
-            // ... (keep current simplified implementation)
             const mac = document.getElementById('detail-mac').value;
             const payload = {
                 mac,
                 custom_name: document.getElementById('detail-custom-name').value,
                 location: document.getElementById('detail-location').value,
-                device_type: document.getElementById('detail-type').value
+                device_type: document.getElementById('detail-type').value,
+                actual_fw_version: document.getElementById('detail-actual-fw').value
             };
             await fetch('api/assets/update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             closeModal('asset-detail');
+            loadData();
+        }
+
+        async function saveActualFirmware() {
+            await saveAssetDetail();
+            alert("Firmware verified. The system will reassess vulnerabilities on the next scan cycle.");
+        }
+
+        async function suppressVulnerability(mac, cveId) {
+            const reason = prompt("Reason for suppression (e.g. Fixed in current firmware, Vendor mismatch):");
+            if (!reason) return;
+
+            const payload = {
+                mac,
+                cve_id: cveId,
+                reason,
+                logic: "Manual User Override"
+            };
+
+            await fetch('api/vulnerabilities/suppress', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
             loadData();
         }
 
@@ -1210,14 +1247,25 @@
 
         function renderSecurity() {
             const table = document.getElementById('security-table');
-            table.innerHTML = allVulns.map(v => `
+            table.innerHTML = allVulns.map(v => {
+                const isSuppressed = v.status === 'suppressed';
+                return `
                 <tr>
-                    <td><span style="background: ${v.cvss_score >= 9 ? 'var(--danger)' : v.cvss_score >= 7 ? 'var(--warning)' : 'var(--primary)'}; border-radius: 4px; padding: 2px 6px; font-weight: 800; font-size: 0.75rem; color: white;">${v.cvss_score >= 9 ? 'CRITICAL' : v.cvss_score >= 7 ? 'HIGH' : 'MEDIUM'}</span></td>
-                    <td><code>${v.cve_id}</code></td>
+                    <td><span style="background: ${isSuppressed ? 'var(--text-muted)' : (v.cvss_score >= 9 ? 'var(--danger)' : v.cvss_score >= 7 ? 'var(--warning)' : 'var(--primary)')}; border-radius: 4px; padding: 2px 6px; font-weight: 800; font-size: 0.75rem; color: white;">${isSuppressed ? 'RESOLVED' : (v.cvss_score >= 9 ? 'CRITICAL' : v.cvss_score >= 7 ? 'HIGH' : 'MEDIUM')}</span></td>
+                    <td>
+                        <div style="font-weight: 600; font-family: monospace;">${v.cve_id}</div>
+                        ${isSuppressed ? `<div style="font-size: 0.7rem; color: #4CAF50;">✅ Suppressed: ${v.suppression_reason}</div>` : ''}
+                    </td>
                     <td>${v.ip_address}</td>
-                    <td><button class="btn btn-primary" style="padding: 4px 10px;" onclick="openRemediationModal('${v.cve_id}', '${v.mac_address}')">Remediate</button></td>
+                    <td style="text-align: right;">
+                        ${isSuppressed ?
+                        '<span style="color: var(--text-muted); font-size: 0.8rem;">User Verified</span>' :
+                        `<button class="btn btn-primary" style="padding: 4px 10px;" onclick="suppressVulnerability('${v.mac_address}', '${v.cve_id}')">Dismiss</button>`
+                    }
+                    </td>
                 </tr>
-            `).join('');
+            `;
+            }).join('');
         }
 
         function openRemediationModal(cveId, mac) {

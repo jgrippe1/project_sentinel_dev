@@ -164,6 +164,25 @@ class Datastore:
                 c.execute("ALTER TABLE services ADD COLUMN cert_expiry DATETIME")
             except Exception as e:
                 print(f"Migration error (cert_expiry): {e}")
+
+        # Phase 40: Firmware Verification & Suppression
+        # Assets Update
+        c.execute("PRAGMA table_info(assets)")
+        asset_columns = [info[1] for info in c.fetchall()]
+        if 'actual_fw_version' not in asset_columns:
+            print("Migrating database: Adding actual_fw_version to assets.")
+            c.execute("ALTER TABLE assets ADD COLUMN actual_fw_version TEXT")
+            c.execute("ALTER TABLE assets ADD COLUMN fw_verified_at DATETIME")
+            
+        # Vulnerabilities Update
+        c.execute("PRAGMA table_info(vulnerabilities)")
+        vuln_columns = [info[1] for info in c.fetchall()]
+        if 'status' not in vuln_columns:
+            print("Migrating database: Adding suppression fields to vulnerabilities.")
+            c.execute("ALTER TABLE vulnerabilities ADD COLUMN status TEXT DEFAULT 'active'")
+            c.execute("ALTER TABLE vulnerabilities ADD COLUMN suppression_reason TEXT")
+            c.execute("ALTER TABLE vulnerabilities ADD COLUMN suppression_logic TEXT")
+            c.execute("ALTER TABLE vulnerabilities ADD COLUMN user_version TEXT")
         
         conn.commit()
         conn.close()
@@ -232,7 +251,7 @@ class Datastore:
         conn.commit()
         conn.close()
 
-    def update_asset_governance(self, mac, custom_name=None, location=None, device_type=None, tags=None, confirmed_integrations=None, dismissed_integrations=None):
+    def update_asset_governance(self, mac, custom_name=None, location=None, device_type=None, tags=None, confirmed_integrations=None, dismissed_integrations=None, actual_fw_version=None):
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
         if custom_name is not None:
@@ -245,6 +264,9 @@ class Datastore:
             c.execute("UPDATE assets SET confirmed_integrations=? WHERE mac_address=?", (confirmed_integrations, mac))
         if dismissed_integrations is not None:
             c.execute("UPDATE assets SET dismissed_integrations=? WHERE mac_address=?", (dismissed_integrations, mac))
+        if actual_fw_version is not None:
+            now = datetime.datetime.now()
+            c.execute("UPDATE assets SET actual_fw_version=?, fw_verified_at=? WHERE mac_address=?", (actual_fw_version, now, mac))
         if tags is not None:
             import json
             c.execute("UPDATE assets SET tags=? WHERE mac_address=?", (json.dumps(tags), mac))
@@ -296,20 +318,35 @@ class Datastore:
         conn.close()
         return dict(row) if row else None
 
-    def upsert_vulnerability(self, mac, cve_id, cvss_score, description):
+    def upsert_vulnerability(self, mac, cve_id, cvss_score, description, status='active', suppression_reason=None, suppression_logic=None, user_version=None):
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
         now = datetime.datetime.now()
         
         c.execute('''
-            INSERT INTO vulnerabilities (cve_id, mac_address, cvss_score, description, last_synced)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO vulnerabilities (cve_id, mac_address, cvss_score, description, status, suppression_reason, suppression_logic, user_version, last_synced)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(cve_id, mac_address) DO UPDATE SET
             cvss_score=excluded.cvss_score,
             description=excluded.description,
+            status=COALESCE(excluded.status, vulnerabilities.status),
+            suppression_reason=COALESCE(excluded.suppression_reason, vulnerabilities.suppression_reason),
+            suppression_logic=COALESCE(excluded.suppression_logic, vulnerabilities.suppression_logic),
+            user_version=COALESCE(excluded.user_version, vulnerabilities.user_version),
             last_synced=excluded.last_synced
-        ''', (cve_id, mac, cvss_score, description, now))
+        ''', (cve_id, mac, cvss_score, description, status, suppression_reason, suppression_logic, user_version, now))
         
+        conn.commit()
+        conn.close()
+
+    def suppress_vulnerability(self, mac, cve_id, reason, logic=None, user_ver=None):
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+        c.execute('''
+            UPDATE vulnerabilities 
+            SET status='suppressed', suppression_reason=?, suppression_logic=?, user_version=?
+            WHERE mac_address=? AND cve_id=?
+        ''', (reason, logic, user_ver, mac, cve_id))
         conn.commit()
         conn.close()
 
