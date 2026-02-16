@@ -1014,11 +1014,11 @@
                 vulnContainer.innerHTML = assetVulns.map(v => `
                     <div class="vuln-item">
                         <div style="display: flex; justify-content: space-between; align-items: start;">
-                            <strong>${v.cve_id}</strong>
+                            <strong class="clickable" onclick="openRemediationModal('${v.cve_id}', '${v.mac_address}')" style="color: var(--primary); text-decoration: underline;">${v.cve_id}</strong>
                             <span style="color: var(--danger); font-weight: 800;">${v.cvss_score}</span>
                         </div>
                         <p style="font-size: 0.8rem; margin: 0.5rem 0; color: var(--text-muted);">${v.description.substring(0, 80)}...</p>
-                        <button class="btn btn-ghost" style="padding: 2px 8px; font-size: 0.7rem;" onclick="openRemediationModal('${v.cve_id}', '${v.mac_address}')">Remediate</button>
+                        <button class="btn btn-ghost" style="padding: 2px 8px; font-size: 0.7rem;" onclick="openRemediationModal('${v.cve_id}', '${v.mac_address}')">Details & Remediate</button>
                     </div>
                 `).join('');
             } else {
@@ -1253,14 +1253,14 @@
                 <tr>
                     <td><span style="background: ${isSuppressed ? 'var(--text-muted)' : (v.cvss_score >= 9 ? 'var(--danger)' : v.cvss_score >= 7 ? 'var(--warning)' : 'var(--primary)')}; border-radius: 4px; padding: 2px 6px; font-weight: 800; font-size: 0.75rem; color: white;">${isSuppressed ? 'RESOLVED' : (v.cvss_score >= 9 ? 'CRITICAL' : v.cvss_score >= 7 ? 'HIGH' : 'MEDIUM')}</span></td>
                     <td>
-                        <div style="font-weight: 600; font-family: monospace;">${v.cve_id}</div>
+                        <div style="font-weight: 600; font-family: monospace; color: var(--primary); text-decoration: underline; cursor: pointer;" onclick="openRemediationModal('${v.cve_id}', '${v.mac_address}')">${v.cve_id}</div>
                         ${isSuppressed ? `<div style="font-size: 0.7rem; color: #4CAF50;">✅ Suppressed: ${v.suppression_reason}</div>` : ''}
                     </td>
                     <td>${v.ip_address}</td>
                     <td style="text-align: right;">
                         ${isSuppressed ?
                         '<span style="color: var(--text-muted); font-size: 0.8rem;">User Verified</span>' :
-                        `<button class="btn btn-primary" style="padding: 4px 10px;" onclick="suppressVulnerability('${v.mac_address}', '${v.cve_id}')">Dismiss</button>`
+                        `<button class="btn btn-primary" style="padding: 4px 10px;" onclick="openRemediationModal('${v.cve_id}', '${v.mac_address}')">Remediate</button>`
                     }
                     </td>
                 </tr>
@@ -1271,12 +1271,42 @@
         function openRemediationModal(cveId, mac) {
             const v = allVulns.find(x => x.cve_id === cveId && x.mac_address === mac);
             if (!v) return;
+            const isSuppressed = v.status === 'suppressed';
+
             document.getElementById('remediation-body').innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h2 style="color: var(--primary); font-family: monospace;">${v.cve_id}</h2>
+                    <span style="background: ${isSuppressed ? 'var(--text-muted)' : (v.cvss_score >= 9 ? 'var(--danger)' : v.cvss_score >= 7 ? 'var(--warning)' : 'var(--primary)')}; border-radius: 4px; padding: 4px 12px; font-weight: 800; color: white;">
+                        ${isSuppressed ? 'RESOLVED' : `CVSS ${v.cvss_score}`}
+                    </span>
+                </div>
+                
                 <span class="section-title">Risk Description</span>
-                <p style="margin-bottom: 2rem; line-height: 1.6;">${v.description}</p>
-                <span class="section-title">Automated Playbooks</span>
+                <p style="margin-bottom: 1.5rem; line-height: 1.6;">${v.description}</p>
+                
+                <div style="margin-bottom: 2rem;">
+                    <a href="https://nvd.nist.gov/vuln/detail/${v.cve_id}" target="_blank" class="btn btn-ghost" style="display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none;">
+                        <span>🌐</span> View NVD Details
+                    </a>
+                </div>
+
+                <span class="section-title">Management Actions</span>
                 <div style="display: flex; flex-direction: column; gap: 1rem;">
-                    <div class="card" style="text-align: center; color: var(--text-muted); padding: 1rem;">
+                    ${isSuppressed ?
+                    `<div class="card" style="background: rgba(16, 185, 129, 0.1); border-color: var(--success); margin-bottom: 0;">
+                            <p style="color: var(--success); font-weight: 600;">✅ This vulnerability has been suppressed.</p>
+                            <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.5rem;">Reason: ${v.suppression_reason}</p>
+                            ${v.suppression_logic ? `<p style="font-size: 0.75rem; font-family: monospace; color: var(--text-muted); margin-top: 0.25rem;">Logic: ${v.suppression_logic}</p>` : ''}
+                        </div>` :
+                    `<button class="btn btn-danger" style="width: 100%; padding: 1rem;" onclick="suppressVulnerability('${v.mac_address}', '${v.cve_id}'); closeModal('remediation');">
+                            Dismiss Vulnerability
+                        </button>`
+                }
+                </div>
+
+                <span class="section-title" style="margin-top: 2rem; display: block;">Automated Playbooks</span>
+                <div style="display: flex; flex-direction: column; gap: 1rem;">
+                    <div class="card" style="text-align: center; color: var(--text-muted); padding: 1rem; margin-bottom: 0;">
                         No automated playbooks currently available for this CVE. Manual remediation required.
                     </div>
                 </div>

@@ -47,14 +47,26 @@ def extract_affected_version(cve_description):
     if not cve_description:
         return None
     
-    # Pattern 1: "earlier than X" or "versions prior to X"
+    # Pattern 1: "earlier than X" or "versions prior to X" or "before X"
     match = re.search(r'(?:earlier than|prior to|before)\s+([\d._-]+)', cve_description, re.IGNORECASE)
     if match:
         return match.group(1).rstrip('.')
     
-    # Pattern 2: "vulnerable in X" (Less reliable for 'higher than' logic)
-    # match = re.search(r'vulnerable in ([\d._-]+)', cve_description, re.IGNORECASE)
+    # Pattern 2: "running firmware version X" or "running version X" (Often seen in older/manual CVEs)
+    match = re.search(r'(?:running firmware version|running version|vulnerability in version)\s+([\d._-]+)', cve_description, re.IGNORECASE)
+    if match:
+        return match.group(1).rstrip('.')
     
+    # Pattern 3: "affect devices running version X"
+    match = re.search(r'(?:affect devices running version)\s+([\d._-]+)', cve_description, re.IGNORECASE)
+    if match:
+        return match.group(1).rstrip('.')
+
+    # Pattern 4: "version X and earlier"
+    match = re.search(r'([\d._-]+)\s+and\s+earlier', cve_description, re.IGNORECASE)
+    if match:
+        return match.group(1).rstrip('.')
+
     return None
 
 def is_safe_version(actual_ver, cve_description):
