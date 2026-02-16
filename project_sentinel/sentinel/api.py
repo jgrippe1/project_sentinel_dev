@@ -60,6 +60,7 @@ def update_asset():
         if not mac:
             return jsonify({"error": "MAC address required"}), 400
         
+        fw_ver = data.get('actual_fw_version')
         db.update_asset_governance(
             mac=mac,
             custom_name=data.get('custom_name'),
@@ -68,8 +69,17 @@ def update_asset():
             tags=data.get('tags'),
             confirmed_integrations=data.get('confirmed_integrations'),
             dismissed_integrations=data.get('dismissed_integrations'),
-            actual_fw_version=data.get('actual_fw_version')
+            actual_fw_version=fw_ver
         )
+        
+        # Trigger immediate re-assessment if firmware was updated
+        if fw_ver:
+            try:
+                from sentinel.core import reassess_vulnerabilities
+                reassess_vulnerabilities(mac)
+            except Exception as e:
+                logger.error(f"Error during manual re-assessment: {e}")
+
         return jsonify({"status": "success"})
     except Exception as e:
         logger.error(f"Error updating asset: {e}")

@@ -130,7 +130,7 @@ def process_host(ip, mac, ports, db, nvd):
                 
                 asset = db.get_asset(mac)
                 actual_ver = asset.get('actual_fw_version')
-                if actual_ver and is_safe_version(actual_ver, description):
+                if actual_ver and is_safe_version(actual_ver, description, asset):
                     status = 'suppressed'
                     reason = "Software already patched"
                     affected_limit = extract_affected_version(description)
@@ -150,6 +150,44 @@ def process_host(ip, mac, ports, db, nvd):
                     logger.info(f"Auto-suppressed {cve_id} for {ip} (Version {actual_ver} is safe)")
                 else:
                     logger.info(f"Logged vulnerability {cve_id} (Score: {cvss_score}) for {ip}")
+
+def reassess_vulnerabilities(mac_address):
+    """
+    Manually triggers a re-assessment of all active vulnerabilities for an asset
+    against its current 'actual_fw_version'.
+    """
+    db = Datastore()
+    asset = db.get_asset(mac_address)
+    if not asset:
+        return
+    
+    actual_ver = asset.get('actual_fw_version')
+    if not actual_ver:
+        return
+
+    logger.info(f"Re-assessing vulnerabilities for {mac_address} against version {actual_ver}...")
+    
+    # Get all vulnerabilities for this MAC
+    # We'll use a slightly inefficient but safe approach: get all and filter
+    all_vulns = db.get_all_vulnerabilities()
+    asset_vulns = [v for v in all_vulns if v['mac_address'] == mac_address]
+    
+    for v in asset_vulns:
+        # We only reassess 'active' ones, or we can reassess all to be sure
+        description = v['description']
+        cve_id = v['cve_id']
+        
+        if is_safe_version(actual_ver, description, asset):
+            affected_limit = extract_affected_version(description)
+            logic = f"Re-assessment Logic: {actual_ver} > {affected_limit} (Threshold)"
+            db.suppress_vulnerability(
+                mac=mac_address,
+                cve_id=cve_id,
+                reason="Software already patched (Manual Truth)",
+                logic=logic,
+                user_ver=actual_ver
+            )
+            logger.info(f"Vulnerability {cve_id} auto-suppressed during re-assessment.")
     
     # Final step: Merge base intelligence with mining results
     from sentinel.analysis import get_vendor_from_mac, OUI_MAP
