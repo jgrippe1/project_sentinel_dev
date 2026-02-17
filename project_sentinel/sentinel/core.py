@@ -272,12 +272,6 @@ def main():
                     hostname = asset.get('hostname')
                     original_type = asset.get('type')
                     
-                    # Deduplication Cleanup: If a placeholder exists for this IP, remove it
-                    placeholder = f"mac_{ip.replace('.', '_')}"
-                    if db.get_asset(placeholder):
-                        logger.info(f"Deduplication: Merging placeholder {placeholder} into real MAC {mac} for {ip}")
-                        db.delete_asset(placeholder)
-
                     db.upsert_asset(mac=mac, ip=ip, hostname=hostname, interface=interface, parent_mac=router_host, original_device_type=original_type)
                     processed_macs.add(mac)
                     processed_ips[ip] = mac

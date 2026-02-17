@@ -192,6 +192,19 @@ class Datastore:
         c = conn.cursor()
         now = datetime.datetime.now()
         
+        # --- Deduplication Logic ---
+        # If this is a real MAC, check if a placeholder exists for this IP
+        if mac and not mac.startswith('mac_'):
+            placeholder_mac = f"mac_{ip.replace('.', '_')}"
+            c.execute("SELECT mac_address FROM assets WHERE mac_address=?", (placeholder_mac,))
+            if c.fetchone():
+                print(f"Datastore: Triggering merge of placeholder {placeholder_mac} into real MAC {mac}")
+                conn.close() # Close to allow merge_assets to open its own connection or refactor to share
+                self.merge_assets(mac, placeholder_mac)
+                conn = sqlite3.connect(self.db_path)
+                c = conn.cursor()
+        # ---------------------------
+
         # Check if exists
         c.execute("SELECT first_seen FROM assets WHERE mac_address=?", (mac,))
         row = c.fetchone()
@@ -230,6 +243,87 @@ class Datastore:
             
         conn.commit()
         conn.close()
+
+    def merge_assets(self, target_mac, source_mac):
+        """
+        Merges source_mac (usually a placeholder) into target_mac (real MAC).
+        Migrates services and vulnerabilities.
+        """
+        if target_mac == source_mac:
+            return
+
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        
+        print(f"Merging {source_mac} into {target_mac}...")
+
+        # 1. Migrate Services
+        # Handle UNIQUE(mac_address, port, proto) constraint
+        c.execute("SELECT port, proto FROM services WHERE mac_address=?", (target_mac,))
+        existing_services = set((row['port'], row['proto']) for row in c.fetchall())
+        
+        c.execute("SELECT id, port, proto FROM services WHERE mac_address=?", (source_mac,))
+        source_services = c.fetchall()
+        
+        for row in source_services:
+            service_id, port, proto = row['id'], row['port'], row['proto']
+            if (port, proto) in existing_services:
+                # Conflict: Target already has this service. Delete the source one.
+                c.execute("DELETE FROM services WHERE id=?", (service_id,))
+            else:
+                # No conflict: Update mac_address
+                c.execute("UPDATE services SET mac_address=? WHERE id=?", (target_mac, service_id))
+
+        # 2. Migrate Vulnerabilities
+        # Handle PRIMARY KEY (cve_id, mac_address)
+        c.execute("SELECT cve_id FROM vulnerabilities WHERE mac_address=?", (target_mac,))
+        existing_vulns = set(row['cve_id'] for row in c.fetchall())
+        
+        c.execute("SELECT cve_id FROM vulnerabilities WHERE mac_address=?", (source_mac,))
+        source_vulns = c.fetchall()
+        
+        for row in source_vulns:
+            cve_id = row['cve_id']
+            if cve_id in existing_vulns:
+                # Conflict: Target already has this vulnerability. Delete the source one.
+                c.execute("DELETE FROM vulnerabilities WHERE cve_id=? AND mac_address=?", (cve_id, source_mac))
+            else:
+                # No conflict: Update mac_address
+                c.execute("UPDATE vulnerabilities SET mac_address=? WHERE cve_id=? AND mac_address=?", (target_mac, cve_id, source_mac))
+
+        # 3. Migrate Governance/Metadata if target is empty but source has data
+        c.execute("SELECT custom_name, location, device_type, tags FROM assets WHERE mac_address=?", (source_mac,))
+        source_meta = c.fetchone()
+        if source_meta:
+            c.execute("SELECT custom_name, location, device_type, tags FROM assets WHERE mac_address=?", (target_mac,))
+            target_meta = c.fetchone()
+            
+            updates = []
+            params = []
+            if source_meta['custom_name'] and (not target_meta or not target_meta['custom_name']):
+                updates.append("custom_name=?")
+                params.append(source_meta['custom_name'])
+            if source_meta['location'] and (not target_meta or not target_meta['location']):
+                updates.append("location=?")
+                params.append(source_meta['location'])
+            if source_meta['device_type'] and (not target_meta or not target_meta['device_type']):
+                updates.append("device_type=?")
+                params.append(source_meta['device_type'])
+            if (source_meta['tags'] and source_meta['tags'] != '[]') and (not target_meta or target_meta['tags'] == '[]'):
+                updates.append("tags=?")
+                params.append(source_meta['tags'])
+            
+            if updates:
+                params.append(target_mac)
+                c.execute(f"UPDATE assets SET {', '.join(updates)} WHERE mac_address=?", tuple(params))
+
+        # 4. Delete Source Asset
+        c.execute("DELETE FROM assets WHERE mac_address=?", (source_mac,))
+        
+        conn.commit()
+        conn.close()
+        print(f"Successfully merged {source_mac} into {target_mac}")
 
     def approve_asset(self, mac):
         conn = sqlite3.connect(self.db_path)
