@@ -58,5 +58,12 @@ class TestLLMConfig(unittest.TestCase):
         self.assertEqual(analyzer.llm_base_url, "http://my-local-ai:8080/v1")
         self.assertEqual(analyzer.llm_model, "my-model")
 
+    def test_robust_input(self):
+        # Test mixed case and whitespace
+        cfg = make_config(provider="  OpenAI  ")
+        analyzer = HybridAnalyzer(cfg)
+        self.assertEqual(analyzer.llm_provider, "openai")
+        self.assertEqual(analyzer.llm_base_url, "https://api.openai.com/v1")
+
 if __name__ == '__main__':
     unittest.main()

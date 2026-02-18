@@ -38,7 +38,10 @@ class HybridAnalyzer:
         options = config.get('options', {})
         
         self.llm_enabled = options.get('llm_enabled', False)
-        self.llm_provider = options.get('llm_provider', 'openai')
+        # Robustly handle provider input (lowercase, strip spaces)
+        raw_provider = options.get('llm_provider', 'openai')
+        self.llm_provider = str(raw_provider).lower().strip() if raw_provider else 'openai'
+        
         self.llm_api_key = options.get('llm_api_key', '')
         
         # Load Defaults based on Provider
