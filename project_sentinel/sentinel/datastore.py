@@ -389,7 +389,7 @@ class Datastore:
         conn.commit()
         conn.close()
 
-    def update_asset_governance(self, mac, custom_name=None, location=None, device_type=None, tags=None, confirmed_integrations=None, dismissed_integrations=None, actual_fw_version=None):
+    def update_asset_governance(self, mac, custom_name=None, location=None, device_type=None, tags=None, confirmed_integrations=None, dismissed_integrations=None, actual_fw_version=None, model=None, os=None, vendor=None):
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
         if custom_name is not None:
@@ -405,6 +405,12 @@ class Datastore:
         if actual_fw_version is not None:
             now = datetime.datetime.now()
             c.execute("UPDATE assets SET actual_fw_version=?, fw_verified_at=? WHERE mac_address=?", (actual_fw_version, now, mac))
+        if model is not None:
+            c.execute("UPDATE assets SET model=? WHERE mac_address=?", (model, mac))
+        if os is not None:
+            c.execute("UPDATE assets SET os=? WHERE mac_address=?", (os, mac))
+        if vendor is not None:
+            c.execute("UPDATE assets SET vendor=? WHERE mac_address=?", (vendor, mac))
         if tags is not None:
             import json
             c.execute("UPDATE assets SET tags=? WHERE mac_address=?", (json.dumps(tags), mac))

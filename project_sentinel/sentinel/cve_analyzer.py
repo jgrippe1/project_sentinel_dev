@@ -115,6 +115,7 @@ class HybridAnalyzer:
 
         **INPUT DATA:**
         * Target Asset: {asset_context.get('vendor')} {asset_context.get('model')}
+        * Target Asset Name: {asset_context.get('custom_name') or 'Unknown'}
         * Target Asset Firmware: {asset_context.get('actual_fw_version')}
         * CVE ID: {cve_id}
         * CVE Description: {cve_description}

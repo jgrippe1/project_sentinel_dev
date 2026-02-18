@@ -503,30 +503,43 @@
                     </div>
 
                     <div class="card" style="margin-top: 1rem; background: rgba(255,255,255,0.03)">
-                        <span class="section-title">System Intelligence</span>
+                        <span class="section-title">System Intelligence
+                            <button class="btn btn-ghost" style="font-size: 0.7rem; padding: 2px 6px; margin-left: 8px;"
+                                onclick="autosuggestMetadata()">✨ Autosuggest</button>
+                        </span>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; font-size: 0.85rem;">
                             <div>
                                 <label
                                     style="display: block; color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase;">Model</label>
-                                <span id="detail-intel-model">--</span>
+                                <input type="text" id="detail-intel-model" class="input-minimal"
+                                    placeholder="Enter Model..." style="width: 100%;">
                             </div>
                             <div>
                                 <label
                                     style="display: block; color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase;">Operating
                                     System</label>
-                                <span id="detail-intel-os">--</span>
+                                <input type="text" id="detail-intel-os" class="input-minimal" placeholder="Enter OS..."
+                                    style="width: 100%;">
+                            </div>
+                            <div>
+                                <label
+                                    style="display: block; color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase;">Vendor
+                                    (Manual)</label>
+                                <input type="text" id="detail-intel-vendor" class="input-minimal"
+                                    placeholder="Enter Vendor..." style="width: 100%;">
                             </div>
                             <div>
                                 <label
                                     style="display: block; color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase;">Firmware
                                     (Detected)</label>
-                                <span id="detail-intel-fw">--</span>
+                                <input type="text" id="detail-intel-fw" class="input-minimal"
+                                    placeholder="Detected FW..." style="width: 100%;">
                             </div>
                             <div>
                                 <label
                                     style="display: block; color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase;">Hardware
                                     Rev</label>
-                                <span id="detail-intel-hw">--</span>
+                                <span id="detail-intel-hw" style="display: block; padding: 6px 0;">--</span>
                             </div>
                             <div style="grid-column: span 2;">
                                 <label
@@ -543,7 +556,7 @@
                                 <label
                                     style="display: block; color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase;">Manufacturer
                                     (OUI)</label>
-                                <span id="detail-intel-oui">--</span>
+                                <span id="detail-intel-oui" style="display: block; padding: 6px 0;">--</span>
                             </div>
                         </div>
                     </div>
@@ -1014,9 +1027,10 @@
                 originalType.classList.add('hidden');
             }
 
-            document.getElementById('detail-intel-model').innerText = a.model || '--';
-            document.getElementById('detail-intel-os').innerText = a.os || '--';
-            document.getElementById('detail-intel-fw').innerText = a.fw_version || '--';
+            document.getElementById('detail-intel-model').value = a.model || '';
+            document.getElementById('detail-intel-os').value = a.os || '';
+            document.getElementById('detail-intel-fw').value = a.fw_version || '';
+            document.getElementById('detail-intel-vendor').value = a.vendor || '';
             document.getElementById('detail-actual-fw').value = a.actual_fw_version || '';
             document.getElementById('detail-intel-hw').innerText = a.hw_version || '--';
             document.getElementById('detail-intel-oui').innerText = a.oui_vendor || '--';
@@ -1243,6 +1257,36 @@
             input.value = "";
         }
 
+        function autosuggestMetadata() {
+            const name = document.getElementById('detail-custom-name').value || '';
+            const hostname = document.getElementById('detail-title').innerText || '';
+            const combined = (name + ' ' + hostname).toLowerCase();
+
+            let model = document.getElementById('detail-intel-model').value;
+            let vendor = document.getElementById('detail-intel-vendor').value;
+            let os = document.getElementById('detail-intel-os').value;
+            let type = document.getElementById('detail-type').value;
+
+            // Simple Heuristics
+            if (combined.includes('pixel')) { vendor = 'Google'; model = 'Pixel'; os = 'Android'; }
+            if (combined.includes('iphone')) { vendor = 'Apple'; model = 'iPhone'; os = 'iOS'; }
+            if (combined.includes('ipad')) { vendor = 'Apple'; model = 'iPad'; os = 'iOS'; }
+            if (combined.includes('macbook') || combined.includes('mac mini')) { vendor = 'Apple'; model = 'Mac'; os = 'macOS'; }
+            if (combined.includes('echo') || combined.includes('alexa')) { vendor = 'Amazon'; model = 'Echo'; os = 'FireOS'; type = 'Voice'; }
+            if (combined.includes('hue')) { vendor = 'Philips'; model = 'Hue Bridge'; os = 'Embedded'; }
+            if (combined.includes('tv') && (combined.includes('lg') || combined.includes('webos'))) { vendor = 'LG'; os = 'WebOS'; type = 'Media'; }
+            if (combined.includes('tv') && combined.includes('samsung')) { vendor = 'Samsung'; os = 'Tizen'; type = 'Media'; }
+            if (combined.includes('esphome')) { os = 'ESPHome'; type = 'IoT'; }
+            if (combined.includes('tasmota')) { os = 'Tasmota'; type = 'IoT'; }
+            if (combined.includes('wled')) { model = 'WLED'; os = 'WLED'; type = 'Light'; }
+
+            // Update UI if empty or if we found better data
+            if (vendor) document.getElementById('detail-intel-vendor').value = vendor;
+            if (model) document.getElementById('detail-intel-model').value = model;
+            if (os) document.getElementById('detail-intel-os').value = os;
+            if (type !== 'Unknown') document.getElementById('detail-type').value = type;
+        }
+
         async function saveAssetDetail() {
             const mac = document.getElementById('detail-mac').value;
             const payload = {
@@ -1250,7 +1294,11 @@
                 custom_name: document.getElementById('detail-custom-name').value,
                 location: document.getElementById('detail-location').value,
                 device_type: document.getElementById('detail-type').value,
-                actual_fw_version: document.getElementById('detail-actual-fw').value
+                actual_fw_version: document.getElementById('detail-actual-fw').value,
+                model: document.getElementById('detail-intel-model').value,
+                os: document.getElementById('detail-intel-os').value,
+                vendor: document.getElementById('detail-intel-vendor').value,
+                fw_version: document.getElementById('detail-intel-fw').value
             };
             await fetch('api/assets/update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             closeModal('asset-detail');
