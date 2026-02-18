@@ -55,6 +55,11 @@ class HybridAnalyzer:
         if self.llm_base_url and self.llm_base_url.endswith('/'):
             self.llm_base_url = self.llm_base_url[:-1]
 
+        # Auto-correct Google base_url for OpenAI compatibility
+        if self.llm_provider == 'google' and 'v1beta/openai' not in self.llm_base_url:
+            if self.llm_base_url == 'https://generativelanguage.googleapis.com':
+                self.llm_base_url += '/v1beta/openai'
+
     def analyze(self, cve_id, cve_description, asset_context):
         """
         Orchestrates the analysis: Cache -> Regex -> LLM -> Fail Open.
