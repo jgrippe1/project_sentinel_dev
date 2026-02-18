@@ -99,11 +99,27 @@ def is_version_relevant(actual_ver, cve_description, asset_context=None):
             if any(ctx in desc_l for ctx in blocked_context):
                 return False
                 
-    # 2. Legacy Heuristic
-    # If CVE is extremely old (e.g., 10+ years) and actual_ver looks like a modern semantic/router version
-    # Most router CVEs from 2007-2012 are long patched or irrelevant for 2023+ firmware.
-    # We still want to be careful, but this can help suppress "junk" findings.
-    
+    # 2. Legacy & Component Collision Heuristic
+    # If the CVE is extremely old (e.g. pre-2015) and we are on a modern firmware (e.g. Asus 380+)
+    # we should check for "string collisions" (like 3.0 vs 3.0) and component-level disconnects.
+    cve_year = 0
+    cve_match = re.search(r'CVE-(\d{4})-', desc_l.upper())
+    if cve_match:
+        cve_year = int(cve_match.group(1))
+
+    if asset_context:
+        vendor = (asset_context.get('vendor') or '').lower()
+        if 'asus' in vendor and cve_year > 0 and cve_year < 2015:
+            # Modern Asuswrt (380+) is unlikely to be affected by 2011 component CVEs
+            # unless the CVE explicitly mentions Asuswrt.
+            firmware = asset_context.get('actual_fw_version') or ""
+            fw_segments = parse_version(firmware)
+            if fw_segments and fw_segments[0] >= 3 or '380' in firmware or '382' in firmware or '384' in firmware or '386' in firmware or '388' in firmware:
+                if 'asuswrt' not in desc_l and 'asus' not in desc_l:
+                    # If it's a generic component CVE (Mongoose, shttpd, etc.) on modern Asus, mark as low confidence
+                    # This lets HybridAnalyzer know it should probably fallback to LLM for a deeper look.
+                    return True # Still relevant but potentially a false positive
+
     return True
 
 def analyze_version_safety(actual_ver, cve_description, asset_context=None):

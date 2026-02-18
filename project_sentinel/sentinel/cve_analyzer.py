@@ -111,31 +111,34 @@ class HybridAnalyzer:
 
     def _query_llm(self, cve_id, cve_description, asset_context, regex_context):
         prompt = f"""
-        You are a cybersecurity analyst. Analyze if the following asset is vulnerable to the CVE.
+        You are an expert vulnerability triage engine. Your objective is to determine if a specific CVE applies to a given asset by strictly separating the Parent Operating System/Firmware from Third-Party Sub-Components.
+
+        **INPUT DATA:**
+        * Target Asset: {asset_context.get('vendor')} {asset_context.get('model')}
+        * Target Asset Firmware: {asset_context.get('actual_fw_version')}
+        * CVE ID: {cve_id}
+        * CVE Description: {cve_description}
         
-        ASSET:
-        - Vendor: {asset_context.get('vendor')}
-        - Model: {asset_context.get('model')}
-        - Firmware Version: {asset_context.get('actual_fw_version')}
-        
-        CVE:
-        - ID: {cve_id}
-        - Description: {cve_description}
-        
-        REGEX ANALYSIS (Internal Tool):
-        - Result: {regex_context['result']}
-        - Reason: {regex_context['reason']}
-        
-        TASK:
-        Is the asset version SAFE or VULNERABLE? 
-        If the CVE description doesn't apply to this specific vendor/product, mark as SAFE.
-        If the version is strictly NEWER than the fixed version, mark as SAFE.
-        
-        RESPONSE FORMAT (JSON ONLY):
+        **EVALUATION RULES:**
+
+        1. ENTITY ISOLATION (CRITICAL): 
+        Analyze the CVE text to identify the specific vulnerable software. Is the CVE targeting the Parent OS directly, or a specific Third-Party Component (e.g., Mongoose, yaSSL, OpenSSL, shttpd, BusyBox)? 
+
+        2. COLLISION AVOIDANCE: 
+        NEVER compare the version number of the Target Asset Firmware directly against the version number of a Third-Party Component. 
+        (Example: Do not match Asuswrt Firmware "3.0.x" against Mongoose Web Server "3.0"). 
+
+        3. LEGACY COMPONENT RESOLUTION:
+        If the CVE specifically targets a legacy embedded component (published before 2015, such as Mongoose 3.0 or shttpd) AND the Target Asset Firmware is a modern, actively maintained release (e.g., Asuswrt build versions > 380), you MUST assume the modern firmware has either patched, replaced, or upgraded the underlying third-party component. Mark as SAFE.
+
+        4. VENDOR/PRODUCT MISMATCH:
+        If the CVE explicitly targets a completely different product or vendor (e.g., Cisco, D-Link, Wordpress) than the Target Asset, mark as SAFE.
+
+        **OUTPUT FORMAT (JSON ONLY):**
         {{
             "result": "SAFE" | "VULNERABLE",
             "confidence": <0-100 integer>,
-            "reason": "<short explanation>"
+            "reason": "A concise explanation applying the rules above. Explicitly state if component abstraction was used to dismiss."
         }}
         """
         
