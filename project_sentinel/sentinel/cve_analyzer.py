@@ -238,7 +238,7 @@ class HybridAnalyzer:
             logger.info(f"Querying LLM for metadata inference on {name} / {hostname}...")
             
             headers = {
-                "Authorization": f"Bearer {self.llm_key}",
+                "Authorization": f"Bearer {self.llm_api_key}",
                 "Content-Type": "application/json"
             }
             
