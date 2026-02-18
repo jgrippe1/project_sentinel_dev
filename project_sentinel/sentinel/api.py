@@ -254,9 +254,12 @@ def get_stats():
         
         priority_list.sort(key=lambda x: x['score'], reverse=True)
 
+        # Filter out suppressed for total count
+        active_vulns = [v for v in vulns if v.get('status') != 'suppressed']
+
         return jsonify({
             "total_assets": len(assets),
-            "total_vulnerabilities": len(vulns),
+            "total_vulnerabilities": len(active_vulns),
             "risk_distribution": risk_counts,
             "governance": {
                 "categorized": categorized_count,

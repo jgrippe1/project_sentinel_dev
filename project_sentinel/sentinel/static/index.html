@@ -863,7 +863,12 @@
                     <h2>Threat Intelligence</h2>
                     <p>Unified vulnerability ledger</p>
                 </div>
-                <div>
+                <div style="display: flex; gap: 1rem; align-items: center;">
+                    <label
+                        style="font-size: 0.8rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                        <input type="checkbox" id="hide-resolved-security" onchange="renderSecurity()" checked>
+                        Hide Resolved
+                    </label>
                     <button class="btn btn-ghost" onclick="exportSecurityReport()">📥 Export Report</button>
                 </div>
             </div>
@@ -1665,7 +1670,18 @@
 
         function renderSecurity() {
             const table = document.getElementById('security-table');
-            table.innerHTML = allVulns.map(v => {
+            const hideResolved = document.getElementById('hide-resolved-security').checked;
+
+            const filteredVulns = hideResolved
+                ? allVulns.filter(v => v.status !== 'suppressed')
+                : allVulns;
+
+            if (filteredVulns.length === 0) {
+                table.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 2rem; color: var(--text-muted);">No active threats found.</td></tr>';
+                return;
+            }
+
+            table.innerHTML = filteredVulns.map(v => {
                 const isSuppressed = v.status === 'suppressed';
                 return `
                 <tr>
