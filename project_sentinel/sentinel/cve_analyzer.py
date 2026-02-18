@@ -60,6 +60,10 @@ class HybridAnalyzer:
             if self.llm_base_url == 'https://generativelanguage.googleapis.com':
                 self.llm_base_url += '/v1beta/openai'
 
+        logger.info(f"HybridAnalyzer Initialized: Provider={self.llm_provider}, Enabled={self.llm_enabled}, Model={self.llm_model}, BaseURL={self.llm_base_url}")
+        if not self.llm_api_key:
+            logger.warning("HybridAnalyzer: No LLM API Key found in config!")
+
     def analyze(self, cve_id, cve_description, asset_context):
         """
         Orchestrates the analysis: Cache -> Regex -> LLM -> Fail Open.
@@ -266,7 +270,9 @@ class HybridAnalyzer:
                 logger.error(f"LLM API Error during inference: {response.status_code} - {response.text}")
                 return None
         except Exception as e:
+            import traceback
             logger.error(f"Exception during LLM inference: {e}")
+            logger.error(traceback.format_exc())
             return None
 
     def _parse_metadata_content(self, content):

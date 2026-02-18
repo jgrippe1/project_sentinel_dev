@@ -22,6 +22,9 @@ if os.path.exists(OPTIONS_PATH):
     try:
         with open(OPTIONS_PATH, 'r') as f:
             config["options"] = json.load(f)
+            logger.info(f"Loaded {len(config['options'])} options from {OPTIONS_PATH}")
+            if 'llm_enabled' in config['options']:
+                logger.info(f"API Config LLM Status: {config['options']['llm_enabled']}")
     except Exception as e:
         logger.error(f"Failed to load options: {e}")
 
