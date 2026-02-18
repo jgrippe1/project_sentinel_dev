@@ -204,6 +204,85 @@ class HybridAnalyzer:
             logger.error(f"LLM API Error: {response.status_code} - {response.text}")
             return None
 
+
+    def infer_device_metadata(self, name, hostname, mac, oui=None):
+        if not self.llm_enabled:
+            logger.info("LLM disabled, skipping metadata inference")
+            return None
+
+        prompt = f"""
+        You are a Device Fingerprinting Expert. Your goal is to identify the Manufacturer (Vendor), Model, and Operating System of a network device based on its name and hostname.
+
+        INPUT DATA:
+        - User Assigned Name: {name}
+        - Hostname: {hostname}
+        - MAC Address: {mac}
+        - Manufacturer (OUI): {oui}
+
+        TASK:
+        Analyze the input strings to deduce the most likely device details.
+        - If the name implies a specific product (e.g., "Kitchen Sonos"), infer Vendor="Sonos", Model="Speaker", OS="Linux (Sonos)".
+        - If the name is generic (e.g., "iPhone"), infer Vendor="Apple", Model="iPhone", OS="iOS".
+        - If you cannot determine a field with confidence, return null.
+
+        RESPONSE FORMAT (JSON ONLY):
+        {{
+            "vendor": "String or null",
+            "model": "String or null",
+            "os": "String or null",
+            "device_type": "IoT | Mobile | Server | Network | etc"
+        }}
+        """
+
+        try:
+            logger.info(f"Querying LLM for metadata inference on {name} / {hostname}...")
+            
+            headers = {
+                "Authorization": f"Bearer {self.llm_key}",
+                "Content-Type": "application/json"
+            }
+            
+            payload = {
+                "model": self.llm_model,
+                "messages": [
+                    {"role": "system", "content": "You are a helpful assistant that outputs only JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                "temperature": 0.3
+            }
+            
+            response = requests.post(self.llm_url, json=payload, headers=headers, timeout=10)
+            
+            if response.status_code == 200:
+                resp_json = response.json()
+                content = resp_json['choices'][0]['message']['content']
+                return self._parse_metadata_content(content)
+            else:
+                logger.error(f"LLM API Error during inference: {response.status_code} - {response.text}")
+                return None
+        except Exception as e:
+            logger.error(f"Exception during LLM inference: {e}")
+            return None
+
+    def _parse_metadata_content(self, content):
+        try:
+            # Clean code blocks if present
+            if "```json" in content:
+                content = content.split("```json")[1].split("```")[0].strip()
+            elif "```" in content:
+                content = content.split("```")[1].strip()
+                
+            parsed = json.loads(content)
+            return {
+                "vendor": parsed.get("vendor"),
+                "model": parsed.get("model"),
+                "os": parsed.get("os"),
+                "device_type": parsed.get("device_type")
+            }
+        except Exception as e:
+            logger.error(f"Failed to parse LLM Metadata JSON: {e}. Content: {content}")
+            return None
+
     def _parse_content(self, content, method_name):
         try:
             # Clean code blocks if present

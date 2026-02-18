@@ -1364,37 +1364,48 @@
             input.value = "";
         }
 
-        function autosuggestMetadata() {
+        async function autosuggestMetadata() {
+            const mac = document.getElementById('detail-mac').value;
             const name = document.getElementById('detail-custom-name').value || '';
             const hostname = document.getElementById('detail-title').innerText || '';
-            const combined = (name + ' ' + hostname).toLowerCase();
 
-            let model = document.getElementById('detail-intel-model').value;
-            let vendor = document.getElementById('detail-intel-vendor').value;
-            let os = document.getElementById('detail-intel-os').value;
-            let type = document.getElementById('detail-type').value;
+            const btn = event.target || document.querySelector('button[onclick="autosuggestMetadata()"]');
+            const originalText = btn.innerText;
 
-            // Simple Heuristics
-            if (combined.includes('pixel')) { vendor = 'Google'; model = 'Pixel'; os = 'Android'; }
-            if (combined.includes('iphone')) { vendor = 'Apple'; model = 'iPhone'; os = 'iOS'; }
-            if (combined.includes('ipad')) { vendor = 'Apple'; model = 'iPad'; os = 'iOS'; }
-            if (combined.includes('macbook') || combined.includes('mac mini')) { vendor = 'Apple'; model = 'Mac'; os = 'macOS'; }
-            if (combined.includes('echo') || combined.includes('alexa')) { vendor = 'Amazon'; model = 'Echo'; os = 'FireOS'; type = 'Voice'; }
-            if (combined.includes('hue')) { vendor = 'Philips'; model = 'Hue Bridge'; os = 'Embedded'; }
-            if (combined.includes('tv') && (combined.includes('lg') || combined.includes('webos'))) { vendor = 'LG'; os = 'WebOS'; type = 'Media'; }
-            if (combined.includes('tv') && combined.includes('samsung')) { vendor = 'Samsung'; os = 'Tizen'; type = 'Media'; }
-            if (combined.includes('esphome')) { os = 'ESPHome'; type = 'IoT'; }
-            if (combined.includes('tasmota')) { os = 'Tasmota'; type = 'IoT'; }
-            if (combined.includes('wled')) { model = 'WLED'; os = 'WLED'; type = 'Light'; }
+            try {
+                // Show loading state
+                btn.disabled = true;
+                btn.innerHTML = '✨ Analyzing...';
 
-            // Update UI if empty or if we found better data
-            if (vendor) document.getElementById('detail-intel-vendor').value = vendor;
-            if (model) document.getElementById('detail-intel-model').value = model;
-            if (os) document.getElementById('detail-intel-os').value = os;
-            if (type !== 'Unknown') document.getElementById('detail-type').value = type;
+                // Call LLM API
+                const res = await fetch('api/analyze/metadata', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, hostname, mac })
+                });
 
-            // Re-check discrepancies in case the autosuggest created one
-            checkDiscrepancies();
+                if (res.ok) {
+                    const data = await res.json();
+
+                    if (data.vendor) document.getElementById('detail-intel-vendor').value = data.vendor;
+                    if (data.model) document.getElementById('detail-intel-model').value = data.model;
+                    if (data.os) document.getElementById('detail-intel-os').value = data.os;
+                    if (data.device_type && data.device_type !== 'Unknown') document.getElementById('detail-type').value = data.device_type;
+
+                    // Re-check discrepancies
+                    checkDiscrepancies();
+                } else {
+                    console.warn("LLM Autosuggest failed or returned no data.");
+                    alert("Autosuggest failed. Please ensure LLM is enabled/configured.");
+                }
+            } catch (e) {
+                console.error("Autosuggest error:", e);
+                alert("Error calling Autosuggest API.");
+            } finally {
+                // Restore button state
+                btn.disabled = false;
+                btn.innerText = originalText;
+            }
         }
 
         async function saveAssetDetail(shouldClose = true) {

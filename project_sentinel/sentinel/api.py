@@ -12,6 +12,19 @@ logger = logging.getLogger("SentinelAPI")
 
 app = Flask(__name__, static_folder='static')
 db = Datastore()
+from sentinel.cve_analyzer import HybridAnalyzer
+
+# Load config similar to core.py
+OPTIONS_PATH = "/data/options.json"
+config = {}
+if os.path.exists(OPTIONS_PATH):
+    try:
+        with open(OPTIONS_PATH, 'r') as f:
+            config = json.load(f)
+    except Exception as e:
+        logger.error(f"Failed to load options: {e}")
+
+analyzer = HybridAnalyzer(config)
 
 @app.route('/')
 def index():
@@ -51,6 +64,22 @@ def approve_asset():
     except Exception as e:
         logger.error(f"Error approving asset: {e}")
         return jsonify({"error": str(e)}), 500
+
+@app.route('/api/analyze/metadata', methods=['POST'])
+def analyze_metadata():
+    data = request.json
+    name = data.get('name')
+    hostname = data.get('hostname')
+    mac = data.get('mac')
+    
+    # Optional: fetch OUI from DB if not provided, or let analyzer handle it
+    # For now, just pass what we have
+    
+    metadata = analyzer.infer_device_metadata(name, hostname, mac)
+    if metadata:
+        return jsonify(metadata)
+    else:
+        return jsonify({"error": "LLM inference failed or disabled"}), 500
 
 @app.route('/api/assets/update', methods=['POST'])
 def update_asset():
