@@ -208,6 +208,22 @@ def get_ha_integrations():
         logger.error(f"Error fetching HA integrations: {e}")
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/config')
+def get_config():
+    """
+    Returns public configuration for the frontend.
+    """
+    try:
+        # Check if LLM is enabled in options
+        llm_enabled = config['options'].get('llm_enabled', False)
+        return jsonify({
+            "llm_enabled": llm_enabled,
+            "version": "1.0.26" 
+        })
+    except Exception as e:
+        logger.error(f"Error fetching config: {e}")
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/api/stats')
 def get_stats():
     try:

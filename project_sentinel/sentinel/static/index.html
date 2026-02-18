@@ -520,7 +520,8 @@
 
                     <div class="card" style="margin-top: 1rem; background: rgba(255,255,255,0.03)">
                         <span class="section-title">System Intelligence
-                            <button class="btn btn-ghost" style="font-size: 0.7rem; padding: 2px 6px; margin-left: 8px;"
+                            <button id="btn-autosuggest" class="btn btn-ghost"
+                                style="font-size: 0.7rem; padding: 2px 6px; margin-left: 8px;"
                                 onclick="autosuggestMetadata()">✨ Autosuggest</button>
                         </span>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; font-size: 0.85rem;">
@@ -904,20 +905,25 @@
     <script>
         let allAssets = [];
         let allVulns = [];
-        let sortConfig = { key: 'ip_address', direction: 'asc' };
-        let visibleCols = JSON.parse(localStorage.getItem('sentinel_columns')) || ['risk', 'location', 'vendor', 'integrations', 'type', 'status'];
+        let visibleCols = ['risk', 'location', 'vendor', 'type', 'status', 'integrations'];
+        let sortConfig = { key: 'risk', direction: 'desc' };
+
+        // Global App Config
+        let appConfig = {
+            llm_enabled: false
+        };
 
         const COL_MAP = {
-            risk: { label: 'Risk Priority', sort: 'risk' },
-            location: { label: 'Location', sort: 'location' },
-            vendor: { label: 'Manufacturer', sort: 'vendor' },
-            model: { label: 'Model', sort: 'model' },
-            os: { label: 'OS', sort: 'os' },
-            fw_version: { label: 'Firmware', sort: 'fw_version' },
-            integrations: { label: 'Identified Integrations', sort: 'integrations' },
-            services: { label: 'Open Services', sort: 'services' },
-            type: { label: 'Category', sort: 'device_type' },
-            status: { label: 'Net Status', sort: 'status' }
+            'risk': { label: 'Risk', sort: 'risk' },
+            'location': { label: 'Location', sort: 'location' },
+            'vendor': { label: 'Manufacturer', sort: 'vendor' },
+            'model': { label: 'Model', sort: 'model' },
+            'os': { label: 'OS', sort: 'os' },
+            'fw_version': { label: 'Firmware', sort: 'fw_version' },
+            'integrations': { label: 'Integrations', sort: 'integrations' },
+            'services': { label: 'Services', sort: 'services' },
+            'type': { label: 'Category', sort: 'type' },
+            'status': { label: 'Status', sort: 'status' }
         };
 
         function showTab(tabId) {
@@ -933,12 +939,24 @@
 
         async function loadData() {
             try {
-                const resAssets = await fetch('api/assets');
-                allAssets = await resAssets.json();
-                const resVulns = await fetch('api/vulnerabilities');
-                allVulns = await resVulns.json();
+                // Fetch config first
+                const cfgRes = await fetch('api/config');
+                if (cfgRes.ok) {
+                    appConfig = await cfgRes.json();
+                }
+            } catch (e) {
+                console.warn("Failed to fetch config, defaulting to restricted mode.");
+            }
 
-                await fetchInstalledIntegrations();
+            try {
+                const [assetRes, vulnRes] = await Promise.all([
+                    fetch('api/assets'),
+                    fetch('api/vulnerabilities')
+                ]);
+
+                allAssets = await assetRes.json();
+                allVulns = await vulnRes.json();
+
                 renderDashboard();
                 renderInbox();
                 initColumnSelector();
@@ -1173,7 +1191,14 @@
 
             checkDiscrepancies(); // Check for conflicts
 
-            renderAssetVulnerabilities(); // Initial render of vulns
+            document.getElementById('manual-int-input').value = '';
+
+            // Toggle AI buttons based on config
+            const autoBtn = document.getElementById('btn-autosuggest');
+            if (autoBtn) {
+                autoBtn.style.display = appConfig.llm_enabled ? 'inline-block' : 'none';
+            }
+
             renderSuggestions(a);
             openModal('asset-detail');
         }
@@ -1726,7 +1751,7 @@
 
                 <span class="section-title">Management Actions</span>
                 <div style="display: flex; flex-direction: column; gap: 1rem;">
-                    ${!isSuppressed ?
+                    ${!isSuppressed && appConfig.llm_enabled ?
                     `<button class="btn btn-secondary" style="width: 100%; padding: 1rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem; background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); border: none; font-weight: 600;" onclick="analyzeCVE('${v.cve_id}', '${v.mac_address}')">
                         <span style="font-size: 1.2rem;">✨</span> Analyze with AI
                     </button>` : ''}
