@@ -55,6 +55,23 @@ class Datastore:
             )
         ''')
         
+        # Hybrid Verification Cache
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS cve_verifications (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                cve_id TEXT,
+                version_string TEXT,
+                vendor TEXT,
+                model TEXT,
+                analysis_result TEXT,
+                confidence INTEGER,
+                method TEXT,
+                reasoning TEXT,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(cve_id, version_string, vendor, model)
+            )
+        ''')
+        
         # Vulnerabilities Table
         c.execute('''
             CREATE TABLE IF NOT EXISTS vulnerabilities (
@@ -178,6 +195,33 @@ class Datastore:
         c.execute("PRAGMA table_info(vulnerabilities)")
         vuln_columns = [info[1] for info in c.fetchall()]
         if 'status' not in vuln_columns:
+            print("Migrating database: Adding 'status' column to 'vulnerabilities' table.")
+            c.execute("ALTER TABLE vulnerabilities ADD COLUMN status TEXT DEFAULT 'active'")
+        if 'suppression_reason' not in vuln_columns:
+            print("Migrating database: Adding suppression fields to vulnerabilities.")
+            c.execute("ALTER TABLE vulnerabilities ADD COLUMN suppression_reason TEXT")
+            c.execute("ALTER TABLE vulnerabilities ADD COLUMN suppression_logic TEXT")
+            c.execute("ALTER TABLE vulnerabilities ADD COLUMN user_version TEXT")
+
+        # Hybrid Verification Cache Update
+        c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='cve_verifications'")
+        if not c.fetchone():
+            print("Migrating database: Creating 'cve_verifications' table.")
+            c.execute('''
+                CREATE TABLE IF NOT EXISTS cve_verifications (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    cve_id TEXT,
+                    version_string TEXT,
+                    vendor TEXT,
+                    model TEXT,
+                    analysis_result TEXT,
+                    confidence INTEGER,
+                    method TEXT,
+                    reasoning TEXT,
+                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(cve_id, version_string, vendor, model)
+                )
+            ''')
             print("Migrating database: Adding suppression fields to vulnerabilities.")
             c.execute("ALTER TABLE vulnerabilities ADD COLUMN status TEXT DEFAULT 'active'")
             c.execute("ALTER TABLE vulnerabilities ADD COLUMN suppression_reason TEXT")
@@ -474,3 +518,33 @@ class Datastore:
         rows = [dict(row) for row in c.fetchall()]
         conn.close()
         return rows
+
+    def get_verification_result(self, cve_id, version_string, vendor, model):
+        """Retrieves a cached verification result."""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        c.execute("""
+            SELECT analysis_result, confidence, method, reasoning 
+            FROM cve_verifications 
+            WHERE cve_id=? AND version_string=? AND (vendor=? OR vendor IS NULL) AND (model=? OR model IS NULL)
+        """, (cve_id, version_string, vendor, model))
+        row = c.fetchone()
+        conn.close()
+        return dict(row) if row else None
+
+    def save_verification_result(self, cve_id, version_string, vendor, model, result, confidence, method, reasoning):
+        """Caches a verification result."""
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+        try:
+            c.execute("""
+                INSERT OR REPLACE INTO cve_verifications 
+                (cve_id, version_string, vendor, model, analysis_result, confidence, method, reasoning)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (cve_id, version_string, vendor, model, result, confidence, method, reasoning))
+            conn.commit()
+        except Exception as e:
+            print(f"Error caching verification result: {e}")
+        finally:
+            conn.close()

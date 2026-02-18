@@ -54,10 +54,23 @@ graph TD
 2. Search for **Project Sentinel**.
 3. Point to the shared database: `/share/sentinel.db`.
 
-## 📜 Roadmap
+5. Point to the shared database: `/share/sentinel.db`.
+
+## 🤖 Hybrid CVE Verification (Optional)
+Project Sentinel can use an LLM (like OpenAI) to analyze complex CVEs that standard regex can't parse.
+Add the following to your `options.json` or `config.yaml`:
+```yaml
+llm_enabled: true
+llm_provider: "openai" # or "generic"
+llm_api_key: "sk-..."
+llm_model: "gpt-3.5-turbo"
+```
+This will automatically fallback to the LLM when local analysis is inconclusive.
 
 - [x] UI-based Config Flow.
 - [x] Real-time NVD API Integration.
+- [x] Hybrid CVE Verification (Regex + Optional LLM).
+- [ ] Actionable notifications for newly discovered critical CVEs.
 - [ ] Actionable notifications for newly discovered critical CVEs.
 - [ ] Device history and tracking.
 

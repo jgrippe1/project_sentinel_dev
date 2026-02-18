@@ -8,6 +8,7 @@ from sentinel.analysis import grab_banner, analyze_banner
 from sentinel.datastore import Datastore
 from sentinel.nvd_client import NVDClient
 from sentinel.version_utils import is_safe_version, extract_affected_version
+from sentinel.cve_analyzer import HybridAnalyzer
 
 # Configure Logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -36,7 +37,7 @@ def load_config():
             logger.error(f"Failed to load options: {e}")
     return config
 
-def process_host(ip, mac, ports, db, nvd):
+def process_host(ip, mac, ports, db, nvd, analyzer):
     """
     Performs service enrichment and vulnerability lookup for a single host.
     Aggregates high-fidelity intelligence (OS, Model, Firmware) across ports.
@@ -129,12 +130,13 @@ def process_host(ip, mac, ports, db, nvd):
                 reason = None
                 
                 asset = db.get_asset(mac)
-                actual_ver = asset.get('actual_fw_version')
-                if actual_ver and is_safe_version(actual_ver, description, asset):
+                
+                # Hybrid Analysis
+                analysis = analyzer.analyze(cve_id, description, asset)
+                if analysis['result'] == 'SAFE':
                     status = 'suppressed'
-                    reason = "Software already patched"
-                    affected_limit = extract_affected_version(description)
-                    logic = f"Version Comparison: {actual_ver} > {affected_limit} (Threshold)"
+                    reason = analysis['reason']
+                    logic = f"Hybrid Analysis ({analysis['method']}): {analysis['reason']}"
 
                 db.upsert_vulnerability(
                     mac=mac,
@@ -147,7 +149,7 @@ def process_host(ip, mac, ports, db, nvd):
                     user_version=actual_ver if status == 'suppressed' else None
                 )
                 if status == 'suppressed':
-                    logger.info(f"Auto-suppressed {cve_id} for {ip} (Version {actual_ver} is safe)")
+                    logger.info(f"Auto-suppressed {cve_id} for {ip} ({reason})")
                 else:
                     logger.info(f"Logged vulnerability {cve_id} (Score: {cvss_score}) for {ip}")
 
@@ -156,7 +158,9 @@ def reassess_vulnerabilities(mac_address):
     Manually triggers a re-assessment of all active vulnerabilities for an asset
     against its current 'actual_fw_version'.
     """
+    config = load_config()
     db = Datastore()
+    analyzer = HybridAnalyzer(config)
     asset = db.get_asset(mac_address)
     if not asset:
         return
@@ -177,9 +181,10 @@ def reassess_vulnerabilities(mac_address):
         description = v['description']
         cve_id = v['cve_id']
         
-        if is_safe_version(actual_ver, description, asset):
-            affected_limit = extract_affected_version(description)
-            logic = f"Re-assessment Logic: {actual_ver} > {affected_limit} (Threshold)"
+        analysis = analyzer.analyze(cve_id, description, asset)
+        
+        if analysis['result'] == 'SAFE':
+            logic = f"Re-assessment ({analysis['method']}): {analysis['reason']}"
             db.suppress_vulnerability(
                 mac=mac_address,
                 cve_id=cve_id,
@@ -227,6 +232,7 @@ def main():
         nvd_api_key = config.get("nvd_api_key", "")
         
         nvd = NVDClient(api_key=nvd_api_key if nvd_api_key else None)
+        analyzer = HybridAnalyzer(config)
         
         # Auto-detect subnet if empty (Re-using logic from PoC for now)
         if not subnets:
@@ -278,7 +284,7 @@ def main():
                     
                     # If active scan also found it, use its ports
                     ports = scanned_hosts.get(ip, [80, 443, 22, 8080]) 
-                    process_host(ip, mac, ports, db, nvd)
+                    process_host(ip, mac, ports, db, nvd, analyzer)
 
                 # Process remaining active hosts (those not seen by router)
                 from sentinel.scanner import resolve_mac
@@ -302,7 +308,7 @@ def main():
                     
                     if mac not in processed_macs:
                         db.upsert_asset(mac=mac, ip=ip)
-                        process_host(ip, mac, ports, db, nvd)
+                        process_host(ip, mac, ports, db, nvd, analyzer)
                         processed_macs.add(mac)
                         processed_ips[ip] = mac
 

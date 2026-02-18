@@ -106,21 +106,56 @@ def is_version_relevant(actual_ver, cve_description, asset_context=None):
     
     return True
 
-def is_safe_version(actual_ver, cve_description, asset_context=None):
+def analyze_version_safety(actual_ver, cve_description, asset_context=None):
     """
-    Determines if the actual version is considered safe based on the CVE description.
-    Requirements:
-    1. The CVE must be relevant to the asset context.
-    2. We must be able to extract an 'affected version' limit (v_limit) from the description.
-    3. actual_ver must be strictly greater than v_limit.
+    Analyzes version safety and returns a structured result with confidence.
+    Returns:
+        dict: {
+            "result": "SAFE" | "VULNERABLE" | "INCONCLUSIVE",
+            "confidence": int (0-100),
+            "reason": str,
+            "method": "regex"
+        }
     """
     if not is_version_relevant(actual_ver, cve_description, asset_context):
-        # If not relevant, we treat it as "safe" (suppressed) because it doesn't apply
-        return True
+        return {
+            "result": "SAFE",
+            "confidence": 90,
+            "reason": "Not relevant to asset context (Vendor/Product mismatch)",
+            "method": "regex"
+        }
 
     v_limit_str = extract_affected_version(cve_description)
     if not v_limit_str:
-        return False
+        return {
+            "result": "INCONCLUSIVE",
+            "confidence": 0,
+            "reason": "Could not extract affected version from description",
+            "method": "regex"
+        }
     
     # If comparison returns 1, actual_ver is newer than the affected threshold
-    return compare_versions(actual_ver, v_limit_str) > 0
+    is_newer = compare_versions(actual_ver, v_limit_str) > 0
+    
+    if is_newer:
+        return {
+            "result": "SAFE",
+            "confidence": 85,
+            "reason": f"Version {actual_ver} > {v_limit_str} (Affected Limit)",
+            "method": "regex"
+        }
+    else:
+        return {
+            "result": "VULNERABLE",
+            "confidence": 75,
+            "reason": f"Version {actual_ver} <= {v_limit_str} (Affected Limit)",
+            "method": "regex"
+        }
+
+def is_safe_version(actual_ver, cve_description, asset_context=None):
+    """
+    Legacy wrapper for analyze_version_safety.
+    Returns True if SAFE, False otherwise.
+    """
+    analysis = analyze_version_safety(actual_ver, cve_description, asset_context)
+    return analysis["result"] == "SAFE"
