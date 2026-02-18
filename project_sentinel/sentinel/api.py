@@ -225,7 +225,7 @@ def get_config():
         llm_enabled = config['options'].get('llm_enabled', False)
         return jsonify({
             "llm_enabled": llm_enabled,
-            "version": "1.0.26" 
+            "version": "1.0.29" 
         })
     except Exception as e:
         logger.error(f"Error fetching config: {e}")
