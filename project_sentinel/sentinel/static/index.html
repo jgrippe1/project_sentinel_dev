@@ -458,25 +458,41 @@
                         <input type="text" id="detail-location" placeholder="e.g. Server Closet, Kitchen">
                     </div>
                     <div class="form-group">
-                        <label>Infrastructure Category</label>
-                        <select id="detail-type">
-                            <option value="IoT">IoT / Smart Home</option>
-                            <option value="Security">Security / Alarm</option>
-                            <option value="Camera">Surveillance / Camera</option>
-                            <option value="Light">Smart Lighting</option>
-                            <option value="Plug">Smart Plug / Power</option>
-                            <option value="Sensor">Environmental Sensor</option>
-                            <option value="Workstation">Workstation / Laptop</option>
-                            <option value="Mobile">Mobile Device</option>
-                            <option value="Server">Server Infrastructure</option>
-                            <option value="NAS">Network Attached Storage</option>
-                            <option value="Gaming">Gaming Console</option>
-                            <option value="Media">Media / Entertainment / TV</option>
-                            <option value="Network">Core Networking / Router</option>
-                            <option value="Printer">Printer / Scanner</option>
-                            <option value="Voice">Voice Assistant (Alexa/Google)</option>
-                            <option value="Unknown">Unknown / Other</option>
-                        </select>
+                        <label
+                            style="display: block; color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase;">Device
+                            Type</label>
+                        <div style="position: relative;">
+                            <select id="detail-type" class="input-minimal" style="width: 100%;">
+                                <option value="Unknown">Unknown</option>
+                                <option value="Server">Server</option>
+                                <option value="Workstation">Workstation</option>
+                                <option value="Mobile">Mobile</option>
+                                <option value="IoT">IoT</option>
+                                <option value="Network">Network</option>
+                                <option value="Printer">Printer</option>
+                                <option value="Camera">Camera</option>
+                                <option value="Voice">Voice Assistant</option>
+                                <option value="Media">Media Player</option>
+                                <option value="Light">Smart Light</option>
+                            </select>
+                            <div id="alert-type" class="hidden"
+                                style="margin-top: 5px; background: rgba(59, 130, 246, 0.1); border: 1px solid var(--info); border-radius: 6px; padding: 8px; display: flex; align-items: center; justify-content: space-between;">
+                                <div>
+                                    <span
+                                        style="font-size: 0.7rem; color: var(--info); font-weight: bold;">Suggested:</span>
+                                    <span id="new-type-val"
+                                        style="font-size: 0.7rem; color: white; margin-left: 5px;">--</span>
+                                </div>
+                                <div style="display: flex; gap: 5px;">
+                                    <button class="btn btn-ghost"
+                                        style="padding: 2px 6px; font-size: 0.65rem; color: var(--success);"
+                                        onclick="resolveDiscrepancy('type', 'accept')">Accept</button>
+                                    <button class="btn btn-ghost"
+                                        style="padding: 2px 6px; font-size: 0.65rem; color: var(--text-muted);"
+                                        onclick="resolveDiscrepancy('type', 'dismiss')">Dismiss</button>
+                                </div>
+                            </div>
+                        </div>
                         <div id="detail-original-type"
                             style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px;"></div>
                     </div>
@@ -512,8 +528,27 @@
                             <div>
                                 <label
                                     style="display: block; color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase;">Model</label>
-                                <input type="text" id="detail-intel-model" class="input-minimal"
-                                    placeholder="Enter Model..." style="width: 100%;">
+                                <div style="position: relative;">
+                                    <input type="text" id="detail-intel-model" class="input-minimal"
+                                        placeholder="Enter Model..." style="width: 100%;">
+                                    <div id="alert-model" class="hidden"
+                                        style="margin-top: 5px; background: rgba(59, 130, 246, 0.1); border: 1px solid var(--info); border-radius: 6px; padding: 8px; display: flex; align-items: center; justify-content: space-between;">
+                                        <div>
+                                            <span
+                                                style="font-size: 0.7rem; color: var(--info); font-weight: bold;">Suggested:</span>
+                                            <span id="new-model-val"
+                                                style="font-size: 0.7rem; color: white; margin-left: 5px;">--</span>
+                                        </div>
+                                        <div style="display: flex; gap: 5px;">
+                                            <button class="btn btn-ghost"
+                                                style="padding: 2px 6px; font-size: 0.65rem; color: var(--success);"
+                                                onclick="resolveDiscrepancy('model', 'accept')">Accept</button>
+                                            <button class="btn btn-ghost"
+                                                style="padding: 2px 6px; font-size: 0.65rem; color: var(--text-muted);"
+                                                onclick="resolveDiscrepancy('model', 'dismiss')">Dismiss</button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
                             <!-- OS -->
@@ -521,8 +556,27 @@
                                 <label
                                     style="display: block; color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase;">Operating
                                     System</label>
-                                <input type="text" id="detail-intel-os" class="input-minimal" placeholder="Enter OS..."
-                                    style="width: 100%;">
+                                <div style="position: relative;">
+                                    <input type="text" id="detail-intel-os" class="input-minimal"
+                                        placeholder="Enter OS..." style="width: 100%;">
+                                    <div id="alert-os" class="hidden"
+                                        style="margin-top: 5px; background: rgba(59, 130, 246, 0.1); border: 1px solid var(--info); border-radius: 6px; padding: 8px; display: flex; align-items: center; justify-content: space-between;">
+                                        <div>
+                                            <span
+                                                style="font-size: 0.7rem; color: var(--info); font-weight: bold;">Suggested:</span>
+                                            <span id="new-os-val"
+                                                style="font-size: 0.7rem; color: white; margin-left: 5px;">--</span>
+                                        </div>
+                                        <div style="display: flex; gap: 5px;">
+                                            <button class="btn btn-ghost"
+                                                style="padding: 2px 6px; font-size: 0.65rem; color: var(--success);"
+                                                onclick="resolveDiscrepancy('os', 'accept')">Accept</button>
+                                            <button class="btn btn-ghost"
+                                                style="padding: 2px 6px; font-size: 0.65rem; color: var(--text-muted);"
+                                                onclick="resolveDiscrepancy('os', 'dismiss')">Dismiss</button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
                             <!-- Vendor (Smart Field) -->
@@ -1090,59 +1144,91 @@
         }
 
         function checkDiscrepancies() {
-            // Vendor Discrepancy
-            const manualVendor = document.getElementById('detail-intel-vendor').value.trim().toLowerCase();
-            const detectedVendor = (document.getElementById('detail-intel-vendor').dataset.detected || '').trim();
-            const dismissedVendor = (document.getElementById('detail-intel-vendor').dataset.dismissed || '').trim();
-            const vendorAlert = document.getElementById('alert-vendor');
+            const fields = [
+                { id: 'vendor', input: 'detail-intel-vendor', newId: 'new-vendor-val', alertId: 'alert-vendor', isActual: false },
+                { id: 'fw', input: 'detail-actual-fw', newId: 'new-fw-val', alertId: 'alert-fw', isActual: true },
+                { id: 'model', input: 'detail-intel-model', newId: 'new-model-val', alertId: 'alert-model', isActual: false },
+                { id: 'os', input: 'detail-intel-os', newId: 'new-os-val', alertId: 'alert-os', isActual: false },
+                { id: 'type', input: 'detail-type', newId: 'new-type-val', alertId: 'alert-type', isActual: false }
+            ];
 
-            if (detectedVendor && manualVendor && detectedVendor.toLowerCase() !== manualVendor && detectedVendor !== dismissedVendor) {
-                document.getElementById('new-vendor-val').innerText = detectedVendor;
-                vendorAlert.classList.remove('hidden');
-            } else {
-                vendorAlert.classList.add('hidden');
-            }
+            fields.forEach(f => {
+                const el = document.getElementById(f.input);
+                const manual = el.value.trim().toLowerCase();
 
-            // Firmware Discrepancy
-            const manualFw = document.getElementById('detail-actual-fw').value.trim();
-            const detectedFw = (document.getElementById('detail-actual-fw').dataset.detected || '').trim();
-            const dismissedFw = (document.getElementById('detail-actual-fw').dataset.dismissed || '').trim();
-            const fwAlert = document.getElementById('alert-fw');
+                // For Vendor/FW, we prioritize 'detected' (from scan), but autosuggest uses 'suggested'
+                // For others, we only use 'suggested'
+                let detected = (el.dataset.suggested || '').trim();
+                if (f.isActual && !detected) detected = (el.dataset.detected || '').trim();
+                // Vendor is special: it has both detected (scan) and suggested (LLM). Prioritize suggested if recent?
+                // Actually, let's treat them as sources. 
+                if (f.id === 'vendor' && !detected) detected = (el.dataset.detected || '').trim();
 
-            if (detectedFw && manualFw && detectedFw !== manualFw && detectedFw !== dismissedFw) {
-                document.getElementById('new-fw-val').innerText = detectedFw;
-                fwAlert.classList.remove('hidden');
-            } else {
-                fwAlert.classList.add('hidden');
-            }
+                // If dismiss check is needed
+                // const dismissed = (el.dataset.dismissed || '').trim(); // Logic might differ for suggestions
+
+                // If checking suggestions, we don't care about dismissed persistent state as much as "current session dismiss"
+                // But for now, let's just check if suggested != manual
+
+                if (detected && manual && detected.toLowerCase() !== manual) {
+                    document.getElementById(f.newId).innerText = detected;
+                    document.getElementById(f.alertId).classList.remove('hidden');
+                } else if (detected && !manual) {
+                    // Also show if manual is empty
+                    document.getElementById(f.newId).innerText = detected;
+                    document.getElementById(f.alertId).classList.remove('hidden');
+                } else {
+                    document.getElementById(f.alertId).classList.add('hidden');
+                }
+            });
         }
 
         async function resolveDiscrepancy(type, action) {
-            const mac = document.getElementById('detail-mac').value;
-            let fieldId, detectedVal;
+            let fieldId, sourceAttr;
 
             if (type === 'vendor') {
                 fieldId = 'detail-intel-vendor';
-                detectedVal = document.getElementById(fieldId).dataset.detected;
-
-                if (action === 'accept') {
-                    document.getElementById(fieldId).value = detectedVal;
-                } else if (action === 'dismiss') {
-                    document.getElementById(fieldId).dataset.dismissed = detectedVal;
-                }
+                sourceAttr = 'detected'; // Prioritize detected if present? Or suggested?
+                // Logic: check if suggested exists first, else detected
+                const el = document.getElementById(fieldId);
+                detectedVal = el.dataset.suggested || el.dataset.detected;
             } else if (type === 'fw') {
                 fieldId = 'detail-actual-fw';
-                detectedVal = document.getElementById(fieldId).dataset.detected;
+                detectedVal = document.getElementById(fieldId).dataset.detected; // FW usually only from scan
+            } else if (type === 'model') {
+                fieldId = 'detail-intel-model';
+                detectedVal = document.getElementById(fieldId).dataset.suggested;
+            } else if (type === 'os') {
+                fieldId = 'detail-intel-os';
+                detectedVal = document.getElementById(fieldId).dataset.suggested;
+            } else if (type === 'type') {
+                fieldId = 'detail-type';
+                detectedVal = document.getElementById(fieldId).dataset.suggested;
+            }
 
-                if (action === 'accept') {
-                    document.getElementById(fieldId).value = detectedVal;
-                } else if (action === 'dismiss') {
-                    document.getElementById(fieldId).dataset.dismissed = detectedVal;
+            if (!detectedVal) return;
+
+            const el = document.getElementById(fieldId);
+
+            if (action === 'accept') {
+                el.value = detectedVal;
+                // Clear suggestion so alert hides
+                delete el.dataset.suggested;
+                // For persistent dismissal (Vendor/FW), we might still want to track it?
+                // For now, accepting clears the conflict.
+            } else if (action === 'dismiss') {
+                // If it's a suggestion (Autosuggest), just clear it
+                if (el.dataset.suggested) {
+                    delete el.dataset.suggested;
+                } else {
+                    // It's a persistent detection (Scan), mark as dismissed in dataset for save
+                    el.dataset.dismissed = detectedVal;
                 }
             }
 
-            // Save immediately to persist the decision
-            await saveAssetDetail();
+            // Save immediately to persist the decision (especially for dismissals of scan data)
+            // For Autosuggest acceptance, we also save.
+            await saveAssetDetail(false); // Don't close modal
             // Re-check to hide alert
             checkDiscrepancies();
         }
@@ -1387,10 +1473,10 @@
                 if (res.ok) {
                     const data = await res.json();
 
-                    if (data.vendor) document.getElementById('detail-intel-vendor').value = data.vendor;
-                    if (data.model) document.getElementById('detail-intel-model').value = data.model;
-                    if (data.os) document.getElementById('detail-intel-os').value = data.os;
-                    if (data.device_type && data.device_type !== 'Unknown') document.getElementById('detail-type').value = data.device_type;
+                    if (data.vendor) document.getElementById('detail-intel-vendor').dataset.suggested = data.vendor;
+                    if (data.model) document.getElementById('detail-intel-model').dataset.suggested = data.model;
+                    if (data.os) document.getElementById('detail-intel-os').dataset.suggested = data.os;
+                    if (data.device_type && data.device_type !== 'Unknown') document.getElementById('detail-type').dataset.suggested = data.device_type;
 
                     // Re-check discrepancies
                     checkDiscrepancies();
