@@ -7,15 +7,50 @@ from sentinel.version_utils import analyze_version_safety
 
 logger = logging.getLogger("HybridAnalyzer")
 
+
+PROVIDER_DEFAULTS = {
+    "openai": {
+        "base_url": "https://api.openai.com/v1",
+        "model": "gpt-3.5-turbo"
+    },
+    "anthropic": {
+        "base_url": "https://api.anthropic.com/v1",
+        "model": "claude-3-haiku-20240307"
+    },
+    "google": {
+        "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
+        "model": "gemini-1.5-flash"
+    },
+    "ollama": {
+        "base_url": "http://homeassistant.local:11434/v1",
+        "model": "llama3"
+    },
+    "custom": {
+        "base_url": "",
+        "model": ""
+    }
+}
+
 class HybridAnalyzer:
     def __init__(self, config):
         self.config = config
         self.db = Datastore()
-        self.llm_enabled = config.get('options', {}).get('llm_enabled', False)
-        self.llm_provider = config.get('options', {}).get('llm_provider', 'openai')
-        self.llm_api_key = config.get('options', {}).get('llm_api_key', '')
-        self.llm_model = config.get('options', {}).get('llm_model', 'gpt-3.5-turbo')
-        self.llm_base_url = config.get('options', {}).get('llm_base_url', 'https://api.openai.com/v1')
+        options = config.get('options', {})
+        
+        self.llm_enabled = options.get('llm_enabled', False)
+        self.llm_provider = options.get('llm_provider', 'openai')
+        self.llm_api_key = options.get('llm_api_key', '')
+        
+        # Load Defaults based on Provider
+        defaults = PROVIDER_DEFAULTS.get(self.llm_provider, PROVIDER_DEFAULTS['openai'])
+        
+        # User config overrides default if present
+        self.llm_model = options.get('llm_model') or defaults['model']
+        self.llm_base_url = options.get('llm_base_url') or defaults['base_url']
+        
+        # Clean URL (remove trailing slash)
+        if self.llm_base_url and self.llm_base_url.endswith('/'):
+            self.llm_base_url = self.llm_base_url[:-1]
 
     def analyze(self, cve_id, cve_description, asset_context):
         """
@@ -102,6 +137,11 @@ class HybridAnalyzer:
         """
         
         try:
+            # Special Handling for Anthropic
+            if self.llm_provider == 'anthropic':
+                return self._query_anthropic(prompt)
+
+            # Standard OpenAI Compatible (OpenAI, Google, Ollama, etc.)
             headers = {
                 "Authorization": f"Bearer {self.llm_api_key}",
                 "Content-Type": "application/json"
@@ -112,29 +152,66 @@ class HybridAnalyzer:
                 "temperature": 0.1
             }
             
-            # Support for Generic/OpenAI
             url = f"{self.llm_base_url}/chat/completions"
-            response = requests.post(url, headers=headers, json=data, timeout=10)
+            response = requests.post(url, headers=headers, json=data, timeout=15)
             
-            if response.status_code == 200:
-                resp_json = response.json()
-                content = resp_json['choices'][0]['message']['content']
-                # Clean code blocks if present
-                if "```json" in content:
-                    content = content.split("```json")[1].split("```")[0].strip()
-                elif "```" in content:
-                    content = content.split("```")[1].strip()
-                    
-                parsed = json.loads(content)
-                return {
-                    "result": parsed.get("result", "VULNERABLE").upper(),
-                    "confidence": parsed.get("confidence", 50),
-                    "reason": parsed.get("reason", "LLM Analysis"),
-                    "method": f"llm-{self.llm_provider}"
-                }
-            else:
-                logger.error(f"LLM API Error: {response.status_code} - {response.text}")
-                return None
+            return self._parse_llm_response(response, f"llm-{self.llm_provider}")
+            
         except Exception as e:
             logger.error(f"LLM Exception: {e}")
+            return None
+
+    def _query_anthropic(self, prompt):
+        """Specific handler for Anthropic API."""
+        try:
+            headers = {
+                "x-api-key": self.llm_api_key,
+                "anthropic-version": "2023-06-01",
+                "Content-Type": "application/json"
+            }
+            data = {
+                "model": self.llm_model,
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 1024,
+                "temperature": 0.1
+            }
+            url = f"{self.llm_base_url}/messages"
+            response = requests.post(url, headers=headers, json=data, timeout=15)
+            
+            if response.status_code == 200:
+                content = response.json()['content'][0]['text']
+                return self._parse_content(content, "llm-anthropic")
+            else:
+                logger.error(f"Anthropic API Error: {response.status_code} - {response.text}")
+                return None
+        except Exception as e:
+            logger.error(f"Anthropic Exception: {e}")
+            return None
+
+    def _parse_llm_response(self, response, method_name):
+        if response.status_code == 200:
+            resp_json = response.json()
+            content = resp_json['choices'][0]['message']['content']
+            return self._parse_content(content, method_name)
+        else:
+            logger.error(f"LLM API Error: {response.status_code} - {response.text}")
+            return None
+
+    def _parse_content(self, content, method_name):
+        try:
+            # Clean code blocks if present
+            if "```json" in content:
+                content = content.split("```json")[1].split("```")[0].strip()
+            elif "```" in content:
+                content = content.split("```")[1].strip()
+                
+            parsed = json.loads(content)
+            return {
+                "result": parsed.get("result", "VULNERABLE").upper(),
+                "confidence": parsed.get("confidence", 50),
+                "reason": parsed.get("reason", "LLM Analysis"),
+                "method": method_name
+            }
+        except Exception as e:
+            logger.error(f"Failed to parse LLM JSON: {e}. Content: {content}")
             return None
