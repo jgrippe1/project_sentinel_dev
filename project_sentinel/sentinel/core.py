@@ -35,9 +35,10 @@ def load_config():
                 config.update(options)
                 
                 # Set Log Level
-                log_level = config.get('log_level', 'info').upper()
-                logging.getLogger().setLevel(getattr(logging, log_level))
-                logger.info(f"Log Level set to: {log_level}")
+                verbose = config.get('verbose_logging', False)
+                log_level = logging.DEBUG if verbose else logging.INFO
+                logging.getLogger().setLevel(log_level)
+                logger.info(f"Log Level set to: {'DEBUG' if verbose else 'INFO'}")
 
         except Exception as e:
             logger.error(f"Failed to load options: {e}")
