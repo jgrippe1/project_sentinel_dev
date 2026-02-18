@@ -1000,7 +1000,7 @@
         }
 
         function calculateRiskScore(asset) {
-            const assetVulns = allVulns.filter(v => v.mac_address === asset.mac_address);
+            const assetVulns = allVulns.filter(v => v.mac_address === asset.mac_address && v.status !== 'suppressed');
             if (assetVulns.length === 0) return 0;
             return Math.max(...assetVulns.map(v => v.cvss_score || 0));
         }
