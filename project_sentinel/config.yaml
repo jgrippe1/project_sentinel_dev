@@ -1,5 +1,5 @@
 name: "Project Sentinel"
-version: "1.0.4"
+version: "1.0.5"
 slug: "project_sentinel"
 description: "Home Network Governance & Risk Management"
 url: "https://github.com/jgrippe1/project_sentinel_dev"
@@ -44,7 +44,7 @@ schema:
   router_password: password?
   router_ssh_key: str?
   llm_enabled: bool?
-  llm_provider: list(openai,google,anthropic,ollama,custom)?
+  llm_provider: list(openai, google, anthropic, ollama, custom)
   llm_api_key: str?
   llm_model: str?
   llm_base_url: str?
