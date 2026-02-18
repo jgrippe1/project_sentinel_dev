@@ -30,13 +30,15 @@ options:
   llm_enabled: false
   llm_provider: "openai"
   llm_api_key: ""
-  llm_model: "gemini-2.0-flash"
+  llm_model: "gemini-2.0-flash-exp"
+  scan_threads: 20
   llm_base_url: "https://generativelanguage.googleapis.com/v1beta/openai"
   verbose_logging: false
 schema:
   scan_interval: int
   subnets:
     - str
+  scan_threads: int
   llm_enabled: bool
   llm_provider: str
   llm_api_key: str

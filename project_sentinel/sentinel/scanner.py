@@ -183,14 +183,26 @@ def resolve_mac(ip):
 
     return None
 
-def scan_subnet(cidr, ports=[80, 443, 22, 8080], max_threads=100):
+
+def scan_host(ip, ports):
+    open_ports = []
+    for port in ports:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(0.5)
+        result = sock.connect_ex((str(ip), port))
+        if result == 0:
+            open_ports.append(port)
+        sock.close()
+    return open_ports
+
+def scan_subnet(cidr, ports=[80, 443, 22, 8080], max_threads=20):
     """
     Scans a subnet for active hosts with open ports.
     """
     active_hosts = {}
-    network = ipaddress.ip_network(cidr)
+    network = ipaddress.ip_network(cidr, strict=False)
     
-    logger.info(f"Scanning {cidr} for ports {ports}...")
+    logger.info(f"Scanning {cidr} for ports {ports} with {max_threads} threads...")
     
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_threads) as executor:
         future_to_ip = {executor.submit(scan_host, ip, ports): ip for ip in network.hosts()}

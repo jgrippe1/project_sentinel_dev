@@ -1,6 +1,7 @@
 import sqlite3
 import datetime
 import os
+import json
 
 DB_PATH = os.getenv("SENTINEL_DB_PATH", "/data/sentinel.db")
 # Fallback for local testing if not running in Add-on environment
@@ -35,6 +36,26 @@ class Datastore:
                 first_seen DATETIME,
                 last_seen DATETIME,
                 status TEXT DEFAULT 'active'
+            )
+        ''')
+
+        # OUI Cache
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS oui_cache (
+                prefix TEXT PRIMARY KEY,
+                vendor TEXT,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
+        # CVE Cache
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS cve_cache (
+                product TEXT,
+                version TEXT,
+                json_data TEXT,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (product, version)
             )
         ''')
         
@@ -550,11 +571,51 @@ class Datastore:
         c.execute("""
             SELECT analysis_result, confidence, method, reasoning 
             FROM cve_verifications 
-            WHERE cve_id=? AND version_string=? AND (vendor=? OR vendor IS NULL) AND (model=? OR model IS NULL)
+            WHERE cve_id=? AND version_string=? 
+            AND (vendor IS NULL OR vendor=?) 
+            AND (model IS NULL OR model=?)
+            ORDER BY timestamp DESC LIMIT 1
         """, (cve_id, version_string, vendor, model))
+        
         row = c.fetchone()
         conn.close()
         return dict(row) if row else None
+
+    def get_oui_cache(self, prefix):
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+        c.execute("SELECT vendor FROM oui_cache WHERE prefix=?", (prefix,))
+        row = c.fetchone()
+        conn.close()
+        return row[0] if row else None
+
+    def set_oui_cache(self, prefix, vendor):
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+        c.execute("INSERT OR REPLACE INTO oui_cache (prefix, vendor) VALUES (?, ?)", (prefix, vendor))
+        conn.commit()
+        conn.close()
+
+    def get_cve_cache(self, product, version):
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+        c.execute("SELECT json_data FROM cve_cache WHERE product=? AND version=?", (product, version))
+        row = c.fetchone()
+        conn.close()
+        if row:
+            try:
+                return json.loads(row[0])
+            except:
+                return None
+        return None
+
+    def set_cve_cache(self, product, version, data):
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+        json_str = json.dumps(data)
+        c.execute("INSERT OR REPLACE INTO cve_cache (product, version, json_data) VALUES (?, ?, ?)", (product, version, json_str))
+        conn.commit()
+        conn.close()
 
     def save_verification_result(self, cve_id, version_string, vendor, model, result, confidence, method, reasoning):
         """Caches a verification result."""

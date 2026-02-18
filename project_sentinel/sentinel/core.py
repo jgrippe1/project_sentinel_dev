@@ -112,8 +112,17 @@ def process_host(ip, mac, ports, db, nvd, analyzer):
             logger.info(f"Identified {product} {version} on {ip}:{port}")
             
             # 3. Vulnerability Lookup
-            logger.info(f"Querying NVD for {product} {version}...")
-            vulnerabilities = nvd.lookup_cpe(product, version)
+            # 3. Vulnerability Lookup
+            logger.info(f"Checking Cache/NVD for {product} {version}...")
+            
+            # Check Cache First
+            vulnerabilities = db.get_cve_cache(product, version)
+            if vulnerabilities is None:
+                logger.debug(f"Cache miss for {product} {version}. Querying NVD...")
+                vulnerabilities = nvd.lookup_cpe(product, version)
+                db.set_cve_cache(product, version, vulnerabilities)
+            else:
+                logger.debug(f"Cache hit for {product} {version}")
             
             for item in vulnerabilities:
                 cve = item.get('cve', {})
@@ -204,7 +213,15 @@ def reassess_vulnerabilities(mac_address):
     
     # Final step: Merge base intelligence with mining results
     from sentinel.analysis import get_vendor_from_mac, OUI_MAP
-    oui_vendor = get_vendor_from_mac(mac)
+    
+    # OUI Cache Check
+    prefix = mac[:8].upper()
+    oui_vendor = db.get_oui_cache(prefix)
+    
+    if not oui_vendor:
+        oui_vendor = get_vendor_from_mac(mac)
+        if oui_vendor:
+            db.set_oui_cache(prefix, oui_vendor)
     
     # Enhanced Logging for OUI
     if oui_vendor:
@@ -270,8 +287,9 @@ def main():
                     logger.info(f"Router discovery found {len(router_assets)} devices.")
 
                 # 1. Active Discovery
-                scanned_hosts = scan_subnet(subnet)
-                logger.info(f"Active scan discovered {len(scanned_hosts)} hosts in {subnet}")
+                max_threads = config.get("scan_threads", 20)
+                scanned_hosts = scan_subnet(subnet, max_threads=max_threads)
+                logger.info(f"Active scan discovered {len(scanned_hosts)} hosts in {subnet} (Threads: {max_threads})")
                 
                 # 2. Merge and Process
                 # Track processed MACs and IPs to avoid duplicates
