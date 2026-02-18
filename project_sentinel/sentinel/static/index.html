@@ -683,6 +683,8 @@
         </div>
     </div>
 
+    </div>
+
     <!-- Remediation Modal (Global) -->
     <div id="modal-remediation" class="modal-overlay">
         <div class="modal-card" style="max-width: 600px;">
@@ -696,6 +698,23 @@
             <div class="modal-footer"
                 style="padding: 1.5rem 2.5rem; text-align: right; border-top: 1px solid var(--glass-border);">
                 <button class="btn btn-ghost" onclick="closeModal('remediation')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Analysis Result Modal -->
+    <div id="modal-analysis" class="modal-overlay">
+        <div class="modal-card" style="max-width: 600px; border: 1px solid var(--primary);">
+            <div class="modal-header">
+                <h3>🤖 AI Analysis Result</h3>
+                <button class="btn btn-ghost" onclick="closeModal('analysis')">✕</button>
+            </div>
+            <div class="modal-body" id="analysis-body" style="padding: 2rem;">
+                <!-- Content injected here -->
+            </div>
+            <div class="modal-footer" id="analysis-footer"
+                style="padding: 1.5rem; text-align: right; border-top: 1px solid var(--glass-border);">
+                <button class="btn btn-ghost" onclick="closeModal('analysis')">Close</button>
             </div>
         </div>
     </div>
@@ -1071,8 +1090,19 @@
                 }
                 if (col === 'services') return `<td>${(a.services || []).length} ports</td>`;
                 if (col === 'status') return `<td><span style="color: var(--success); font-weight: 800;">●</span> ACTIVE</td>`;
-                if (col === 'vendor') return `<td>${a.vendor || '--'}</td>`;
+                if (col === 'vendor') {
+                    // Prioritize confirmed vendor if we tracked it, otherwise just use vendor field
+                    // But in our data model `vendor` is the main field. `oui_vendor` is reference.
+                    return `<td>${a.vendor || '--'}</td>`;
+                }
+                if (col === 'fw_version') {
+                    // Prioritize actual_fw_version (manual) over detected fw_version
+                    const val = a.actual_fw_version || a.fw_version || '--';
+                    const isManual = !!a.actual_fw_version;
+                    return `<td>${val} ${isManual ? '<span title="Manually Verified" style="cursor:help">🖊️</span>' : ''}</td>`;
+                }
                 if (col === 'type') return `<td>${a.device_type || a.original_device_type || '--'}</td>`;
+
                 return `<td>${a[col] || '--'}</td>`;
             }).join('');
         }
@@ -1529,15 +1559,15 @@
             openAssetDetail(mac);
         }
 
-        async function suppressVulnerability(mac, cveId) {
-            const reason = prompt("Reason for suppression (e.g. Fixed in current firmware, Vendor mismatch):");
+        async function suppressVulnerability(mac, cveId, reasonOverride = null, logicOverride = null) {
+            const reason = reasonOverride || prompt("Reason for suppression (e.g. Fixed in current firmware, Vendor mismatch):");
             if (!reason) return;
 
             const payload = {
                 mac,
                 cve_id: cveId,
                 reason,
-                logic: "Manual User Override"
+                logic: logicOverride || "Manual User Override"
             };
 
             await fetch('api/vulnerabilities/suppress', {
@@ -1546,6 +1576,87 @@
                 body: JSON.stringify(payload)
             });
             loadData();
+        }
+
+        async function analyzeCVE(cveId, mac) {
+            const btn = event.currentTarget;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '✨ Analyzing...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('api/analyze/cve', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mac, cve_id: cveId, force_refresh: true })
+                });
+
+                const analysis = await res.json();
+
+                if (analysis.error) {
+                    alert("Analysis failed: " + analysis.error);
+                    return;
+                }
+
+                // If SAFE with high confidence, optionally auto-resolve or show success modal
+                if (analysis.result === 'SAFE') {
+                    // Show Success Modal / Toast
+                    // For now, let's use the modal so user sees WHY
+                    showAnalysisResult(cveId, mac, analysis);
+                } else {
+                    // Show Warning Modal
+                    showAnalysisResult(cveId, mac, analysis);
+                }
+
+            } catch (e) {
+                console.error(e);
+                alert("Error calling analysis API");
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        function showAnalysisResult(cveId, mac, analysis) {
+            const isSafe = analysis.result === 'SAFE';
+            const color = isSafe ? 'var(--success)' : 'var(--danger)';
+            const icon = isSafe ? '✅' : '⚠️';
+
+            const body = document.getElementById('analysis-body');
+            body.innerHTML = `
+                <div style="text-align: center; margin-bottom: 1.5rem;">
+                    <span style="font-size: 3rem;">${icon}</span>
+                    <h2 style="color: ${color}; margin-top: 0.5rem;">${analysis.result}</h2>
+                    <p style="color: var(--text-muted); font-size: 0.9rem;">Confidence: ${analysis.confidence}%</p>
+                </div>
+                <div class="card" style="background: rgba(255,255,255,0.05);">
+                    <strong style="display: block; margin-bottom: 0.5rem; color: var(--primary);">Reasoning:</strong>
+                    <p style="line-height: 1.6;">${analysis.reason}</p>
+                </div>
+            `;
+
+            const footer = document.getElementById('analysis-footer');
+            if (isSafe) {
+                footer.innerHTML = `
+                    <button class="btn btn-ghost" onclick="closeModal('analysis')">Cancel</button>
+                    <button class="btn btn-success" onclick="confirmAutoResolve('${mac}', '${cveId}', '${analysis.reason.replace(/'/g, "\\'")}')">Resolve Issue</button>
+                `;
+            } else {
+                footer.innerHTML = `
+                    <button class="btn btn-ghost" onclick="closeModal('analysis')">Close</button>
+                    <button class="btn btn-danger" onclick="confirmAutoResolve('${mac}', '${cveId}', 'User accepted AI analysis despite risk: ${analysis.reason.replace(/'/g, "\\'")}')">Resolve Anyway (Risk Accepted)</button>
+                `;
+            }
+
+            // Close remediation modal if open? No, keep it under? 
+            // Better to stack or close. Let's stack for now.
+            openModal('analysis');
+        }
+
+        async function confirmAutoResolve(mac, cveId, reason) {
+            await suppressVulnerability(mac, cveId, reason, "AI Analysis Confirmation");
+            closeModal('analysis');
+            closeModal('remediation'); // Close original modal too
         }
 
         function exportSecurityReport() {
@@ -1599,6 +1710,11 @@
 
                 <span class="section-title">Management Actions</span>
                 <div style="display: flex; flex-direction: column; gap: 1rem;">
+                    ${!isSuppressed ?
+                    `<button class="btn btn-secondary" style="width: 100%; padding: 1rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem; background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); border: none; font-weight: 600;" onclick="analyzeCVE('${v.cve_id}', '${v.mac_address}')">
+                        <span style="font-size: 1.2rem;">✨</span> Analyze with AI
+                    </button>` : ''}
+
                     ${isSuppressed ?
                     `<div class="card" style="background: rgba(16, 185, 129, 0.1); border-color: var(--success); margin-bottom: 0;">
                             <p style="color: var(--success); font-weight: 600;">✅ This vulnerability has been suppressed.</p>

@@ -71,19 +71,76 @@ def approve_asset():
 
 @app.route('/api/analyze/metadata', methods=['POST'])
 def analyze_metadata():
-    data = request.json
-    name = data.get('name')
-    hostname = data.get('hostname')
-    mac = data.get('mac')
-    
-    # Optional: fetch OUI from DB if not provided, or let analyzer handle it
-    # For now, just pass what we have
-    
-    metadata = analyzer.infer_device_metadata(name, hostname, mac)
-    if metadata:
-        return jsonify(metadata)
-    else:
-        return jsonify({"error": "LLM inference failed or disabled"}), 500
+    try:
+        data = request.json
+        name = data.get('name')
+        hostname = data.get('hostname')
+        mac = data.get('mac')
+        
+        # Get OUI from asset if possible, or pass none
+        asset = db.get_asset(mac)
+        oui = asset.get('oui_vendor') if asset else None
+
+        result = analyzer.infer_device_metadata(name, hostname, mac, oui)
+        
+        if result:
+            return jsonify(result)
+        else:
+            return jsonify({"error": "LLM returned no data"}), 500
+            
+    except Exception as e:
+        logger.error(f"Error in analyze_metadata: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/analyze/cve', methods=['POST'])
+def analyze_cve():
+    try:
+        data = request.json
+        mac = data.get('mac')
+        cve_id = data.get('cve_id')
+        force_refresh = data.get('force_refresh', False)
+
+        if not mac or not cve_id:
+            return jsonify({"error": "Missing mac or cve_id"}), 400
+
+        asset = db.get_asset(mac)
+        if not asset:
+            return jsonify({"error": "Asset not found"}), 404
+
+        # Verify we have enough metadata for a meaningful analysis
+        if not asset.get('actual_fw_version'):
+            return jsonify({
+                "result": "INCONCLUSIVE",
+                "reason": "Missing firmware version. Please verify firmware first.",
+                "method": "pre-check"
+            })
+
+        # Fetch vulns to get description
+        # Ideally we'd have a get_cve(id) method, but we can search current vulns
+        all_vulns = db.get_all_vulnerabilities()
+        vuln = next((v for v in all_vulns if v['cve_id'] == cve_id and v['mac_address'] == mac), None)
+        
+        if not vuln:
+             return jsonify({"error": "Vulnerability not found on this asset"}), 404
+
+        description = vuln.get('description', '')
+
+        # If force refresh, we might want to bypass cache in analyzer?
+        # For now, analyzer checks cache first. 
+        # To strictly force LLM, we'd need to bypass cache check in analyzer or clear cache.
+        # Let's assume 'analyze' does what we need, but maybe we add a 'skip_cache' param to it?
+        # checking cve_analyzer.py signature: def analyze(self, cve_id, cve_description, asset_context):
+        # I'll rely on standard analysis for now. If user wants to force, they might need to clear previous result?
+        # Actually, if we are "re-analyzing", it implies we think the previous result (SAFE/VULNERABLE) might be wrong
+        # or that metadata changed. If metadata changed, cache key (ver+model) changes, so it won't hit cache.
+        
+        analysis = analyzer.analyze(cve_id, description, asset)
+        
+        return jsonify(analysis)
+
+    except Exception as e:
+        logger.error(f"Error in analyze_cve: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/assets/update', methods=['POST'])
 def update_asset():
