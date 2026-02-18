@@ -260,7 +260,8 @@ class HybridAnalyzer:
                 "temperature": 0.3
             }
             
-            response = requests.post(self.llm_url, json=payload, headers=headers, timeout=10)
+            url = f"{self.llm_base_url}/chat/completions"
+            response = requests.post(url, json=payload, headers=headers, timeout=10)
             
             if response.status_code == 200:
                 resp_json = response.json()
