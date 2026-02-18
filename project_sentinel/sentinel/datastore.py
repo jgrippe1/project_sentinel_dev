@@ -227,6 +227,19 @@ class Datastore:
             c.execute("ALTER TABLE vulnerabilities ADD COLUMN suppression_reason TEXT")
             c.execute("ALTER TABLE vulnerabilities ADD COLUMN suppression_logic TEXT")
             c.execute("ALTER TABLE vulnerabilities ADD COLUMN user_version TEXT")
+
+        # Phase 50: Advanced Metadata Refinement (v1.0.11)
+        # Check for 'dismissed_fw_version' and 'dismissed_vendor'
+        c.execute("PRAGMA table_info(assets)")
+        asset_cols = [info[1] for info in c.fetchall()]
+        
+        if 'dismissed_fw_version' not in asset_cols:
+            print("Migrating database: Adding 'dismissed_fw_version' to assets.")
+            c.execute("ALTER TABLE assets ADD COLUMN dismissed_fw_version TEXT")
+            
+        if 'dismissed_vendor' not in asset_cols:
+            print("Migrating database: Adding 'dismissed_vendor' to assets.")
+            c.execute("ALTER TABLE assets ADD COLUMN dismissed_vendor TEXT")
         
         conn.commit()
         conn.close()
@@ -389,7 +402,7 @@ class Datastore:
         conn.commit()
         conn.close()
 
-    def update_asset_governance(self, mac, custom_name=None, location=None, device_type=None, tags=None, confirmed_integrations=None, dismissed_integrations=None, actual_fw_version=None, model=None, os=None, vendor=None):
+    def update_asset_governance(self, mac, custom_name=None, location=None, device_type=None, tags=None, confirmed_integrations=None, dismissed_integrations=None, actual_fw_version=None, model=None, os=None, vendor=None, dismissed_fw_version=None, dismissed_vendor=None):
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
         if custom_name is not None:
@@ -411,6 +424,10 @@ class Datastore:
             c.execute("UPDATE assets SET os=? WHERE mac_address=?", (os, mac))
         if vendor is not None:
             c.execute("UPDATE assets SET vendor=? WHERE mac_address=?", (vendor, mac))
+        if dismissed_fw_version is not None:
+            c.execute("UPDATE assets SET dismissed_fw_version=? WHERE mac_address=?", (dismissed_fw_version, mac))
+        if dismissed_vendor is not None:
+            c.execute("UPDATE assets SET dismissed_vendor=? WHERE mac_address=?", (dismissed_vendor, mac))
         if tags is not None:
             import json
             c.execute("UPDATE assets SET tags=? WHERE mac_address=?", (json.dumps(tags), mac))

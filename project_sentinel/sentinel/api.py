@@ -72,7 +72,9 @@ def update_asset():
             actual_fw_version=fw_ver,
             model=data.get('model'),
             os=data.get('os'),
-            vendor=data.get('vendor')
+            vendor=data.get('vendor'),
+            dismissed_fw_version=data.get('dismissed_fw_version'),
+            dismissed_vendor=data.get('dismissed_vendor')
         )
         
         # Trigger immediate re-assessment if firmware was updated

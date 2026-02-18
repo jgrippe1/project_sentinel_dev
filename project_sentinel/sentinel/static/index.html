@@ -508,12 +508,15 @@
                                 onclick="autosuggestMetadata()">✨ Autosuggest</button>
                         </span>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; font-size: 0.85rem;">
+                            <!-- Model -->
                             <div>
                                 <label
                                     style="display: block; color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase;">Model</label>
                                 <input type="text" id="detail-intel-model" class="input-minimal"
                                     placeholder="Enter Model..." style="width: 100%;">
                             </div>
+
+                            <!-- OS -->
                             <div>
                                 <label
                                     style="display: block; color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase;">Operating
@@ -521,41 +524,77 @@
                                 <input type="text" id="detail-intel-os" class="input-minimal" placeholder="Enter OS..."
                                     style="width: 100%;">
                             </div>
-                            <div>
+
+                            <!-- Vendor (Smart Field) -->
+                            <div style="grid-column: span 2;">
                                 <label
-                                    style="display: block; color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase;">Vendor
-                                    (Manual)</label>
-                                <input type="text" id="detail-intel-vendor" class="input-minimal"
-                                    placeholder="Enter Vendor..." style="width: 100%;">
+                                    style="display: block; color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase;">Vendor</label>
+                                <div style="position: relative;">
+                                    <input type="text" id="detail-intel-vendor" class="input-minimal"
+                                        placeholder="Enter Vendor..." style="width: 100%;">
+                                    <div id="alert-vendor" class="hidden"
+                                        style="margin-top: 5px; background: rgba(245, 158, 11, 0.1); border: 1px solid var(--warning); border-radius: 6px; padding: 8px; display: flex; align-items: center; justify-content: space-between;">
+                                        <div>
+                                            <span
+                                                style="font-size: 0.7rem; color: var(--warning); font-weight: bold;">New
+                                                Detection:</span>
+                                            <span id="new-vendor-val"
+                                                style="font-size: 0.7rem; color: white; margin-left: 5px;">--</span>
+                                        </div>
+                                        <div style="display: flex; gap: 5px;">
+                                            <button class="btn btn-ghost"
+                                                style="padding: 2px 6px; font-size: 0.65rem; color: var(--success);"
+                                                onclick="resolveDiscrepancy('vendor', 'accept')">Accept</button>
+                                            <button class="btn btn-ghost"
+                                                style="padding: 2px 6px; font-size: 0.65rem; color: var(--text-muted);"
+                                                onclick="resolveDiscrepancy('vendor', 'dismiss')">Dismiss</button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <div>
+
+                            <!-- Firmware (Smart Field) -->
+                            <div style="grid-column: span 2;">
                                 <label
                                     style="display: block; color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase;">Firmware
-                                    (Detected)</label>
-                                <input type="text" id="detail-intel-fw" class="input-minimal"
-                                    placeholder="Detected FW..." style="width: 100%;">
+                                    Version</label>
+                                <div style="position: relative;">
+                                    <input type="text" id="detail-actual-fw" class="input-minimal"
+                                        placeholder="Enter Firmware Version..." style="width: 100%;">
+                                    <div id="alert-fw" class="hidden"
+                                        style="margin-top: 5px; background: rgba(245, 158, 11, 0.1); border: 1px solid var(--warning); border-radius: 6px; padding: 8px; display: flex; align-items: center; justify-content: space-between;">
+                                        <div>
+                                            <span
+                                                style="font-size: 0.7rem; color: var(--warning); font-weight: bold;">New
+                                                Detection:</span>
+                                            <span id="new-fw-val"
+                                                style="font-size: 0.7rem; color: white; margin-left: 5px;">--</span>
+                                        </div>
+                                        <div style="display: flex; gap: 5px;">
+                                            <button class="btn btn-ghost"
+                                                style="padding: 2px 6px; font-size: 0.65rem; color: var(--success);"
+                                                onclick="resolveDiscrepancy('fw', 'accept')">Accept</button>
+                                            <button class="btn btn-ghost"
+                                                style="padding: 2px 6px; font-size: 0.65rem; color: var(--text-muted);"
+                                                onclick="resolveDiscrepancy('fw', 'dismiss')">Dismiss</button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
+
+                            <!-- Hardware Rev -->
                             <div>
                                 <label
                                     style="display: block; color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase;">Hardware
                                     Rev</label>
                                 <span id="detail-intel-hw" style="display: block; padding: 6px 0;">--</span>
                             </div>
-                            <div style="grid-column: span 2;">
-                                <label
-                                    style="display: block; color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase; margin-bottom: 0.25rem;">Actual
-                                    Firmware (Verified Truth)</label>
-                                <div style="display: flex; gap: 0.5rem;">
-                                    <input type="text" id="detail-actual-fw" class="input-minimal"
-                                        placeholder="Enter manual truth (e.g. 3.0.0.4.388)" style="flex: 1;">
-                                    <button class="btn btn-primary" style="padding: 0 0.75rem; font-size: 0.75rem;"
-                                        onclick="saveActualFirmware()">Verify</button>
-                                </div>
-                            </div>
+
+                            <!-- Manufacturer (Read-only reference) -->
                             <div>
                                 <label
-                                    style="display: block; color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase;">Manufacturer
-                                    (OUI)</label>
+                                    style="display: block; color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase;">OUI
+                                    (Ref)</label>
                                 <span id="detail-intel-oui" style="display: block; padding: 6px 0;">--</span>
                             </div>
                         </div>
@@ -1029,37 +1068,104 @@
 
             document.getElementById('detail-intel-model').value = a.model || '';
             document.getElementById('detail-intel-os').value = a.os || '';
-            document.getElementById('detail-intel-fw').value = a.fw_version || '';
-            document.getElementById('detail-intel-vendor').value = a.vendor || '';
-            document.getElementById('detail-actual-fw').value = a.actual_fw_version || '';
+
+            // Unified Vendor Field
+            document.getElementById('detail-intel-vendor').value = a.vendor || ''; // Manual Vendor
+            document.getElementById('detail-intel-vendor').dataset.detected = a.oui_vendor || ''; // Detected OUI
+            document.getElementById('detail-intel-vendor').dataset.dismissed = a.dismissed_vendor || '';
+
+            // Unified Firmware Field
+            document.getElementById('detail-actual-fw').value = a.actual_fw_version || ''; // Manual FW
+            document.getElementById('detail-actual-fw').dataset.detected = a.fw_version || ''; // Detected FW
+            document.getElementById('detail-actual-fw').dataset.dismissed = a.dismissed_fw_version || '';
+
             document.getElementById('detail-intel-hw').innerText = a.hw_version || '--';
             document.getElementById('detail-intel-oui').innerText = a.oui_vendor || '--';
+
+            checkDiscrepancies(); // Check for conflicts
 
             renderAssetVulnerabilities(); // Initial render of vulns
             renderSuggestions(a);
             openModal('asset-detail');
         }
 
-        function renderAssetVulnerabilities() {
+        function checkDiscrepancies() {
+            // Vendor Discrepancy
+            const manualVendor = document.getElementById('detail-intel-vendor').value.trim().toLowerCase();
+            const detectedVendor = (document.getElementById('detail-intel-vendor').dataset.detected || '').trim();
+            const dismissedVendor = (document.getElementById('detail-intel-vendor').dataset.dismissed || '').trim();
+            const vendorAlert = document.getElementById('alert-vendor');
+
+            if (detectedVendor && manualVendor && detectedVendor.toLowerCase() !== manualVendor && detectedVendor !== dismissedVendor) {
+                document.getElementById('new-vendor-val').innerText = detectedVendor;
+                vendorAlert.classList.remove('hidden');
+            } else {
+                vendorAlert.classList.add('hidden');
+            }
+
+            // Firmware Discrepancy
+            const manualFw = document.getElementById('detail-actual-fw').value.trim();
+            const detectedFw = (document.getElementById('detail-actual-fw').dataset.detected || '').trim();
+            const dismissedFw = (document.getElementById('detail-actual-fw').dataset.dismissed || '').trim();
+            const fwAlert = document.getElementById('alert-fw');
+
+            if (detectedFw && manualFw && detectedFw !== manualFw && detectedFw !== dismissedFw) {
+                document.getElementById('new-fw-val').innerText = detectedFw;
+                fwAlert.classList.remove('hidden');
+            } else {
+                fwAlert.classList.add('hidden');
+            }
+        }
+
+        async function resolveDiscrepancy(type, action) {
             const mac = document.getElementById('detail-mac').value;
-            const hideResolved = document.getElementById('hide-resolved-vulns').checked;
-            const assetVulns = allVulns.filter(v => v.mac_address === mac);
+            let fieldId, detectedVal;
 
-            const filteredVulns = hideResolved
-                ? assetVulns.filter(v => v.status !== 'suppressed')
-                : assetVulns;
+            if (type === 'vendor') {
+                fieldId = 'detail-intel-vendor';
+                detectedVal = document.getElementById(fieldId).dataset.detected;
 
-            const vulnContainer = document.getElementById('detail-vuln-list');
-            if (filteredVulns.length > 0) {
-                document.getElementById('no-vulns').classList.add('hidden');
-                vulnContainer.classList.remove('hidden');
-                vulnContainer.innerHTML = filteredVulns.map(v => {
-                    const isSuppressed = v.status === 'suppressed';
-                    const statusText = isSuppressed ? 'RESOLVED' : 'ACTIVE';
-                    const statusColor = isSuppressed ? 'var(--text-muted)' : 'var(--danger)';
-                    const bgOpacity = isSuppressed ? '0.05' : '0.1';
+                if (action === 'accept') {
+                    document.getElementById(fieldId).value = detectedVal;
+                } else if (action === 'dismiss') {
+                    document.getElementById(fieldId).dataset.dismissed = detectedVal;
+                }
+            } else if (type === 'fw') {
+                fieldId = 'detail-actual-fw';
+                detectedVal = document.getElementById(fieldId).dataset.detected;
 
-                    return `
+                if (action === 'accept') {
+                    document.getElementById(fieldId).value = detectedVal;
+                } else if (action === 'dismiss') {
+                    document.getElementById(fieldId).dataset.dismissed = detectedVal;
+                }
+            }
+
+            // Save immediately to persist the decision
+            await saveAssetDetail();
+            // Re-check to hide alert
+            checkDiscrepancies();
+
+            function renderAssetVulnerabilities() {
+                const mac = document.getElementById('detail-mac').value;
+                const hideResolved = document.getElementById('hide-resolved-vulns').checked;
+                const assetVulns = allVulns.filter(v => v.mac_address === mac);
+
+                const filteredVulns = hideResolved
+                    ? assetVulns.filter(v => v.status !== 'suppressed')
+                    : assetVulns;
+
+                const vulnContainer = document.getElementById('detail-vuln-list');
+                if (filteredVulns.length > 0) {
+                    document.getElementById('no-vulns').classList.add('hidden');
+                    vulnContainer.classList.remove('hidden');
+                    vulnContainer.innerHTML = filteredVulns.map(v => {
+                        const isSuppressed = v.status === 'suppressed';
+                        const statusText = isSuppressed ? 'RESOLVED' : 'ACTIVE';
+                        const statusColor = isSuppressed ? 'var(--text-muted)' : 'var(--danger)';
+                        const bgOpacity = isSuppressed ? '0.05' : '0.1';
+
+                        return `
                         <div class="vuln-item" style="background: rgba(${isSuppressed ? '255, 255, 255' : '244, 63, 94'}, ${bgOpacity});">
                             <div style="display: flex; justify-content: space-between; align-items: start;">
                                 <div style="display: flex; flex-direction: column;">
@@ -1072,122 +1178,122 @@
                             <button class="btn btn-ghost" style="padding: 2px 8px; font-size: 0.7rem;" onclick="openRemediationModal('${v.cve_id}', '${v.mac_address}')">${isSuppressed ? 'View Details' : 'Details & Remediate'}</button>
                         </div>
                     `;
-                }).join('');
-            } else {
-                document.getElementById('no-vulns').classList.remove('hidden');
-                vulnContainer.classList.add('hidden');
-                // Optional: Update "No known CVEs" message if all are hidden
-                if (assetVulns.length > 0 && hideResolved) {
-                    document.getElementById('no-vulns').innerHTML = `
+                    }).join('');
+                } else {
+                    document.getElementById('no-vulns').classList.remove('hidden');
+                    vulnContainer.classList.add('hidden');
+                    // Optional: Update "No known CVEs" message if all are hidden
+                    if (assetVulns.length > 0 && hideResolved) {
+                        document.getElementById('no-vulns').innerHTML = `
                         <span style="font-size: 2rem;">🛡️</span>
                         <p style="margin-top: 1rem;">No active vulnerabilities matching filters.</p>
                     `;
-                } else {
-                    document.getElementById('no-vulns').innerHTML = `
+                    } else {
+                        document.getElementById('no-vulns').innerHTML = `
                         <span style="font-size: 2rem;">🛡️</span>
                         <p style="margin-top: 1rem;">No known CVEs for this asset.</p>
                     `;
+                    }
                 }
             }
-        }
 
-        let installedIntegrations = []; // Fetched from HA API
+            let installedIntegrations = []; // Fetched from HA API
 
-        /**
-         * Rich UI metadata for common integrations.
-         * If an installed component matches the key, we use this icon/label/url.
-         */
-        const MASTER_METADATA = {
-            'nginx_proxy_manager': { icon: '🌐', label: 'Nginx Proxy Manager', url: 'https://www.home-assistant.io/integrations/nginx_proxy_manager', match: 'Nginx' },
-            'ssh_web_terminal': { icon: '💻', label: 'SSH & Web Terminal', url: 'https://github.com/hassio-addons/addon-ssh', match: 'SSH' },
-            'esphome': { icon: '🔋', label: 'ESPHome Node', url: 'https://www.home-assistant.io/integrations/esphome', match: 'ESPHome' },
-            'generic': { icon: '🔌', label: 'Generic IP Camera', url: 'https://www.home-assistant.io/integrations/generic', match: 'Generic' },
-            'adguard': { icon: '🛡️', label: 'AdGuard Home', url: 'https://www.home-assistant.io/integrations/adguard', match: 'AdGuard' },
-            'mqtt': { icon: '📡', label: 'MQTT Broker', url: 'https://www.home-assistant.io/integrations/mqtt', match: 'MQTT' },
-            'unifi': { icon: '🛰️', label: 'UniFi Network', url: 'https://www.home-assistant.io/integrations/unifi', match: 'UniFi' },
-            'plex': { icon: '🎬', label: 'Plex Media Server', url: 'https://www.home-assistant.io/integrations/plex', match: 'Plex' },
-            'zigbee2mqtt': { icon: '🐝', label: 'Zigbee2MQTT', url: 'https://www.home-assistant.io/integrations/zigbee', match: 'Zigbee' },
-            'homekit': { icon: '🏠', label: 'HomeKit Device', url: 'https://www.home-assistant.io/integrations/homekit', match: 'HomeKit' },
-            'shelly': { icon: '💡', label: 'Shelly Smart Home', url: 'https://www.home-assistant.io/integrations/shelly', match: 'Shelly' },
-            'tasmota': { icon: '⚙️', label: 'Tasmota Device', url: 'https://www.home-assistant.io/integrations/tasmota', match: 'Tasmota' },
-            'philips_hue': { icon: '🌈', label: 'Philips Hue', url: 'https://www.home-assistant.io/integrations/hue', match: 'Hue' },
-            'sonos': { icon: '🔊', label: 'Sonos Speaker', url: 'https://www.home-assistant.io/integrations/sonos', match: 'Sonos' },
-            'wled': { icon: '✨', label: 'WLED Strip', url: 'https://www.home-assistant.io/integrations/wled', match: 'WLED' },
-            'frigate': { icon: '🐱', label: 'Frigate Video', url: 'https://www.home-assistant.io/integrations/frigate', match: 'Frigate' },
-            'homeassistant': { icon: '🏠', label: 'Remote Home Assistant', url: 'https://www.home-assistant.io/integrations/homeassistant', match: 'HASS' },
-            'tuya': { icon: '☁️', label: 'Tuya Smart Life', url: 'https://www.home-assistant.io/integrations/tuya', match: 'Tuya' },
-            'tplink': { icon: '🔌', label: 'TP-Link Kasa', url: 'https://www.home-assistant.io/integrations/tplink', match: 'Kasa' },
-            'pi_hole': { icon: '🕳️', label: 'Pi-hole', url: 'https://www.home-assistant.io/integrations/pi_hole', match: 'Pi-hole' }
-        };
+            /**
+             * Rich UI metadata for common integrations.
+             * If an installed component matches the key, we use this icon/label/url.
+             */
+            const MASTER_METADATA = {
+                'nginx_proxy_manager': { icon: '🌐', label: 'Nginx Proxy Manager', url: 'https://www.home-assistant.io/integrations/nginx_proxy_manager', match: 'Nginx' },
+                'ssh_web_terminal': { icon: '💻', label: 'SSH & Web Terminal', url: 'https://github.com/hassio-addons/addon-ssh', match: 'SSH' },
+                'esphome': { icon: '🔋', label: 'ESPHome Node', url: 'https://www.home-assistant.io/integrations/esphome', match: 'ESPHome' },
+                'generic': { icon: '🔌', label: 'Generic IP Camera', url: 'https://www.home-assistant.io/integrations/generic', match: 'Generic' },
+                'adguard': { icon: '🛡️', label: 'AdGuard Home', url: 'https://www.home-assistant.io/integrations/adguard', match: 'AdGuard' },
+                'mqtt': { icon: '📡', label: 'MQTT Broker', url: 'https://www.home-assistant.io/integrations/mqtt', match: 'MQTT' },
+                'unifi': { icon: '🛰️', label: 'UniFi Network', url: 'https://www.home-assistant.io/integrations/unifi', match: 'UniFi' },
+                'plex': { icon: '🎬', label: 'Plex Media Server', url: 'https://www.home-assistant.io/integrations/plex', match: 'Plex' },
+                'zigbee2mqtt': { icon: '🐝', label: 'Zigbee2MQTT', url: 'https://www.home-assistant.io/integrations/zigbee', match: 'Zigbee' },
+                'homekit': { icon: '🏠', label: 'HomeKit Device', url: 'https://www.home-assistant.io/integrations/homekit', match: 'HomeKit' },
+                'shelly': { icon: '💡', label: 'Shelly Smart Home', url: 'https://www.home-assistant.io/integrations/shelly', match: 'Shelly' },
+                'tasmota': { icon: '⚙️', label: 'Tasmota Device', url: 'https://www.home-assistant.io/integrations/tasmota', match: 'Tasmota' },
+                'philips_hue': { icon: '🌈', label: 'Philips Hue', url: 'https://www.home-assistant.io/integrations/hue', match: 'Hue' },
+                'sonos': { icon: '🔊', label: 'Sonos Speaker', url: 'https://www.home-assistant.io/integrations/sonos', match: 'Sonos' },
+                'wled': { icon: '✨', label: 'WLED Strip', url: 'https://www.home-assistant.io/integrations/wled', match: 'WLED' },
+                'frigate': { icon: '🐱', label: 'Frigate Video', url: 'https://www.home-assistant.io/integrations/frigate', match: 'Frigate' },
+                'homeassistant': { icon: '🏠', label: 'Remote Home Assistant', url: 'https://www.home-assistant.io/integrations/homeassistant', match: 'HASS' },
+                'tuya': { icon: '☁️', label: 'Tuya Smart Life', url: 'https://www.home-assistant.io/integrations/tuya', match: 'Tuya' },
+                'tplink': { icon: '🔌', label: 'TP-Link Kasa', url: 'https://www.home-assistant.io/integrations/tplink', match: 'Kasa' },
+                'pi_hole': { icon: '🕳️', label: 'Pi-hole', url: 'https://www.home-assistant.io/integrations/pi_hole', match: 'Pi-hole' }
+            };
 
-        async function fetchInstalledIntegrations() {
-            try {
-                const res = await fetch('api/ha/integrations');
-                const components = await res.json();
+            async function fetchInstalledIntegrations() {
+                try {
+                    const res = await fetch('api/ha/integrations');
+                    const components = await res.json();
 
-                // Map components to our rich metadata format
-                installedIntegrations = components.map(compId => {
-                    const meta = MASTER_METADATA[compId] || {};
+                    // Map components to our rich metadata format
+                    installedIntegrations = components.map(compId => {
+                        const meta = MASTER_METADATA[compId] || {};
+                        return {
+                            id: compId,
+                            icon: meta.icon || '🧩',
+                            label: meta.label || compId.charAt(0).toUpperCase() + compId.slice(1).replace('_', ' '),
+                            url: meta.url || `https://www.home-assistant.io/integrations/${compId}`,
+                            match: meta.match || compId
+                        };
+                    });
+                    console.log(`Discovered ${installedIntegrations.length} installed HA integrations.`);
+                } catch (e) {
+                    console.error("Failed to fetch HA integrations:", e);
+                    installedIntegrations = [];
+                }
+            }
+
+            function initManualSelect() {
+                const list = document.getElementById('manual-int-list');
+                if (list.children.length > 0) return;
+
+                // Merge installed with master metadata for common suggestions
+                const suggestions = new Set();
+                installedIntegrations.forEach(int => suggestions.add(int.id));
+                Object.keys(MASTER_METADATA).forEach(key => suggestions.add(key));
+
+                suggestions.forEach(id => {
+                    const opt = document.createElement('option');
+                    opt.value = id;
+                    const meta = MASTER_METADATA[id];
+                    if (meta) opt.innerText = `${meta.icon} ${meta.label}`;
+                    list.appendChild(opt);
+                });
+            }
+
+            function getMatchedIntegrations(a) {
+                const services = (a.services || []).map(s => s.banner + s.service_name).join(' ');
+                return installedIntegrations.filter(r => services.toLowerCase().includes(r.match.toLowerCase()));
+            }
+
+            function renderSuggestions(a) {
+                initManualSelect();
+                const list = document.getElementById('integration-list');
+                const activeList = document.getElementById('active-integrations');
+
+                const confirmedIds = JSON.parse(a.confirmed_integrations || '[]');
+                const dismissedIds = JSON.parse(a.dismissed_integrations || '[]');
+
+                const detected = getMatchedIntegrations(a);
+
+                // Render Active (Confirmed or Manual)
+                const active = confirmedIds.map(id => {
+                    const meta = MASTER_METADATA[id];
+                    const inst = installedIntegrations.find(i => i.id === id);
                     return {
-                        id: compId,
-                        icon: meta.icon || '🧩',
-                        label: meta.label || compId.charAt(0).toUpperCase() + compId.slice(1).replace('_', ' '),
-                        url: meta.url || `https://www.home-assistant.io/integrations/${compId}`,
-                        match: meta.match || compId
+                        id,
+                        icon: meta ? meta.icon : (inst ? inst.icon : '🧩'),
+                        label: meta ? meta.label : (inst ? inst.label : id.charAt(0).toUpperCase() + id.slice(1).replace('_', ' '))
                     };
                 });
-                console.log(`Discovered ${installedIntegrations.length} installed HA integrations.`);
-            } catch (e) {
-                console.error("Failed to fetch HA integrations:", e);
-                installedIntegrations = [];
-            }
-        }
 
-        function initManualSelect() {
-            const list = document.getElementById('manual-int-list');
-            if (list.children.length > 0) return;
-
-            // Merge installed with master metadata for common suggestions
-            const suggestions = new Set();
-            installedIntegrations.forEach(int => suggestions.add(int.id));
-            Object.keys(MASTER_METADATA).forEach(key => suggestions.add(key));
-
-            suggestions.forEach(id => {
-                const opt = document.createElement('option');
-                opt.value = id;
-                const meta = MASTER_METADATA[id];
-                if (meta) opt.innerText = `${meta.icon} ${meta.label}`;
-                list.appendChild(opt);
-            });
-        }
-
-        function getMatchedIntegrations(a) {
-            const services = (a.services || []).map(s => s.banner + s.service_name).join(' ');
-            return installedIntegrations.filter(r => services.toLowerCase().includes(r.match.toLowerCase()));
-        }
-
-        function renderSuggestions(a) {
-            initManualSelect();
-            const list = document.getElementById('integration-list');
-            const activeList = document.getElementById('active-integrations');
-
-            const confirmedIds = JSON.parse(a.confirmed_integrations || '[]');
-            const dismissedIds = JSON.parse(a.dismissed_integrations || '[]');
-
-            const detected = getMatchedIntegrations(a);
-
-            // Render Active (Confirmed or Manual)
-            const active = confirmedIds.map(id => {
-                const meta = MASTER_METADATA[id];
-                const inst = installedIntegrations.find(i => i.id === id);
-                return {
-                    id,
-                    icon: meta ? meta.icon : (inst ? inst.icon : '🧩'),
-                    label: meta ? meta.label : (inst ? inst.label : id.charAt(0).toUpperCase() + id.slice(1).replace('_', ' '))
-                };
-            });
-
-            activeList.innerHTML = active.map(r => `
+                activeList.innerHTML = active.map(r => `
                 <div class="integration-item" style="border-color: var(--primary); background: rgba(99, 102, 241, 0.1);">
                     <span>${r.icon}</span>
                     <div style="flex-grow: 1;"><strong>${r.label}</strong> (Active)</div>
@@ -1196,13 +1302,13 @@
                 </div>
             `).join('');
 
-            // Filter out already confirmed or dismissed
-            const filteredSuggestions = detected.filter(r => !confirmedIds.includes(r.id) && !dismissedIds.includes(r.id));
+                // Filter out already confirmed or dismissed
+                const filteredSuggestions = detected.filter(r => !confirmedIds.includes(r.id) && !dismissedIds.includes(r.id));
 
-            if (filteredSuggestions.length === 0 && active.length === 0) {
-                list.innerHTML = '<p style="color: var(--text-muted); font-size: 0.8rem;">No suggestions identified.</p>';
-            } else {
-                list.innerHTML = filteredSuggestions.map(r => `
+                if (filteredSuggestions.length === 0 && active.length === 0) {
+                    list.innerHTML = '<p style="color: var(--text-muted); font-size: 0.8rem;">No suggestions identified.</p>';
+                } else {
+                    list.innerHTML = filteredSuggestions.map(r => `
                     <div class="integration-item">
                         <span>${r.icon}</span>
                         <div style="flex-grow: 1;"><strong>${r.label}</strong> (Suggested)</div>
@@ -1213,134 +1319,146 @@
                         </div>
                     </div>
                 `).join('');
-            }
-        }
-
-        async function updateIntStatus(mac, intId, action) {
-            const a = allAssets.find(x => x.mac_address === mac);
-            let confirmed = JSON.parse(a.confirmed_integrations || '[]');
-            let dismissed = JSON.parse(a.dismissed_integrations || '[]');
-
-            if (action === 'confirm') {
-                if (!confirmed.includes(intId)) confirmed.push(intId);
-                dismissed = dismissed.filter(i => i !== intId);
-            } else if (action === 'dismiss') {
-                if (!dismissed.includes(intId)) dismissed.push(intId);
-                confirmed = confirmed.filter(i => i !== intId);
-            } else if (action === 'remove') {
-                confirmed = confirmed.filter(i => i !== intId);
-            } else if (action === 'add') {
-                if (!confirmed.includes(intId)) confirmed.push(intId);
+                }
             }
 
-            a.confirmed_integrations = JSON.stringify(confirmed);
-            a.dismissed_integrations = JSON.stringify(dismissed);
+            async function updateIntStatus(mac, intId, action) {
+                const a = allAssets.find(x => x.mac_address === mac);
+                let confirmed = JSON.parse(a.confirmed_integrations || '[]');
+                let dismissed = JSON.parse(a.dismissed_integrations || '[]');
 
-            await fetch('api/assets/update', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
+                if (action === 'confirm') {
+                    if (!confirmed.includes(intId)) confirmed.push(intId);
+                    dismissed = dismissed.filter(i => i !== intId);
+                } else if (action === 'dismiss') {
+                    if (!dismissed.includes(intId)) dismissed.push(intId);
+                    confirmed = confirmed.filter(i => i !== intId);
+                } else if (action === 'remove') {
+                    confirmed = confirmed.filter(i => i !== intId);
+                } else if (action === 'add') {
+                    if (!confirmed.includes(intId)) confirmed.push(intId);
+                }
+
+                a.confirmed_integrations = JSON.stringify(confirmed);
+                a.dismissed_integrations = JSON.stringify(dismissed);
+
+                await fetch('api/assets/update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        mac,
+                        confirmed_integrations: a.confirmed_integrations,
+                        dismissed_integrations: a.dismissed_integrations
+                    })
+                });
+                renderSuggestions(a);
+            }
+
+            async function addManualIntegration() {
+                const mac = document.getElementById('detail-mac').value;
+                const input = document.getElementById('manual-int-input');
+                const intId = input.value.trim().toLowerCase();
+                if (!intId) return;
+                await updateIntStatus(mac, intId, 'add');
+                input.value = "";
+            }
+
+            function autosuggestMetadata() {
+                const name = document.getElementById('detail-custom-name').value || '';
+                const hostname = document.getElementById('detail-title').innerText || '';
+                const combined = (name + ' ' + hostname).toLowerCase();
+
+                let model = document.getElementById('detail-intel-model').value;
+                let vendor = document.getElementById('detail-intel-vendor').value;
+                let os = document.getElementById('detail-intel-os').value;
+                let type = document.getElementById('detail-type').value;
+
+                // Simple Heuristics
+                if (combined.includes('pixel')) { vendor = 'Google'; model = 'Pixel'; os = 'Android'; }
+                if (combined.includes('iphone')) { vendor = 'Apple'; model = 'iPhone'; os = 'iOS'; }
+                if (combined.includes('ipad')) { vendor = 'Apple'; model = 'iPad'; os = 'iOS'; }
+                if (combined.includes('macbook') || combined.includes('mac mini')) { vendor = 'Apple'; model = 'Mac'; os = 'macOS'; }
+                if (combined.includes('echo') || combined.includes('alexa')) { vendor = 'Amazon'; model = 'Echo'; os = 'FireOS'; type = 'Voice'; }
+                if (combined.includes('hue')) { vendor = 'Philips'; model = 'Hue Bridge'; os = 'Embedded'; }
+                if (combined.includes('tv') && (combined.includes('lg') || combined.includes('webos'))) { vendor = 'LG'; os = 'WebOS'; type = 'Media'; }
+                if (combined.includes('tv') && combined.includes('samsung')) { vendor = 'Samsung'; os = 'Tizen'; type = 'Media'; }
+                if (combined.includes('esphome')) { os = 'ESPHome'; type = 'IoT'; }
+                if (combined.includes('tasmota')) { os = 'Tasmota'; type = 'IoT'; }
+                if (combined.includes('wled')) { model = 'WLED'; os = 'WLED'; type = 'Light'; }
+
+                // Update UI if empty or if we found better data
+                if (vendor) document.getElementById('detail-intel-vendor').value = vendor;
+                if (model) document.getElementById('detail-intel-model').value = model;
+                if (os) document.getElementById('detail-intel-os').value = os;
+                if (type !== 'Unknown') document.getElementById('detail-type').value = type;
+
+                // Re-check discrepancies in case the autosuggest created one
+                checkDiscrepancies();
+            }
+
+            async function saveAssetDetail(shouldClose = true) {
+                const mac = document.getElementById('detail-mac').value;
+
+                // Get current dataset values (which might have been updated by dismiss logic)
+                const dismissedVendor = document.getElementById('detail-intel-vendor').dataset.dismissed || null;
+                const dismissedFw = document.getElementById('detail-actual-fw').dataset.dismissed || null;
+
+                const payload = {
                     mac,
-                    confirmed_integrations: a.confirmed_integrations,
-                    dismissed_integrations: a.dismissed_integrations
-                })
-            });
-            renderSuggestions(a);
-        }
+                    custom_name: document.getElementById('detail-custom-name').value,
+                    location: document.getElementById('detail-location').value,
+                    device_type: document.getElementById('detail-type').value,
+                    actual_fw_version: document.getElementById('detail-actual-fw').value,
+                    model: document.getElementById('detail-intel-model').value,
+                    os: document.getElementById('detail-intel-os').value,
+                    vendor: document.getElementById('detail-intel-vendor').value,
+                    dismissed_fw_version: dismissedFw,
+                    dismissed_vendor: dismissedVendor
+                };
+                await fetch('api/assets/update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
 
-        async function addManualIntegration() {
-            const mac = document.getElementById('detail-mac').value;
-            const input = document.getElementById('manual-int-input');
-            const intId = input.value.trim().toLowerCase();
-            if (!intId) return;
-            await updateIntStatus(mac, intId, 'add');
-            input.value = "";
-        }
+                if (shouldClose) {
+                    closeModal('asset-detail');
+                }
+                loadData();
+            }
 
-        function autosuggestMetadata() {
-            const name = document.getElementById('detail-custom-name').value || '';
-            const hostname = document.getElementById('detail-title').innerText || '';
-            const combined = (name + ' ' + hostname).toLowerCase();
+            async function saveActualFirmware() {
+                await saveAssetDetail();
+                // Re-open details after sync to show updated suppression
+                const mac = document.getElementById('detail-mac').value;
+                await loadData();
+                openAssetDetail(mac);
+            }
 
-            let model = document.getElementById('detail-intel-model').value;
-            let vendor = document.getElementById('detail-intel-vendor').value;
-            let os = document.getElementById('detail-intel-os').value;
-            let type = document.getElementById('detail-type').value;
+            async function suppressVulnerability(mac, cveId) {
+                const reason = prompt("Reason for suppression (e.g. Fixed in current firmware, Vendor mismatch):");
+                if (!reason) return;
 
-            // Simple Heuristics
-            if (combined.includes('pixel')) { vendor = 'Google'; model = 'Pixel'; os = 'Android'; }
-            if (combined.includes('iphone')) { vendor = 'Apple'; model = 'iPhone'; os = 'iOS'; }
-            if (combined.includes('ipad')) { vendor = 'Apple'; model = 'iPad'; os = 'iOS'; }
-            if (combined.includes('macbook') || combined.includes('mac mini')) { vendor = 'Apple'; model = 'Mac'; os = 'macOS'; }
-            if (combined.includes('echo') || combined.includes('alexa')) { vendor = 'Amazon'; model = 'Echo'; os = 'FireOS'; type = 'Voice'; }
-            if (combined.includes('hue')) { vendor = 'Philips'; model = 'Hue Bridge'; os = 'Embedded'; }
-            if (combined.includes('tv') && (combined.includes('lg') || combined.includes('webos'))) { vendor = 'LG'; os = 'WebOS'; type = 'Media'; }
-            if (combined.includes('tv') && combined.includes('samsung')) { vendor = 'Samsung'; os = 'Tizen'; type = 'Media'; }
-            if (combined.includes('esphome')) { os = 'ESPHome'; type = 'IoT'; }
-            if (combined.includes('tasmota')) { os = 'Tasmota'; type = 'IoT'; }
-            if (combined.includes('wled')) { model = 'WLED'; os = 'WLED'; type = 'Light'; }
+                const payload = {
+                    mac,
+                    cve_id: cveId,
+                    reason,
+                    logic: "Manual User Override"
+                };
 
-            // Update UI if empty or if we found better data
-            if (vendor) document.getElementById('detail-intel-vendor').value = vendor;
-            if (model) document.getElementById('detail-intel-model').value = model;
-            if (os) document.getElementById('detail-intel-os').value = os;
-            if (type !== 'Unknown') document.getElementById('detail-type').value = type;
-        }
+                await fetch('api/vulnerabilities/suppress', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                loadData();
+            }
 
-        async function saveAssetDetail() {
-            const mac = document.getElementById('detail-mac').value;
-            const payload = {
-                mac,
-                custom_name: document.getElementById('detail-custom-name').value,
-                location: document.getElementById('detail-location').value,
-                device_type: document.getElementById('detail-type').value,
-                actual_fw_version: document.getElementById('detail-actual-fw').value,
-                model: document.getElementById('detail-intel-model').value,
-                os: document.getElementById('detail-intel-os').value,
-                vendor: document.getElementById('detail-intel-vendor').value,
-                fw_version: document.getElementById('detail-intel-fw').value
-            };
-            await fetch('api/assets/update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-            closeModal('asset-detail');
-            loadData();
-        }
+            function exportSecurityReport() {
+                window.location.href = 'api/report/security';
+            }
 
-        async function saveActualFirmware() {
-            await saveAssetDetail();
-            // Re-open details after sync to show updated suppression
-            const mac = document.getElementById('detail-mac').value;
-            await loadData();
-            openAssetDetail(mac);
-        }
-
-        async function suppressVulnerability(mac, cveId) {
-            const reason = prompt("Reason for suppression (e.g. Fixed in current firmware, Vendor mismatch):");
-            if (!reason) return;
-
-            const payload = {
-                mac,
-                cve_id: cveId,
-                reason,
-                logic: "Manual User Override"
-            };
-
-            await fetch('api/vulnerabilities/suppress', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            loadData();
-        }
-
-        function exportSecurityReport() {
-            window.location.href = 'api/report/security';
-        }
-
-        function renderSecurity() {
-            const table = document.getElementById('security-table');
-            table.innerHTML = allVulns.map(v => {
-                const isSuppressed = v.status === 'suppressed';
-                return `
+            function renderSecurity() {
+                const table = document.getElementById('security-table');
+                table.innerHTML = allVulns.map(v => {
+                    const isSuppressed = v.status === 'suppressed';
+                    return `
                 <tr>
                     <td><span style="background: ${isSuppressed ? 'var(--text-muted)' : (v.cvss_score >= 9 ? 'var(--danger)' : v.cvss_score >= 7 ? 'var(--warning)' : 'var(--primary)')}; border-radius: 4px; padding: 2px 6px; font-weight: 800; font-size: 0.75rem; color: white;">${isSuppressed ? 'RESOLVED' : (v.cvss_score >= 9 ? 'CRITICAL' : v.cvss_score >= 7 ? 'HIGH' : 'MEDIUM')}</span></td>
                     <td>
@@ -1350,21 +1468,21 @@
                     <td>${v.ip_address}</td>
                     <td style="text-align: right;">
                         ${isSuppressed ?
-                        '<span style="color: var(--text-muted); font-size: 0.8rem;">User Verified</span>' :
-                        `<button class="btn btn-primary" style="padding: 4px 10px;" onclick="openRemediationModal('${v.cve_id}', '${v.mac_address}')">Remediate</button>`
-                    }
+                            '<span style="color: var(--text-muted); font-size: 0.8rem;">User Verified</span>' :
+                            `<button class="btn btn-primary" style="padding: 4px 10px;" onclick="openRemediationModal('${v.cve_id}', '${v.mac_address}')">Remediate</button>`
+                        }
                     </td>
                 </tr>
             `;
-            }).join('');
-        }
+                }).join('');
+            }
 
-        function openRemediationModal(cveId, mac) {
-            const v = allVulns.find(x => x.cve_id === cveId && x.mac_address === mac);
-            if (!v) return;
-            const isSuppressed = v.status === 'suppressed';
+            function openRemediationModal(cveId, mac) {
+                const v = allVulns.find(x => x.cve_id === cveId && x.mac_address === mac);
+                if (!v) return;
+                const isSuppressed = v.status === 'suppressed';
 
-            document.getElementById('remediation-body').innerHTML = `
+                document.getElementById('remediation-body').innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                     <h2 style="color: var(--primary); font-family: monospace;">${v.cve_id}</h2>
                     <span style="background: ${isSuppressed ? 'var(--text-muted)' : (v.cvss_score >= 9 ? 'var(--danger)' : v.cvss_score >= 7 ? 'var(--warning)' : 'var(--primary)')}; border-radius: 4px; padding: 4px 12px; font-weight: 800; color: white;">
@@ -1384,15 +1502,15 @@
                 <span class="section-title">Management Actions</span>
                 <div style="display: flex; flex-direction: column; gap: 1rem;">
                     ${isSuppressed ?
-                    `<div class="card" style="background: rgba(16, 185, 129, 0.1); border-color: var(--success); margin-bottom: 0;">
+                        `<div class="card" style="background: rgba(16, 185, 129, 0.1); border-color: var(--success); margin-bottom: 0;">
                             <p style="color: var(--success); font-weight: 600;">✅ This vulnerability has been suppressed.</p>
                             <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.5rem;">Reason: ${v.suppression_reason}</p>
                             ${v.suppression_logic ? `<p style="font-size: 0.75rem; font-family: monospace; color: var(--text-muted); margin-top: 0.25rem;">Logic: ${v.suppression_logic}</p>` : ''}
                         </div>` :
-                    `<button class="btn btn-danger" style="width: 100%; padding: 1rem;" onclick="suppressVulnerability('${v.mac_address}', '${v.cve_id}'); closeModal('remediation');">
+                        `<button class="btn btn-danger" style="width: 100%; padding: 1rem;" onclick="suppressVulnerability('${v.mac_address}', '${v.cve_id}'); closeModal('remediation');">
                             Dismiss Vulnerability
                         </button>`
-                }
+                    }
                 </div>
 
                 <span class="section-title" style="margin-top: 2rem; display: block;">Automated Playbooks</span>
@@ -1402,14 +1520,14 @@
                     </div>
                 </div>
             `;
-            openModal('remediation');
-        }
+                openModal('remediation');
+            }
 
-        function renderTopology() {
-            const container = document.getElementById('topology-tree-container');
-            const gateway = 'router';
+            function renderTopology() {
+                const container = document.getElementById('topology-tree-container');
+                const gateway = 'router';
 
-            let html = `
+                let html = `
                 <div class="tree-item" style="background: rgba(244, 63, 94, 0.1); padding: 1rem; border-radius: 12px; border: 1px solid rgba(244, 63, 94, 0.2)">
                     <span class="tree-icon">🛰️</span>
                     <div>
@@ -1420,10 +1538,10 @@
                 <div class="tree-node">
             `;
 
-            // Sort assets by interface then name
-            const sorted = [...allAssets].sort((a, b) => (a.interface || '').localeCompare(b.interface || ''));
+                // Sort assets by interface then name
+                const sorted = [...allAssets].sort((a, b) => (a.interface || '').localeCompare(b.interface || ''));
 
-            html += sorted.map(a => `
+                html += sorted.map(a => `
                 <div class="tree-item clickable" onclick="openAssetDetail('${a.mac_address}')">
                     <span class="tree-icon">${a.interface === 'Wireless' ? '📶' : '🔌'}</span>
                     <div>
@@ -1436,54 +1554,54 @@
                 </div>
             `).join('');
 
-            html += '</div>';
-            container.innerHTML = html;
-        }
+                html += '</div>';
+                container.innerHTML = html;
+            }
 
-        async function renderDashboard() {
-            const res = await fetch('api/stats');
-            const stats = await res.json();
+            async function renderDashboard() {
+                const res = await fetch('api/stats');
+                const stats = await res.json();
 
-            document.getElementById('dash-total-assets').innerText = stats.total_assets;
-            document.getElementById('dash-total-vulns').innerText = stats.total_vulnerabilities;
+                document.getElementById('dash-total-assets').innerText = stats.total_assets;
+                document.getElementById('dash-total-vulns').innerText = stats.total_vulnerabilities;
 
-            const gov = stats.governance;
-            const avgPct = gov.total > 0 ? Math.round(((gov.categorized / gov.total) + (gov.named / gov.total) + (gov.integrated / gov.total)) / 3 * 100) : 0;
-            document.getElementById('dash-gov-percent').innerText = `${avgPct}%`;
+                const gov = stats.governance;
+                const avgPct = gov.total > 0 ? Math.round(((gov.categorized / gov.total) + (gov.named / gov.total) + (gov.integrated / gov.total)) / 3 * 100) : 0;
+                document.getElementById('dash-gov-percent').innerText = `${avgPct}%`;
 
-            // Priority Queue
-            const priorityBody = document.getElementById('dash-priority-body');
-            if (!stats.priority_queue || stats.priority_queue.length === 0) {
-                priorityBody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 2rem; color: var(--text-muted);">No critical risks detected. System secure.</td></tr>';
-            } else {
-                priorityBody.innerHTML = stats.priority_queue.map(a => `
+                // Priority Queue
+                const priorityBody = document.getElementById('dash-priority-body');
+                if (!stats.priority_queue || stats.priority_queue.length === 0) {
+                    priorityBody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 2rem; color: var(--text-muted);">No critical risks detected. System secure.</td></tr>';
+                } else {
+                    priorityBody.innerHTML = stats.priority_queue.map(a => `
                     <tr class="clickable" onclick="openAssetDetail('${a.mac}')">
                         <td><strong>${a.name}</strong><br><span style="font-size: 0.7rem; color: var(--text-muted)">${a.type}</span></td>
                         <td>${getRiskBadge(a.score)}</td>
                         <td><span style="color: var(--danger)">Triage Needed</span></td>
                     </tr>
                 `).join('');
-            }
+                }
 
-            // Checklist
-            const checklist = document.getElementById('dash-checklist');
-            const checks = [
-                { label: "All Assets Categorized", pass: gov.total > 0 && gov.categorized === gov.total },
-                { label: "Critical Risks Remediated", pass: stats.risk_distribution.CRITICAL === 0 },
-                { label: "High Risks Addressed", pass: stats.risk_distribution.HIGH === 0 },
-                { label: "Core Governance (Names)", pass: gov.total > 0 && gov.named > (gov.total * 0.8) },
-                { label: "Integration Coverage", pass: gov.total > 0 && gov.integrated > (gov.total * 0.5) }
-            ];
+                // Checklist
+                const checklist = document.getElementById('dash-checklist');
+                const checks = [
+                    { label: "All Assets Categorized", pass: gov.total > 0 && gov.categorized === gov.total },
+                    { label: "Critical Risks Remediated", pass: stats.risk_distribution.CRITICAL === 0 },
+                    { label: "High Risks Addressed", pass: stats.risk_distribution.HIGH === 0 },
+                    { label: "Core Governance (Names)", pass: gov.total > 0 && gov.named > (gov.total * 0.8) },
+                    { label: "Integration Coverage", pass: gov.total > 0 && gov.integrated > (gov.total * 0.5) }
+                ];
 
-            checklist.innerHTML = checks.map(c => `
+                checklist.innerHTML = checks.map(c => `
                 <div style="display: flex; align-items: center; gap: 1rem; color: ${c.pass ? 'var(--text)' : 'var(--text-muted)'}">
                     <span style="font-family: serif; color: ${c.pass ? 'var(--success)' : 'var(--danger)'}; font-weight: 800;">${c.pass ? '✓' : '○'}</span>
                     <span style="font-size: 0.9rem;">${c.label}</span>
                 </div>
             `).join('');
-        }
+            }
 
-        window.onload = loadData;
+            window.onload = loadData;
     </script>
 </body>
 
