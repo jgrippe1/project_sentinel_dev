@@ -556,7 +556,15 @@
 
                 <!-- Right: Security & Vulnerabilities -->
                 <div class="modal-column">
-                    <span class="section-title">Security Intelligence</span>
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
+                        <span class="section-title" style="margin-bottom: 0;">Security Intelligence</span>
+                        <label
+                            style="font-size: 0.75rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                            <input type="checkbox" id="hide-resolved-vulns" onchange="renderAssetVulnerabilities()">
+                            Hide Resolved
+                        </label>
+                    </div>
                     <div id="detail-vuln-list">
                         <!-- vulnerabilities here -->
                     </div>
@@ -1006,26 +1014,6 @@
                 originalType.classList.add('hidden');
             }
 
-            const assetVulns = allVulns.filter(v => v.mac_address === mac);
-            const vulnContainer = document.getElementById('detail-vuln-list');
-            if (assetVulns.length > 0) {
-                document.getElementById('no-vulns').classList.add('hidden');
-                vulnContainer.classList.remove('hidden');
-                vulnContainer.innerHTML = assetVulns.map(v => `
-                    <div class="vuln-item">
-                        <div style="display: flex; justify-content: space-between; align-items: start;">
-                            <strong class="clickable" onclick="openRemediationModal('${v.cve_id}', '${v.mac_address}')" style="color: var(--primary); text-decoration: underline;">${v.cve_id}</strong>
-                            <span style="color: var(--danger); font-weight: 800;">${v.cvss_score}</span>
-                        </div>
-                        <p style="font-size: 0.8rem; margin: 0.5rem 0; color: var(--text-muted);">${v.description.substring(0, 80)}...</p>
-                        <button class="btn btn-ghost" style="padding: 2px 8px; font-size: 0.7rem;" onclick="openRemediationModal('${v.cve_id}', '${v.mac_address}')">Details & Remediate</button>
-                    </div>
-                `).join('');
-            } else {
-                document.getElementById('no-vulns').classList.remove('hidden');
-                vulnContainer.classList.add('hidden');
-            }
-
             document.getElementById('detail-intel-model').innerText = a.model || '--';
             document.getElementById('detail-intel-os').innerText = a.os || '--';
             document.getElementById('detail-intel-fw').innerText = a.fw_version || '--';
@@ -1033,8 +1021,60 @@
             document.getElementById('detail-intel-hw').innerText = a.hw_version || '--';
             document.getElementById('detail-intel-oui').innerText = a.oui_vendor || '--';
 
+            renderAssetVulnerabilities(); // Initial render of vulns
             renderSuggestions(a);
             openModal('asset-detail');
+        }
+
+        function renderAssetVulnerabilities() {
+            const mac = document.getElementById('detail-mac').value;
+            const hideResolved = document.getElementById('hide-resolved-vulns').checked;
+            const assetVulns = allVulns.filter(v => v.mac_address === mac);
+
+            const filteredVulns = hideResolved
+                ? assetVulns.filter(v => v.status !== 'suppressed')
+                : assetVulns;
+
+            const vulnContainer = document.getElementById('detail-vuln-list');
+            if (filteredVulns.length > 0) {
+                document.getElementById('no-vulns').classList.add('hidden');
+                vulnContainer.classList.remove('hidden');
+                vulnContainer.innerHTML = filteredVulns.map(v => {
+                    const isSuppressed = v.status === 'suppressed';
+                    const statusText = isSuppressed ? 'RESOLVED' : 'ACTIVE';
+                    const statusColor = isSuppressed ? 'var(--text-muted)' : 'var(--danger)';
+                    const bgOpacity = isSuppressed ? '0.05' : '0.1';
+
+                    return `
+                        <div class="vuln-item" style="background: rgba(${isSuppressed ? '255, 255, 255' : '244, 63, 94'}, ${bgOpacity});">
+                            <div style="display: flex; justify-content: space-between; align-items: start;">
+                                <div style="display: flex; flex-direction: column;">
+                                    <strong class="clickable" onclick="openRemediationModal('${v.cve_id}', '${v.mac_address}')" style="color: var(--primary); text-decoration: underline;">${v.cve_id}</strong>
+                                    <span style="font-size: 0.65rem; color: ${statusColor}; font-weight: 800; margin-top: 2px;">● ${statusText}</span>
+                                </div>
+                                <span style="color: var(--danger); font-weight: 800;">${v.cvss_score}</span>
+                            </div>
+                            <p style="font-size: 0.8rem; margin: 0.5rem 0; color: var(--text-muted);">${v.description.substring(0, 80)}...</p>
+                            <button class="btn btn-ghost" style="padding: 2px 8px; font-size: 0.7rem;" onclick="openRemediationModal('${v.cve_id}', '${v.mac_address}')">${isSuppressed ? 'View Details' : 'Details & Remediate'}</button>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                document.getElementById('no-vulns').classList.remove('hidden');
+                vulnContainer.classList.add('hidden');
+                // Optional: Update "No known CVEs" message if all are hidden
+                if (assetVulns.length > 0 && hideResolved) {
+                    document.getElementById('no-vulns').innerHTML = `
+                        <span style="font-size: 2rem;">🛡️</span>
+                        <p style="margin-top: 1rem;">No active vulnerabilities matching filters.</p>
+                    `;
+                } else {
+                    document.getElementById('no-vulns').innerHTML = `
+                        <span style="font-size: 2rem;">🛡️</span>
+                        <p style="margin-top: 1rem;">No known CVEs for this asset.</p>
+                    `;
+                }
+            }
         }
 
         let installedIntegrations = []; // Fetched from HA API
