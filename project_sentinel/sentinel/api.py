@@ -219,6 +219,8 @@ def get_stats():
         asset_risks = {} # mac -> max_score
         
         for v in vulns:
+            if v.get('status') == 'suppressed':
+                continue
             mac = v['mac_address']
             score = v['cvss_score'] or 0
             if mac not in asset_risks or score > asset_risks[mac]:
