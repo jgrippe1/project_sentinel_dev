@@ -17,11 +17,11 @@ from sentinel.cve_analyzer import HybridAnalyzer
 
 # Load config similar to core.py
 OPTIONS_PATH = "/data/options.json"
-config = {}
+config = {"options": {}}
 if os.path.exists(OPTIONS_PATH):
     try:
         with open(OPTIONS_PATH, 'r') as f:
-            config = json.load(f)
+            config["options"] = json.load(f)
     except Exception as e:
         logger.error(f"Failed to load options: {e}")
 

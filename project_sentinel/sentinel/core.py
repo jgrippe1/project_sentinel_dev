@@ -130,6 +130,7 @@ def process_host(ip, mac, ports, db, nvd, analyzer):
                 reason = None
                 
                 asset = db.get_asset(mac)
+                actual_ver = asset.get('actual_fw_version') if asset else None
                 
                 # Hybrid Analysis
                 analysis = analyzer.analyze(cve_id, description, asset)
