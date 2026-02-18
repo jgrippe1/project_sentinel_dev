@@ -25,6 +25,12 @@ if os.path.exists(OPTIONS_PATH):
             logger.info(f"Loaded {len(config['options'])} options from {OPTIONS_PATH}")
             if 'llm_enabled' in config['options']:
                 logger.info(f"API Config LLM Status: {config['options']['llm_enabled']}")
+            
+            # Set Log Level
+            log_level = config['options'].get('log_level', 'info').upper()
+            logging.getLogger().setLevel(getattr(logging, log_level))
+            logger.info(f"Log Level set to: {log_level}")
+
     except Exception as e:
         logger.error(f"Failed to load options: {e}")
 

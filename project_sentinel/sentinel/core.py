@@ -33,6 +33,12 @@ def load_config():
             with open(OPTIONS_PATH, 'r') as f:
                 options = json.load(f)
                 config.update(options)
+                
+                # Set Log Level
+                log_level = config.get('log_level', 'info').upper()
+                logging.getLogger().setLevel(getattr(logging, log_level))
+                logger.info(f"Log Level set to: {log_level}")
+
         except Exception as e:
             logger.error(f"Failed to load options: {e}")
     return config
