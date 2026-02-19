@@ -4,13 +4,14 @@
 [![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz/)
 [![Home Assistant Add-on](https://img.shields.io/badge/Home%20Assistant-Add--on-blue.svg)](https://github.com/jgrippe1/project_sentinel_dev)
 
-**Project Sentinel** is a Home Network Governance & Risk Management platform designed for Home Assistant. It provides proactive Third-Party Risk Management (TPRM) and Asset Lifecycle Management by identifying devices, scanning for services, and mapping them to known vulnerabilities (CVEs) via the NVD API.
+**Project Sentinel** is a Home Network Governance & Risk Management platform designed for Home Assistant. It provides proactive Asset Lifecycle Management by identifying devices, scanning for services, and mapping them to known vulnerabilities (CVEs) via the NVD API.
 
 ## 🚀 Features
 
-- **Network Discovery**: Automatic mapping of local hosts and services.
-- **Service Enrichment**: Robust regex-based banner grabbing to identify software versions.
+- **Network Discovery**: Automatic mapping of local hosts and services using `nmap`.
+- **Service Enrichment**: Robust regex-based banner grabbing to identify software versions (e.g., `Dropbear sshd 2018.76`).
 - **Vulnerability Mapping**: Real-time integration with the NVD (National Vulnerability Database) API.
+- **Hybrid Analysis Engine**: Combines local regex heuristics with an optional LLM (OpenAI, Google Gemini, Anthropic, Ollama) to reduce false positives.
 - **Home Assistant Integration**: 
   - **Add-on**: Background engine that handles scanning and maintains a persistent SQLite database.
   - **Integration**: Exposes network health, device counts, and critical vulnerabilities as Home Assistant entities.
@@ -26,7 +27,23 @@ graph TD
     D -->|SQLite| E[(sentinel.db)]
     E -->|Bridge| F[HA Integration]
     F -->|Entities| G[Lovelace Dashboard]
+    C -.->|Optional| H[LLM Verification]
+    H -.->|Refined Results| D
 ```
+
+## 🧩 Add-on vs Integration
+
+Project Sentinel consists of two parts that work together:
+
+### 1. The Add-on ("The Brain")
+*   **Role**: Core Logic & Scanning.
+*   **Function**: Runs as a background container. It executes `nmap` scans, querys the NVD API, performs regex/LLM analysis, and writes to the database.
+*   **Requirement**: **Required**. Without this, no data is collected.
+
+### 2. The HACS Integration ("The Viewer")
+*   **Role**: Visualization & Sensors.
+*   **Function**: Connects Home Assistant to the Add-on's shared database. It creates entities (e.g., `sensor.sentinel_active_devices`) and powers the dashboard.
+*   **Requirement**: **Required** for Home Assistant visibility.
 
 ## 📂 Project Structure
 
@@ -54,25 +71,21 @@ graph TD
 2. Search for **Project Sentinel**.
 3. Point to the shared database: `/share/sentinel.db`.
 
-5. Point to the shared database: `/share/sentinel.db`.
-
 ## 🤖 Hybrid CVE Verification (Optional)
-Project Sentinel can use an LLM (like OpenAI) to analyze complex CVEs that standard regex can't parse.
-Add the following to your `options.json` or `config.yaml`:
-```yaml
-llm_enabled: true
-llm_provider: "openai" # or "generic"
-llm_api_key: "sk-..."
-llm_model: "gpt-3.5-turbo"
-```
-This will automatically fallback to the LLM when local analysis is inconclusive.
 
-- [x] UI-based Config Flow.
-- [x] Real-time NVD API Integration.
-- [x] Hybrid CVE Verification (Regex + Optional LLM).
-- [ ] Actionable notifications for newly discovered critical CVEs.
-- [ ] Actionable notifications for newly discovered critical CVEs.
-- [ ] Device history and tracking.
+**This feature is completely optional.**
+
+By default, Sentinel uses a high-performance local regex engine to match software versions against CVEs. 
+
+You can optionally enable an LLM (Large Language Model) to act as a "second opinion" for complex cases where regex is inconclusive (<80% confidence). This can significantly reduce false positives by allowing an AI to "read" the CVE description and determine if it applies to your specific hardware.
+
+Supported Providers:
+- **OpenAI** (GPT-3.5/4)
+- **Google** (Gemini 1.5 Flash/Pro) - *Recommended for low cost*
+- **Anthropic** (Claude 3)
+- **Ollama** (Local Llama3, Mistral) - *Recommended for privacy*
+
+See [USER_GUIDE.md](USER_GUIDE.md) for detailed configuration instructions.
 
 ## ☕ Support the Project
 

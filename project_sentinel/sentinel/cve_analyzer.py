@@ -32,7 +32,35 @@ PROVIDER_DEFAULTS = {
 }
 
 class HybridAnalyzer:
+    """
+    Hybrid Vulnerability Analysis Engine.
+
+    This class orchestrates the verification of Common Vulnerabilities and Exposures (CVEs)
+    against specific assets. It employs a multi-stage approach:
+    1.  **Cache Lookup**: Checks the local database for previously determined results to avoid redundant processing.
+    2.  **Regex Heuristics**: Uses pattern matching (via `version_utils`) for fast, local analysis of version numbers.
+    3.  **LLM Analysis (Optional)**: If enabled and regex is inconclusive, queries a Large Language Model (LLM)
+        to parse complex CVE descriptions and determine applicability.
+    4.  **Fail-Open**: Defaults to "VULNERABLE" if all other methods fail to provide a high-confidence result, ensuring safety.
+
+    Attributes:
+        config (dict): Configuration dictionary containing options and preferences.
+        db (Datastore): Interface to the persistent SQLite database.
+        llm_enabled (bool): Flag indicating if LLM analysis is permitted.
+        llm_provider (str): The selected LLM provider (e.g., 'openai', 'anthropic', 'google').
+        llm_api_key (str): API key for the LLM service.
+        llm_model (str): Specific model identifier (e.g., 'gpt-4', 'claude-3').
+        llm_base_url (str): Base URL for API requests.
+    """
+
     def __init__(self, config):
+        """
+        Initialize the HybridAnalyzer.
+
+        Args:
+            config (dict): The configuration object, typically from the Home Assistant add-on options.
+                           Expected keys: 'options' dict containing 'llm_enabled', 'llm_provider', etc.
+        """
         self.config = config
         self.db = Datastore()
         options = config.get('options', {})
@@ -66,8 +94,25 @@ class HybridAnalyzer:
 
     def analyze(self, cve_id, cve_description, asset_context):
         """
-        Orchestrates the analysis: Cache -> Regex -> LLM -> Fail Open.
-        Returns dict: {result: 'SAFE'|'VULNERABLE', reason: str, method: str}
+        Analyze whether a CVE affects a specific asset.
+
+        Orchestrates the analysis pipeline: Cache -> Regex -> LLM -> Fail Open.
+
+        Args:
+            cve_id (str): The CVE identifier (e.g., "CVE-2023-1234").
+            cve_description (str): Textual description of the vulnerability.
+            asset_context (dict): Dictionary containing asset details:
+                - 'actual_fw_version': The verified firmware/software version.
+                - 'vendor': Manufacturer name.
+                - 'model': Device model.
+                - 'custom_name': User-assigned name.
+
+        Returns:
+            dict: Analysis result containing:
+                - 'result' (str): "SAFE" or "VULNERABLE".
+                - 'reason' (str): Explanation for the determination.
+                - 'method' (str): The method used ("cache", "regex", "llm-...", "fail-open").
+                - 'confidence' (int): Confidence score (0-100).
         """
         actual_ver = asset_context.get('actual_fw_version')
         if not actual_ver:
@@ -80,6 +125,7 @@ class HybridAnalyzer:
         cached = self.db.get_verification_result(cve_id, actual_ver, vendor, model)
         if cached:
             logger.info(f"Cache Hit for {cve_id}: {cached['analysis_result']}")
+            # Ensure safe access to dictionary keys, as cached might be a Row object or dict
             return {
                 "result": cached['analysis_result'],
                 "reason": cached['reasoning'],
@@ -119,6 +165,12 @@ class HybridAnalyzer:
         }
 
     def _query_llm(self, cve_id, cve_description, asset_context, regex_context):
+        """
+        Constructs and sends a prompt to the configured LLM provider to analyze the CVE.
+        
+        Returns:
+            dict or None: Parsed JSON response from the LLM, or None on failure.
+        """
         prompt = f"""
         You are an expert vulnerability triage engine. Your objective is to determine if a specific CVE applies to a given asset by strictly separating the Parent Operating System/Firmware from Third-Party Sub-Components.
 
@@ -174,6 +226,7 @@ class HybridAnalyzer:
             }
             
             url = f"{self.llm_base_url}/chat/completions"
+            # Increased timeout to prevent ReadTimeout during complex inferences
             response = requests.post(url, headers=headers, json=data, timeout=30)
             
             return self._parse_llm_response(response, f"llm-{self.llm_provider}")
@@ -210,16 +263,34 @@ class HybridAnalyzer:
             return None
 
     def _parse_llm_response(self, response, method_name):
+        """Helper to extract content from standard OpenAI-compatible responses."""
         if response.status_code == 200:
             resp_json = response.json()
-            content = resp_json['choices'][0]['message']['content']
-            return self._parse_content(content, method_name)
+            try:
+                content = resp_json['choices'][0]['message']['content']
+                return self._parse_content(content, method_name)
+            except (KeyError, IndexError) as e:
+                logger.error(f"Unexpected JSON structure from LLM: {resp_json}")
+                return None
         else:
             logger.error(f"LLM API Error: {response.status_code} - {response.text}")
             return None
 
 
     def infer_device_metadata(self, name, hostname, mac, oui=None):
+        """
+        Uses the LLM to deduce device details (Vendor, Model, OS, Type) based on
+        scanned network identifiers.
+        
+        Args:
+            name (str): User-assigned name (e.g., "Kitchen Speaker").
+            hostname (str): DHCP hostname (e.g., "Sonos-1234").
+            mac (str): MAC address.
+            oui (str, optional): Organizationally Unique Identifier (Manufacturer).
+            
+        Returns:
+            dict or None: Inferred metadata or None if LLM is disabled/fails.
+        """
         if not self.llm_enabled:
             logger.info("LLM disabled, skipping metadata inference")
             return None
@@ -282,6 +353,7 @@ class HybridAnalyzer:
             return None
 
     def _parse_metadata_content(self, content):
+        """Parses the JSON response for metadata inference."""
         try:
             # Clean code blocks if present
             if "```json" in content:
@@ -301,6 +373,7 @@ class HybridAnalyzer:
             return None
 
     def _parse_content(self, content, method_name):
+        """Parses the JSON response for CVE analysis."""
         try:
             # Clean code blocks if present
             if "```json" in content:

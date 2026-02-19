@@ -14,7 +14,15 @@ _LOGGER = logging.getLogger(__name__)
 PLATFORMS = ["sensor", "binary_sensor"]
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up Project Sentinel from a config entry."""
+    """
+    Set up Project Sentinel from a config entry.
+    
+    This function initializes the integration. It sets up the `DataUpdateCoordinator`
+    to periodically poll the SQLite database for new statistics.
+    
+    The coordinator is then stored in `hass.data[DOMAIN]` for access by other platforms
+    (like sensor.py), and the platforms are forwarded for setup.
+    """
     db_path = entry.data.get(CONF_DB_PATH)
 
     async def async_update_data():
@@ -50,7 +58,24 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return unload_ok
 
 def fetch_sentinel_data(db_path):
-    """Query data from the SQLite database."""
+    """
+    Query data from the SQLite database.
+    
+    This runs in an executor job (sync context) to avoid blocking the event loop 
+    with database I/O.
+    
+    It aggregates high-level metrics:
+    - Total Device Count
+    - Total Vulnerability Count
+    - Critical Vulnerabilities (CVSS >= 9.0)
+    - Last Scan Timestamp
+    
+    Args:
+        db_path (str): Filesystem path to the shared sqlite database (e.g. /share/sentinel.db).
+        
+    Returns:
+        dict: A dictionary of aggregated metrics.
+    """
     data = {}
     try:
         conn = sqlite3.connect(db_path)
