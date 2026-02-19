@@ -227,7 +227,7 @@ def get_config():
         return jsonify({
             "llm_enabled": llm_enabled,
             "router_host": router_host,
-            "version": "1.0.35" 
+            "version": "1.0.36" 
         })
     except Exception as e:
         logger.error(f"Error fetching config: {e}")

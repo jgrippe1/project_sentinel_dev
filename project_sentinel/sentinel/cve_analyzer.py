@@ -244,7 +244,7 @@ class HybridAnalyzer:
             "vendor": "String or null",
             "model": "String or null",
             "os": "String or null",
-            "device_type": "IoT | Mobile | Server | Network | etc"
+            "device_type": "IoT | Mobile | Server | Network | Sensor | Camera | Printer | Voice | Media | Light | Climate | Appliance | Power | Wearable | Virtual | Workstation"
         }}
         """
 
