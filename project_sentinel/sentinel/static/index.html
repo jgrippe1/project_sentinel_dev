@@ -1402,16 +1402,43 @@
             const list = document.getElementById('manual-int-list');
             if (list.children.length > 0) return;
 
-            // Merge installed with master metadata for common suggestions
-            const suggestions = new Set();
-            installedIntegrations.forEach(int => suggestions.add(int.id));
-            Object.keys(MASTER_METADATA).forEach(key => suggestions.add(key));
+            // Use a map to ensure uniqueness and easy access to best available metadata
+            const integrationOptions = new Map();
 
-            suggestions.forEach(id => {
+            // 1. Add all installed integrations (these already have fallbacks for icon/label)
+            installedIntegrations.forEach(int => {
+                integrationOptions.set(int.id, {
+                    icon: int.icon,
+                    label: int.label
+                });
+            });
+
+            // 2. Add remaining MASTER_METADATA items that aren't installed yet
+            Object.keys(MASTER_METADATA).forEach(key => {
+                if (!integrationOptions.has(key)) {
+                    const meta = MASTER_METADATA[key];
+                    integrationOptions.set(key, {
+                        icon: meta.icon,
+                        label: meta.label
+                    });
+                }
+            });
+
+            // Sort by label for better UX
+            const sortedIds = Array.from(integrationOptions.keys()).sort((a, b) => {
+                const titleA = integrationOptions.get(a).label.toLowerCase();
+                const titleB = integrationOptions.get(b).label.toLowerCase();
+                return titleA.localeCompare(titleB);
+            });
+
+            sortedIds.forEach(id => {
                 const opt = document.createElement('option');
                 opt.value = id;
-                const meta = MASTER_METADATA[id];
-                if (meta) opt.innerText = `${meta.icon} ${meta.label}`;
+                const info = integrationOptions.get(id);
+                // Note: datalist options content is often not shown in all browsers, 
+                // but setting 'value' is critical. Some browsers show 'label' attribute or innerText.
+                // We'll set both for maximum compatibility.
+                opt.innerText = `${info.icon} ${info.label}`;
                 list.appendChild(opt);
             });
         }
