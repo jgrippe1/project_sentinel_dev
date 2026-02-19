@@ -1083,7 +1083,8 @@
             const header = document.getElementById('inventory-header');
             header.innerHTML = `
                 <th data-sort="name" onclick="sortInventory('name')">Asset Name</th>
-                <th data-sort="ip_address" onclick="sortInventory('ip_address')">Network Info</th>
+                <th data-sort="ip_address" onclick="sortInventory('ip_address')">IP Address</th>
+                <th data-sort="vendor" onclick="sortInventory('vendor')">Hardware Info</th>
                 ${visibleCols.map(col => `<th data-sort="${COL_MAP[col].sort}" onclick="sortInventory('${COL_MAP[col].sort}')">${COL_MAP[col].label}</th>`).join('')}
             `;
 
@@ -1093,7 +1094,9 @@
                 <tr class="clickable" onclick="openAssetDetail('${escapeHTML(a.mac_address)}')">
                     <td>
                         <div style="font-weight: 600;">${escapeHTML(a.custom_name || a.hostname || 'Unknown')}</div>
-                        <div style="font-size: 0.8rem; color: var(--text-muted);">${escapeHTML(a.ip_address)}</div>
+                    </td>
+                    <td>
+                        <div style="font-size: 0.9rem;">${escapeHTML(a.ip_address)}</div>
                     </td>
                     <td>
                         <div style="font-size: 0.85rem;">${escapeHTML(a.vendor || '')}</div>
