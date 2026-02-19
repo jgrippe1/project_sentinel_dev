@@ -21,9 +21,10 @@ Configuration is primarily handled via the Add-on "Configuration" tab in Home As
 | Option | Description | Default |
 | :--- | :--- | :--- |
 | `subnets` | List of CIDR ranges to scan (e.g., `192.168.1.0/24`). | `[]` |
-| `cron_schedule` | Cron expression for scan frequency. | `0 */12 * * *` (Every 12 hours) |
+| `scan_interval` | Interval between scans in minutes. | `15` |
+| `scan_threads` | Number of concurrent threads for scanning. | `20` |
 | `nvd_api_key` | (Optional) Your NVD API Key for faster rate limits. | `""` |
-| `log_level` | data logging verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`). | `INFO` |
+| `verbose_logging` | Enable detailed debug logging (True/False). | `false` |
 
 ### Database Location
 The database is stored at `/share/sentinel.db`. This allows both the Add-on (Scanner) and the Integration (Sensor) to access the same data. 
