@@ -174,7 +174,7 @@ class HybridAnalyzer:
             }
             
             url = f"{self.llm_base_url}/chat/completions"
-            response = requests.post(url, headers=headers, json=data, timeout=15)
+            response = requests.post(url, headers=headers, json=data, timeout=30)
             
             return self._parse_llm_response(response, f"llm-{self.llm_provider}")
             
@@ -197,7 +197,7 @@ class HybridAnalyzer:
                 "temperature": 0.1
             }
             url = f"{self.llm_base_url}/messages"
-            response = requests.post(url, headers=headers, json=data, timeout=15)
+            response = requests.post(url, headers=headers, json=data, timeout=30)
             
             if response.status_code == 200:
                 content = response.json()['content'][0]['text']
@@ -266,7 +266,7 @@ class HybridAnalyzer:
             }
             
             url = f"{self.llm_base_url}/chat/completions"
-            response = requests.post(url, json=payload, headers=headers, timeout=10)
+            response = requests.post(url, json=payload, headers=headers, timeout=30)
             
             if response.status_code == 200:
                 resp_json = response.json()
