@@ -5,7 +5,7 @@ import sys
 
 def test_google_llm():
     # Configuration provided by user
-    api_key = "AIzaSyAZ-A7p4R4SmXLxK8bAxdprVQMx2X3q-tk"
+    api_key = "YOUR_API_KEY"
     model = "gemini-2.5-flash"
     base_url = "https://generativelanguage.googleapis.com"
 
