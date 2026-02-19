@@ -1,5 +1,5 @@
 name: "Project Sentinel"
-version: "1.0.36"
+version: "1.0.37"
 slug: "project_sentinel"
 description: "Home Network Governance & Risk Management"
 url: "https://github.com/jgrippe1/project_sentinel_dev"
@@ -20,6 +20,7 @@ apparmor: true
 options:
   scan_interval: 15
   subnets: []
+  additional_ports: []
   log_level: "info"
   nvd_api_key: ""
   router_host: "192.168.50.1"
@@ -38,6 +39,8 @@ schema:
   scan_interval: int
   subnets:
     - str
+  additional_ports:
+    - int
   scan_threads: int
   llm_enabled: bool
   llm_provider: str

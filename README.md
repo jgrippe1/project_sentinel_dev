@@ -71,6 +71,20 @@ Project Sentinel consists of two parts that work together:
 2. Search for **Project Sentinel**.
 3. Point to the shared database: `/share/sentinel.db`.
 
+## 📡 Router Integration (Optional)
+
+**This feature is completely optional.**
+
+By default, Project Sentinel performs active network scanning (ping/ARPs) to find online devices.
+However, you can optionally configure SSH access to your router (e.g., Asuswrt-Merlin) to unlock "Router Enhanced" mode.
+
+**Benefits of Router Integration:**
+*   **Offline Devices**: Detects devices that are currently asleep but have a valid lease.
+*   **Better Metdata**: Imports custom names (e.g., "Dad's Phone") and device types directly from the router.
+*   **Connection Type**: Distinguishes between Wired vs Wireless connections.
+
+*If not configured, the add-on will still function fully as a vulnerability scanner for all currently active devices.*
+
 ## 🤖 Hybrid CVE Verification (Optional)
 
 **This feature is completely optional.**

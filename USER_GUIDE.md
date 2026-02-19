@@ -14,6 +14,30 @@ Project Sentinel bridges the gap between home network scanning and enterprise-gr
 
 ---
 
+## 📡 Router Integration & Discovery Modes
+
+Project Sentinel supports two methods for discovering devices on your network. The system automatically selects the best available method based on your configuration.
+
+### 1. Router Enhanced (Recommended)
+**Requires**: `router_host`, `router_user`, `router_ssh_key` (or password) configured.
+
+In this mode, Sentinel logs into your router via SSH to read the ARP table, DHCP leases, and client list directly. 
+*   **✅ Deep Visibility**: Detects offline devices (those with a lease but currently asleep).
+*   **✅ Accurate Names**: Pulls custom hostnames you've set in the router (e.g., "Dad's Phone").
+*   **✅ Connection Type**: Distinguishes between Wired (Ethernet) and Wireless clients.
+*   **✅ Device Types**: Imports device icons/types (e.g., IoT, Phone, PC) if your router supports it (e.g., Asuswrt-Merlin).
+
+### 2. Active Scanning (Fallback)
+**Used when**: Router SSH details are missing or incorrect.
+
+If router integration is not configured, Sentinel falls back to standard network scanning (nmap-style).
+*   **ℹ️ Online Only**: Can only detect devices that are currently powered on and responding to ping/ARP.
+*   **ℹ️ Limited Metadata**: Hostnames are resolved via DNS; if no DNS name exists, it may just show the IP.
+*   **ℹ️ No Connection Type**: Cannot determine if a device is wired or wireless.
+*   **ℹ️ Full Vulnerability Scanning**: **Fully Functional**. It still performs port scans, banner grabbing, and CVE lookups for every active device it finds.
+
+---
+
 ## ⚙️ Advanced Configuration
 
 Configuration is primarily handled via the Add-on "Configuration" tab in Home Assistant.
@@ -21,6 +45,7 @@ Configuration is primarily handled via the Add-on "Configuration" tab in Home As
 | Option | Description | Default |
 | :--- | :--- | :--- |
 | `subnets` | List of CIDR ranges to scan (e.g., `192.168.1.0/24`). | `[]` |
+| `additional_ports` | List of extra ports to scan (e.g., `[81, 8081]`). | `[]` |
 | `scan_interval` | Interval between scans in minutes. | `15` |
 | `scan_threads` | Number of concurrent threads for scanning. | `20` |
 | `nvd_api_key` | (Optional) Your NVD API Key for faster rate limits. | `""` |

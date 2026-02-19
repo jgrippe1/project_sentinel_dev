@@ -3,7 +3,7 @@ import json
 import os
 import sys
 import logging
-from sentinel.scanner import scan_subnet
+from sentinel.scanner import scan_subnet, TOP_20_PORTS
 from sentinel.analysis import grab_banner, analyze_banner
 from sentinel.datastore import Datastore
 from sentinel.nvd_client import NVDClient
@@ -288,7 +288,12 @@ def main():
 
                 # 1. Active Discovery
                 max_threads = config.get("scan_threads", 20)
-                scanned_hosts = scan_subnet(subnet, max_threads=max_threads)
+                additional_ports = config.get("additional_ports", [])
+                
+                # Combine default ports with user-defined additional ports
+                scan_ports = list(set(TOP_20_PORTS + additional_ports))
+                
+                scanned_hosts = scan_subnet(subnet, ports=scan_ports, max_threads=max_threads)
                 logger.info(f"Active scan discovered {len(scanned_hosts)} hosts in {subnet} (Threads: {max_threads})")
                 
                 # 2. Merge and Process
