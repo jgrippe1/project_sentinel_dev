@@ -223,8 +223,10 @@ def get_config():
     try:
         # Check if LLM is enabled in options
         llm_enabled = config['options'].get('llm_enabled', False)
+        router_host = config['options'].get('router_host', '192.168.50.1')
         return jsonify({
             "llm_enabled": llm_enabled,
+            "router_host": router_host,
             "version": "1.0.29" 
         })
     except Exception as e:
