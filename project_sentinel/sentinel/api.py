@@ -4,12 +4,33 @@ import requests
 import io
 import csv
 import json
+from functools import wraps
 from flask import Flask, jsonify, send_from_directory, request, Response
 from sentinel.datastore import Datastore
 
 # Configure Logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("SentinelAPI")
+
+def require_auth(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Allow bypass if SUPERVISOR_TOKEN is not in the environment (local testing)
+        token = os.getenv("SUPERVISOR_TOKEN")
+        if not token:
+            logger.warning("Bypassing auth: SUPERVISOR_TOKEN not found in environment (local testing mode).")
+            return f(*args, **kwargs)
+        
+        auth_header = request.headers.get("Authorization")
+        if not auth_header or not auth_header.startswith("Bearer "):
+            return jsonify({"error": "Unauthorized. Missing or invalid Authorization header."}), 401
+        
+        provided_token = auth_header.split(" ")[1]
+        if provided_token != token:
+            return jsonify({"error": "Forbidden. Invalid token."}), 403
+            
+        return f(*args, **kwargs)
+    return decorated_function
 
 app = Flask(__name__, static_folder='static')
 db = Datastore()
@@ -64,6 +85,7 @@ def get_vulnerabilities():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/assets/approve', methods=['POST'])
+@require_auth
 def approve_asset():
     try:
         data = request.json
@@ -77,6 +99,7 @@ def approve_asset():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/analyze/metadata', methods=['POST'])
+@require_auth
 def analyze_metadata():
     try:
         data = request.json
@@ -100,6 +123,7 @@ def analyze_metadata():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/analyze/cve', methods=['POST'])
+@require_auth
 def analyze_cve():
     try:
         data = request.json
@@ -150,6 +174,7 @@ def analyze_cve():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/assets/update', methods=['POST'])
+@require_auth
 def update_asset():
     try:
         data = request.json
@@ -299,6 +324,7 @@ def get_stats():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/vulnerabilities/suppress', methods=['POST'])
+@require_auth
 def suppress_vulnerability():
     try:
         data = request.json

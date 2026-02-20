@@ -346,6 +346,16 @@ def main():
             except Exception as e:
                 logger.error(f"Error during scan of {subnet}: {e}")
 
+                logger.info(f"Scan cycle complete for subnet {subnet}.")
+
+            # 3. Layer 2 Topology Mapping
+            from sentinel.topology import TopologyMapper
+            topo = TopologyMapper(db, config)
+            try:
+                topo.scan_network_topology()
+            except Exception as e:
+                logger.error(f"Error during topology mapping: {e}")
+
         logger.info(f"Scan cycle complete. Sleeping for {interval} minutes.")
         time.sleep(interval * 60)
 

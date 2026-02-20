@@ -35,7 +35,10 @@ class Datastore:
                 parent_mac TEXT,
                 first_seen DATETIME,
                 last_seen DATETIME,
-                status TEXT DEFAULT 'active'
+                status TEXT DEFAULT 'active',
+                connected_to_mac TEXT,
+                connected_port TEXT,
+                connection_type TEXT
             )
         ''')
 
@@ -261,18 +264,25 @@ class Datastore:
         if 'dismissed_vendor' not in asset_cols:
             print("Migrating database: Adding 'dismissed_vendor' to assets.")
             c.execute("ALTER TABLE assets ADD COLUMN dismissed_vendor TEXT")
+            
+        # Phase 60: Layer 2 Topology Mapping
+        if 'connected_to_mac' not in asset_cols:
+            print("Migrating database: Adding topology columns to assets.")
+            c.execute("ALTER TABLE assets ADD COLUMN connected_to_mac TEXT")
+            c.execute("ALTER TABLE assets ADD COLUMN connected_port TEXT")
+            c.execute("ALTER TABLE assets ADD COLUMN connection_type TEXT")
         
         conn.commit()
         conn.close()
 
-    def upsert_asset(self, mac, ip, hostname=None, vendor=None, interface=None, parent_mac=None, original_device_type=None, hw_version=None, fw_version=None, model=None, os=None, oui_vendor=None):
+    def upsert_asset(self, mac, ip, hostname=None, vendor=None, interface=None, parent_mac=None, original_device_type=None, hw_version=None, fw_version=None, model=None, os=None, oui_vendor=None, connected_to_mac=None, connected_port=None, connection_type=None):
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
         now = datetime.datetime.now()
         
         # --- Deduplication Logic ---
         # If this is a real MAC, check if a placeholder exists for this IP
-        if mac and not mac.startswith('mac_'):
+        if mac and ip and not mac.startswith('mac_'):
             placeholder_mac = f"mac_{ip.replace('.', '_')}"
             c.execute("SELECT mac_address FROM assets WHERE mac_address=?", (placeholder_mac,))
             if c.fetchone():
@@ -313,11 +323,17 @@ class Datastore:
                  c.execute("UPDATE assets SET os=? WHERE mac_address=?", (os, mac))
             if oui_vendor:
                  c.execute("UPDATE assets SET oui_vendor=? WHERE mac_address=?", (oui_vendor, mac))
+            if connected_to_mac is not None:
+                 c.execute("UPDATE assets SET connected_to_mac=? WHERE mac_address=?", (connected_to_mac, mac))
+            if connected_port is not None:
+                 c.execute("UPDATE assets SET connected_port=? WHERE mac_address=?", (connected_port, mac))
+            if connection_type is not None:
+                 c.execute("UPDATE assets SET connection_type=? WHERE mac_address=?", (connection_type, mac))
         else:
             c.execute('''
-                INSERT INTO assets (mac_address, ip_address, hostname, vendor, interface, parent_mac, original_device_type, hw_version, fw_version, model, os, oui_vendor, first_seen, last_seen)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (mac, ip, hostname, vendor, interface, parent_mac, original_device_type, hw_version, fw_version, model, os, oui_vendor, now, now))
+                INSERT INTO assets (mac_address, ip_address, hostname, vendor, interface, parent_mac, original_device_type, hw_version, fw_version, model, os, oui_vendor, connected_to_mac, connected_port, connection_type, first_seen, last_seen)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (mac, ip, hostname, vendor, interface, parent_mac, original_device_type, hw_version, fw_version, model, os, oui_vendor, connected_to_mac, connected_port, connection_type, now, now))
             
         conn.commit()
         conn.close()

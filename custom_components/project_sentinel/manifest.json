@@ -1,13 +1,15 @@
 {
     "domain": "project_sentinel",
     "name": "Project Sentinel",
-    "version": "1.0.37",
+    "version": "1.0.38",
     "documentation": "https://github.com/jgrippe1/project_sentinel_dev",
     "description": "Integration for Project Sentinel - Home Network Governance",
     "codeowners": [
         "@jgrip"
     ],
-    "requirements": [],
+    "requirements": [
+        "pysnmp"
+    ],
     "iot_class": "local_polling",
     "config_flow": true
 }
