@@ -1827,9 +1827,80 @@
 
         function renderTopology() {
             const container = document.getElementById('topology-tree-container');
-            const gateway = 'router';
-
             const gatewayIP = appConfig.router_host || '192.168.50.1'; // Fallback if config not loaded
+
+            // 1. Build Adjacency List
+            const topoMap = new Map();
+            const roots = [];
+
+            allAssets.forEach(a => {
+                // Determine true parent (either explicit switch port connection or organizational parent)
+                const parent = a.connected_to_mac || a.parent_mac;
+
+                // If the device HAS a parent and the parent IS NOT itself
+                if (parent && parent !== a.mac_address) {
+                    if (!topoMap.has(parent)) topoMap.set(parent, []);
+                    topoMap.get(parent).push(a);
+                } else {
+                    roots.push(a);
+                }
+            });
+
+            // 2. Recursive Rendering Function
+            function renderNode(node, depth = 0) {
+                const children = topoMap.get(node.mac_address) || [];
+                const hasChildren = children.length > 0;
+
+                const isGhost = node.mac_address && node.mac_address.startsWith('unmanaged');
+                const title = isGhost ? `Unmanaged Switch (Port ${node.connected_port || '?'})` : escapeHTML(node.custom_name || node.hostname || node.ip_address || "Unknown Device");
+                const icon = node.interface === 'Wireless' ? '📶' : (isGhost ? '🔀' : '🔌');
+
+                // Sort children for consistent UI
+                children.sort((a, b) => (a.custom_name || a.hostname || '').localeCompare(b.custom_name || b.hostname || ''));
+
+                const innerLine = `
+                    <div class="tree-item ${isGhost ? '' : 'clickable'}" ${isGhost ? '' : `onclick="openAssetDetail('${node.mac_address}')"`} style="${isGhost ? 'background: rgba(255,255,255,0.02); border: 1px dashed var(--glass-border); opacity: 0.8;' : ''}">
+                        <span class="tree-icon">${icon}</span>
+                        <div>
+                            <strong>${title}</strong>
+                            <span style="font-size: 0.75rem; color: var(--text-muted); margin-left: 10px;">${node.mac_address}</span>
+                            ${node.connected_port ? `<span style="font-size: 0.7rem; color: var(--primary); margin-left: 10px;">↳ Port ${node.connected_port}</span>` : ''}
+                        </div>
+                        <div style="margin-left: auto;">
+                            <span style="font-size: 0.7rem; color: var(--text-muted); border: 1px solid var(--glass-border); padding: 2px 6px; border-radius: 4px;">${escapeHTML(node.device_type || 'IoT')}</span>
+                        </div>
+                    </div>
+                `;
+
+                // Wrap in details/summary if has children, else just a normal div container
+                let html = `<div style="margin-left: ${depth === 0 ? 0 : 25}px; border-left: ${depth === 0 ? 'none' : '2px solid rgba(255,255,255,0.1)'}; padding-left: ${depth === 0 ? 0 : 15}px; margin-top: 5px; position: relative;">`;
+
+                // Draw connecting horizontal pipe
+                if (depth > 0) {
+                    html += `<div style="position: absolute; left: 0; top: 25px; width: 15px; height: 2px; background: rgba(255,255,255,0.1);"></div>`;
+                }
+
+                if (hasChildren) {
+                    // Start open by default to show the graph
+                    html += `<details open style="outline: none;">
+                                <summary style="list-style: none; user-select: none;">
+                                    ${innerLine}
+                                </summary>
+                                <div style="margin-top: 5px;">`;
+                    children.forEach(c => {
+                        html += renderNode(c, depth + 1);
+                    });
+                    html += `   </div>
+                             </details>`;
+                } else {
+                    html += innerLine;
+                }
+
+                html += `</div>`;
+                return html;
+            }
+
+            // 3. Render Root
             let html = `
                 <div class="tree-item" style="background: rgba(244, 63, 94, 0.1); padding: 1rem; border-radius: 12px; border: 1px solid rgba(244, 63, 94, 0.2)">
                     <span class="tree-icon">🛰️</span>
@@ -1838,24 +1909,12 @@
                         <span style="font-size: 0.75rem; color: var(--text-muted);">Master Node | Uplink Active</span>
                     </div>
                 </div>
-                <div class="tree-node">
+                <div class="tree-node" style="margin-top: 15px;">
             `;
 
-            // Sort assets by interface then name
-            const sorted = [...allAssets].sort((a, b) => (a.interface || '').localeCompare(b.interface || ''));
-
-            html += sorted.map(a => `
-                <div class="tree-item clickable" onclick="openAssetDetail('${a.mac_address}')">
-                    <span class="tree-icon">${a.interface === 'Wireless' ? '📶' : '🔌'}</span>
-                    <div>
-                        <strong>${escapeHTML(a.custom_name || a.hostname || a.ip_address)}</strong>
-                        <span style="font-size: 0.75rem; color: var(--text-muted); margin-left: 10px;">${a.mac_address}</span>
-                    </div>
-                    <div style="margin-left: auto;">
-                        <span style="font-size: 0.7rem; color: var(--text-muted); border: 1px solid var(--glass-border); padding: 2px 6px; border-radius: 4px;">${escapeHTML(a.device_type || 'IoT')}</span>
-                    </div>
-                </div>
-            `).join('');
+            roots.forEach(r => {
+                html += renderNode(r, 0);
+            });
 
             html += '</div>';
             container.innerHTML = html;
