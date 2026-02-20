@@ -171,7 +171,8 @@ def update_asset():
             os=data.get('os'),
             vendor=data.get('vendor'),
             dismissed_fw_version=data.get('dismissed_fw_version'),
-            dismissed_vendor=data.get('dismissed_vendor')
+            dismissed_vendor=data.get('dismissed_vendor'),
+            manual_parent_mac=data.get('manual_parent_mac')
         )
         
         # Trigger immediate re-assessment if firmware was updated
@@ -227,7 +228,7 @@ def get_config():
         return jsonify({
             "llm_enabled": llm_enabled,
             "router_host": router_host,
-            "version": "1.0.36" 
+            "version": "1.0.42" 
         })
     except Exception as e:
         logger.error(f"Error fetching config: {e}")

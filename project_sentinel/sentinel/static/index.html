@@ -136,6 +136,11 @@
             }
         }
 
+        .drag-over {
+            border: 2px dashed var(--primary) !important;
+            background: rgba(99, 102, 241, 0.15) !important;
+        }
+
         /* Shared Components */
         .card {
             background: var(--card-bg);
@@ -662,6 +667,9 @@
                     </div>
 
                     <div style="margin-top: 2rem; display: flex; gap: 1rem;">
+                        <button class="btn btn-ghost hidden" id="btn-reset-topology"
+                            style="color: var(--danger); border: 1px solid var(--danger);"
+                            onclick="resetTopologyOverride()">Reset Topology</button>
                         <button class="btn btn-primary" style="flex: 1" onclick="saveAssetDetail()">Apply
                             Changes</button>
                     </div>
@@ -1207,6 +1215,12 @@
                 autoBtn.style.display = appConfig.llm_enabled ? 'inline-block' : 'none';
             }
 
+            if (a.manual_parent_mac) {
+                document.getElementById('btn-reset-topology').classList.remove('hidden');
+            } else {
+                document.getElementById('btn-reset-topology').classList.add('hidden');
+            }
+
             renderSuggestions(a);
             openModal('asset-detail');
         }
@@ -1628,6 +1642,19 @@
             }[tag]));
         }
 
+        async function resetTopologyOverride() {
+            const mac = document.getElementById('detail-mac').value;
+            if (confirm('Remove manual topology override and revert to auto-discovery?')) {
+                await fetch('api/assets/update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mac, manual_parent_mac: "" })
+                });
+                closeModal('asset-detail');
+                loadData();
+            }
+        }
+
         async function saveActualFirmware() {
             await saveAssetDetail();
             // Re-open details after sync to show updated suppression
@@ -1825,6 +1852,53 @@
             openModal('remediation');
         }
 
+        let draggedMacCache = null;
+
+        function handleDragStart(e, mac) {
+            draggedMacCache = mac;
+            e.dataTransfer.setData('text/plain', mac);
+            e.target.style.opacity = '0.5';
+        }
+
+        function handleDragEnd(e) {
+            e.target.style.opacity = '1';
+            draggedMacCache = null;
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+        }
+
+        function handleDragEnter(e) {
+            e.preventDefault();
+            const el = e.currentTarget;
+            if (draggedMacCache && draggedMacCache !== el.dataset.mac) {
+                el.classList.add('drag-over');
+            }
+        }
+
+        function handleDragLeave(e) {
+            e.currentTarget.classList.remove('drag-over');
+        }
+
+        async function handleDrop(e, targetMac) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('drag-over');
+            const draggedMac = e.dataTransfer.getData('text/plain');
+
+            if (!draggedMac || draggedMac === targetMac) return;
+
+            if (confirm(`Move device linking to this parent?`)) {
+                await fetch('api/assets/update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mac: draggedMac, manual_parent_mac: targetMac })
+                });
+                loadData();
+            }
+        }
+
         function renderTopology() {
             const container = document.getElementById('topology-tree-container');
             const gatewayIP = appConfig.router_host || '192.168.50.1'; // Fallback if config not loaded
@@ -1842,7 +1916,7 @@
 
             allAssets.forEach(a => {
                 // Determine true parent (either explicit switch port connection or organizational parent)
-                let parent = a.connected_to_mac || a.parent_mac;
+                let parent = a.manual_parent_mac || a.connected_to_mac || a.parent_mac;
 
                 // Fix for core.py bug where parent_mac is an IP address instead of MAC
                 if (parent && ipToMac.has(parent)) {
@@ -1873,7 +1947,16 @@
                 children.sort((a, b) => (a.custom_name || a.hostname || '').localeCompare(b.custom_name || b.hostname || ''));
 
                 const innerLine = `
-                    <div class="tree-item flex-row" style="align-items: center; ${isGhost ? 'background: rgba(255,255,255,0.02); border: 1px dashed var(--glass-border); opacity: 0.8;' : 'cursor: pointer;'}">
+                    <div class="tree-item flex-row" 
+                        draggable="true" 
+                        data-mac="${node.mac_address}"
+                        ondragstart="handleDragStart(event, '${node.mac_address}')"
+                        ondragend="handleDragEnd(event)"
+                        ondragover="handleDragOver(event)"
+                        ondragenter="handleDragEnter(event)"
+                        ondragleave="handleDragLeave(event)"
+                        ondrop="handleDrop(event, '${node.mac_address}')"
+                        style="align-items: center; ${isGhost ? 'background: rgba(255,255,255,0.02); border: 1px dashed var(--glass-border); opacity: 0.8;' : 'cursor: grab;'}">
                         ${hasChildren ? '<span style="font-size:12px; margin-right:8px; margin-left:4px; color:var(--text-muted); width: 12px; display: inline-block; text-align: center; transition: transform 0.2s;" class="disclosure-arrow">▼</span>' : '<span style="width:24px; display:inline-block"></span>'}
                         <div style="display:flex; flex-grow:1; align-items:center; ${isGhost ? '' : 'cursor: pointer;'}" ${isGhost ? '' : `onclick="event.preventDefault(); openAssetDetail('${node.mac_address}')"`}>
                             <span class="tree-icon" style="margin-right: 12px;">${icon}</span>

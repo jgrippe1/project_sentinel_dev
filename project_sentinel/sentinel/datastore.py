@@ -38,7 +38,8 @@ class Datastore:
                 status TEXT DEFAULT 'active',
                 connected_to_mac TEXT,
                 connected_port TEXT,
-                connection_type TEXT
+                connection_type TEXT,
+                manual_parent_mac TEXT
             )
         ''')
 
@@ -271,11 +272,16 @@ class Datastore:
             c.execute("ALTER TABLE assets ADD COLUMN connected_to_mac TEXT")
             c.execute("ALTER TABLE assets ADD COLUMN connected_port TEXT")
             c.execute("ALTER TABLE assets ADD COLUMN connection_type TEXT")
+
+        # Phase 70: Manual Topology Overrides
+        if 'manual_parent_mac' not in asset_cols:
+            print("Migrating database: Adding manual_parent_mac to assets.")
+            c.execute("ALTER TABLE assets ADD COLUMN manual_parent_mac TEXT")
         
         conn.commit()
         conn.close()
 
-    def upsert_asset(self, mac, ip, hostname=None, vendor=None, interface=None, parent_mac=None, original_device_type=None, hw_version=None, fw_version=None, model=None, os=None, oui_vendor=None, connected_to_mac=None, connected_port=None, connection_type=None):
+    def upsert_asset(self, mac, ip, hostname=None, vendor=None, interface=None, parent_mac=None, original_device_type=None, hw_version=None, fw_version=None, model=None, os=None, oui_vendor=None, connected_to_mac=None, connected_port=None, connection_type=None, manual_parent_mac=None):
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
         now = datetime.datetime.now()
@@ -329,11 +335,14 @@ class Datastore:
                  c.execute("UPDATE assets SET connected_port=? WHERE mac_address=?", (connected_port, mac))
             if connection_type is not None:
                  c.execute("UPDATE assets SET connection_type=? WHERE mac_address=?", (connection_type, mac))
+            if manual_parent_mac is not None:
+                 val = None if manual_parent_mac == "" else manual_parent_mac
+                 c.execute("UPDATE assets SET manual_parent_mac=? WHERE mac_address=?", (val, mac))
         else:
             c.execute('''
-                INSERT INTO assets (mac_address, ip_address, hostname, vendor, interface, parent_mac, original_device_type, hw_version, fw_version, model, os, oui_vendor, connected_to_mac, connected_port, connection_type, first_seen, last_seen)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (mac, ip, hostname, vendor, interface, parent_mac, original_device_type, hw_version, fw_version, model, os, oui_vendor, connected_to_mac, connected_port, connection_type, now, now))
+                INSERT INTO assets (mac_address, ip_address, hostname, vendor, interface, parent_mac, original_device_type, hw_version, fw_version, model, os, oui_vendor, connected_to_mac, connected_port, connection_type, manual_parent_mac, first_seen, last_seen)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (mac, ip, hostname, vendor, interface, parent_mac, original_device_type, hw_version, fw_version, model, os, oui_vendor, connected_to_mac, connected_port, connection_type, manual_parent_mac, now, now))
             
         conn.commit()
         conn.close()
@@ -439,7 +448,7 @@ class Datastore:
         conn.commit()
         conn.close()
 
-    def update_asset_governance(self, mac, custom_name=None, location=None, device_type=None, tags=None, confirmed_integrations=None, dismissed_integrations=None, actual_fw_version=None, model=None, os=None, vendor=None, dismissed_fw_version=None, dismissed_vendor=None):
+    def update_asset_governance(self, mac, custom_name=None, location=None, device_type=None, tags=None, confirmed_integrations=None, dismissed_integrations=None, actual_fw_version=None, model=None, os=None, vendor=None, dismissed_fw_version=None, dismissed_vendor=None, manual_parent_mac=None):
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
         if custom_name is not None:
@@ -468,6 +477,9 @@ class Datastore:
         if tags is not None:
             import json
             c.execute("UPDATE assets SET tags=? WHERE mac_address=?", (json.dumps(tags), mac))
+        if manual_parent_mac is not None:
+            val = None if manual_parent_mac == "" else manual_parent_mac
+            c.execute("UPDATE assets SET manual_parent_mac=? WHERE mac_address=?", (val, mac))
         conn.commit()
         conn.close()
 
