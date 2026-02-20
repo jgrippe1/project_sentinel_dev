@@ -1,8 +1,8 @@
 # Project Sentinel Gitignore
 
 # Database
-sentinel.db
-sentinel.db-journal
+*.db
+*.db-journal
 
 # Python
 __pycache__/
