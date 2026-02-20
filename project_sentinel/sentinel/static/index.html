@@ -1833,16 +1833,30 @@
             const topoMap = new Map();
             const roots = [];
 
+            const ipToMac = new Map();
+            allAssets.forEach(a => {
+                if (a.ip_address) ipToMac.set(a.ip_address, a.mac_address);
+            });
+
+            const gatewayMac = ipToMac.get(gatewayIP) || gatewayIP;
+
             allAssets.forEach(a => {
                 // Determine true parent (either explicit switch port connection or organizational parent)
-                const parent = a.connected_to_mac || a.parent_mac;
+                let parent = a.connected_to_mac || a.parent_mac;
+
+                // Fix for core.py bug where parent_mac is an IP address instead of MAC
+                if (parent && ipToMac.has(parent)) {
+                    parent = ipToMac.get(parent);
+                }
 
                 // If the device HAS a parent and the parent IS NOT itself
                 if (parent && parent !== a.mac_address) {
                     if (!topoMap.has(parent)) topoMap.set(parent, []);
                     topoMap.get(parent).push(a);
                 } else {
-                    roots.push(a);
+                    if (a.mac_address !== gatewayMac) {
+                        roots.push(a);
+                    }
                 }
             });
 
@@ -1859,15 +1873,18 @@
                 children.sort((a, b) => (a.custom_name || a.hostname || '').localeCompare(b.custom_name || b.hostname || ''));
 
                 const innerLine = `
-                    <div class="tree-item ${isGhost ? '' : 'clickable'}" ${isGhost ? '' : `onclick="openAssetDetail('${node.mac_address}')"`} style="${isGhost ? 'background: rgba(255,255,255,0.02); border: 1px dashed var(--glass-border); opacity: 0.8;' : ''}">
-                        <span class="tree-icon">${icon}</span>
-                        <div>
-                            <strong>${title}</strong>
-                            <span style="font-size: 0.75rem; color: var(--text-muted); margin-left: 10px;">${node.mac_address}</span>
-                            ${node.connected_port ? `<span style="font-size: 0.7rem; color: var(--primary); margin-left: 10px;">↳ Port ${node.connected_port}</span>` : ''}
-                        </div>
-                        <div style="margin-left: auto;">
-                            <span style="font-size: 0.7rem; color: var(--text-muted); border: 1px solid var(--glass-border); padding: 2px 6px; border-radius: 4px;">${escapeHTML(node.device_type || 'IoT')}</span>
+                    <div class="tree-item flex-row" style="align-items: center; ${isGhost ? 'background: rgba(255,255,255,0.02); border: 1px dashed var(--glass-border); opacity: 0.8;' : 'cursor: pointer;'}">
+                        ${hasChildren ? '<span style="font-size:12px; margin-right:8px; margin-left:4px; color:var(--text-muted); width: 12px; display: inline-block; text-align: center; transition: transform 0.2s;" class="disclosure-arrow">▼</span>' : '<span style="width:24px; display:inline-block"></span>'}
+                        <div style="display:flex; flex-grow:1; align-items:center; ${isGhost ? '' : 'cursor: pointer;'}" ${isGhost ? '' : `onclick="event.preventDefault(); openAssetDetail('${node.mac_address}')"`}>
+                            <span class="tree-icon" style="margin-right: 12px;">${icon}</span>
+                            <div>
+                                <strong>${title}</strong>
+                                <span style="font-size: 0.75rem; color: var(--text-muted); margin-left: 10px;">${node.mac_address}</span>
+                                ${node.connected_port ? `<span style="font-size: 0.7rem; color: var(--primary); margin-left: 10px;">↳ Port ${node.connected_port}</span>` : ''}
+                            </div>
+                            <div style="margin-left: auto;">
+                                <span style="font-size: 0.7rem; color: var(--text-muted); border: 1px solid var(--glass-border); padding: 2px 6px; border-radius: 4px;">${escapeHTML(node.device_type || 'IoT')}</span>
+                            </div>
                         </div>
                     </div>
                 `;
@@ -1882,7 +1899,7 @@
 
                 if (hasChildren) {
                     // Start open by default to show the graph
-                    html += `<details open style="outline: none;">
+                    html += `<details open style="outline: none;" ontoggle="this.querySelector('.disclosure-arrow').innerText = this.open ? '▼' : '▶'">
                                 <summary style="list-style: none; user-select: none;">
                                     ${innerLine}
                                 </summary>
@@ -1901,20 +1918,32 @@
             }
 
             // 3. Render Root
+            const gatewayAsset = allAssets.find(a => a.mac_address === gatewayMac) || {
+                mac_address: gatewayMac,
+                ip_address: gatewayIP,
+                hostname: "CORE GATEWAY",
+                device_type: "Router",
+                interface: "wired",
+                custom_name: "Master Node"
+            };
+
+            // Force all unparented root devices to be children of the gateway
+            // so we have a unified single tree structure.
+            if (!topoMap.has(gatewayAsset.mac_address)) topoMap.set(gatewayAsset.mac_address, []);
+            roots.forEach(r => topoMap.get(gatewayAsset.mac_address).push(r));
+
             let html = `
-                <div class="tree-item" style="background: rgba(244, 63, 94, 0.1); padding: 1rem; border-radius: 12px; border: 1px solid rgba(244, 63, 94, 0.2)">
+                <div class="tree-item" style="background: rgba(244, 63, 94, 0.1); padding: 1rem; border-radius: 12px; border: 1px solid rgba(244, 63, 94, 0.2); margin-bottom: 15px;">
                     <span class="tree-icon">🛰️</span>
                     <div>
-                        <strong>CORE GATEWAY (${gatewayIP})</strong><br>
-                        <span style="font-size: 0.75rem; color: var(--text-muted);">Master Node | Uplink Active</span>
+                        <strong>NETWORK CORE (${gatewayIP})</strong><br>
+                        <span style="font-size: 0.75rem; color: var(--text-muted);">Root Node | Uplink Active</span>
                     </div>
                 </div>
-                <div class="tree-node" style="margin-top: 15px;">
+                <div class="tree-node">
             `;
 
-            roots.forEach(r => {
-                html += renderNode(r, 0);
-            });
+            html += renderNode(gatewayAsset, 0);
 
             html += '</div>';
             container.innerHTML = html;

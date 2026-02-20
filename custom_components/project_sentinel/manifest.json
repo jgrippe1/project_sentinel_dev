@@ -1,7 +1,7 @@
 {
     "domain": "project_sentinel",
     "name": "Project Sentinel",
-    "version": "1.0.40",
+    "version": "1.0.41",
     "documentation": "https://github.com/jgrippe1/project_sentinel_dev",
     "description": "Integration for Project Sentinel - Home Network Governance",
     "codeowners": [
