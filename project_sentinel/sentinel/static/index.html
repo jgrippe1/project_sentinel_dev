@@ -1018,7 +1018,7 @@
         function closeModal(id) { document.getElementById(`modal-${id}`).classList.remove('active'); }
 
         async function investigateDNS() {
-            const mac = document.getElementById('detail-mac')?.innerText;
+            const mac = document.getElementById('detail-mac')?.value;
             if (!mac) return;
 
             const resultsDiv = document.getElementById('dns-results');
