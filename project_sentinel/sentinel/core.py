@@ -140,6 +140,12 @@ def process_host(ip, mac, ports, db, nvd, analyzer):
                 elif cvss2:
                     cvss_score = cvss2[0].get('cvssData', {}).get('baseScore', 0)
                 
+                # Skip analysis for CVEs already resolved/suppressed by user
+                existing = db.get_vulnerability(mac, cve_id)
+                if existing and existing.get('status') in ('resolved', 'suppressed'):
+                    logger.debug(f"Skipping {cve_id} for {ip}: already {existing['status']}")
+                    continue
+
                 # 3.1 Version-Based Suppression
                 status = 'active'
                 logic = None

@@ -494,24 +494,39 @@ class Datastore:
     def upsert_vulnerability(self, mac, cve_id, cvss_score, description, status='active', suppression_reason=None, suppression_logic=None, user_version=None):
         """
         Insert or update a vulnerability record.
-        Always overwrites status to support un-suppression on re-scan.
-        Only preserves suppression fields when explicit values are provided.
+        Preserves user-set statuses ('resolved', 'suppressed') to prevent
+        the scan loop from clobbering manual decisions. Only new CVEs or
+        'active' status CVEs get their status overwritten.
         """
         conn = sqlite3.connect(self.db_path)
         try:
             c = conn.cursor()
             now = datetime.datetime.now()
             
+            # Use CASE to preserve user decisions: if existing status is
+            # 'resolved' or 'suppressed', keep it; otherwise accept new status.
             c.execute('''
                 INSERT INTO vulnerabilities (cve_id, mac_address, cvss_score, description, status, suppression_reason, suppression_logic, user_version, last_synced)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(cve_id, mac_address) DO UPDATE SET
                 cvss_score=excluded.cvss_score,
                 description=excluded.description,
-                status=excluded.status,
-                suppression_reason=excluded.suppression_reason,
-                suppression_logic=excluded.suppression_logic,
-                user_version=excluded.user_version,
+                status=CASE
+                    WHEN vulnerabilities.status IN ('resolved', 'suppressed') THEN vulnerabilities.status
+                    ELSE excluded.status
+                END,
+                suppression_reason=CASE
+                    WHEN vulnerabilities.status IN ('resolved', 'suppressed') THEN vulnerabilities.suppression_reason
+                    ELSE excluded.suppression_reason
+                END,
+                suppression_logic=CASE
+                    WHEN vulnerabilities.status IN ('resolved', 'suppressed') THEN vulnerabilities.suppression_logic
+                    ELSE excluded.suppression_logic
+                END,
+                user_version=CASE
+                    WHEN vulnerabilities.status IN ('resolved', 'suppressed') THEN vulnerabilities.user_version
+                    ELSE excluded.user_version
+                END,
                 last_synced=excluded.last_synced
             ''', (cve_id, mac, cvss_score, description, status, suppression_reason, suppression_logic, user_version, now))
             
