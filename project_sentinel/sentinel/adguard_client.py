@@ -1,5 +1,6 @@
 """AdGuard Client — Optional integration to query AdGuard Home DNS logs for device fingerprinting."""
 import logging
+import os
 import requests
 from collections import Counter
 from urllib.parse import urlparse
@@ -81,8 +82,10 @@ class AdGuardClient:
     """
     Client for the AdGuard Home REST API.
 
-    Uses HTTP Basic Authentication to query the DNS query log.
-    Only initialized when adguard_host is configured — fully optional.
+    Supports two connection modes:
+    1. Direct: Provide a full URL (e.g., "http://192.168.1.1:3000") with optional basic auth.
+    2. HA Add-on: Provide just the add-on slug (e.g., "a0d7b954_adguard").
+       The client auto-discovers the add-on's internal IP via the HA Supervisor API.
     """
 
     def __init__(self, host, username="", password=""):
@@ -90,25 +93,82 @@ class AdGuardClient:
         Initialize the AdGuard Home client.
 
         Args:
-            host: Full URL to AdGuard Home (e.g., "http://192.168.50.226:3000").
-            username: AdGuard Home login username.
-            password: AdGuard Home login password.
+            host: Full URL (direct mode) OR add-on slug (HA add-on mode).
+            username: AdGuard Home login username (direct mode only).
+            password: AdGuard Home login password (direct mode only).
         """
-        # Normalize: strip trailing slash
-        self.host = host.rstrip("/") if host else ""
-        self.username = username or ""
-        self.password = password or ""
         self.session = requests.Session()
-        if self.username:
-            self.session.auth = (self.username, self.password)
+        self.host = ""
+        self.mode = None  # "direct" or "ha_addon"
 
-        # Validate host URL
+        if not host:
+            logger.warning("AdGuard: No host or slug provided.")
+            return
+
+        host = host.strip()
+
+        # Detect mode: if it starts with http, it's a direct URL; otherwise treat as HA slug
+        if host.startswith("http://") or host.startswith("https://"):
+            self._init_direct(host, username, password)
+        else:
+            self._init_ha_addon(host)
+
+    def _init_direct(self, host, username, password):
+        """Initialize in direct connection mode with optional basic auth."""
+        self.host = host.rstrip("/")
+        self.mode = "direct"
+        if username:
+            self.session.auth = (username, password or "")
+
+        # Validate URL scheme
         parsed = urlparse(self.host)
         if parsed.scheme not in ("http", "https"):
-            logger.error(f"AdGuard host URL has invalid scheme: {self.host}")
+            logger.error(f"AdGuard: Invalid URL scheme: {self.host}")
             self.host = ""
+            return
 
-        logger.info(f"AdGuardClient initialized: {self.host} (auth={'yes' if self.username else 'no'})")
+        logger.info(f"AdGuardClient (direct): {self.host} (auth={'yes' if username else 'no'})")
+
+    def _init_ha_addon(self, slug):
+        """
+        Initialize in HA add-on mode by discovering internal IP via Supervisor API.
+
+        The Supervisor API returns the add-on container's IP on the hassio network,
+        which is reachable from host_network add-ons like Sentinel.
+        """
+        self.mode = "ha_addon"
+        token = os.environ.get("SUPERVISOR_TOKEN")
+        if not token:
+            logger.error("AdGuard: HA add-on mode requires SUPERVISOR_TOKEN (not running inside HA?).")
+            return
+
+        try:
+            # Query the Supervisor for the add-on's internal network info
+            url = f"http://supervisor/addons/{slug}/info"
+            headers = {"Authorization": f"Bearer {token}"}
+            response = requests.get(url, headers=headers, timeout=10)
+            response.raise_for_status()
+
+            info = response.json().get("data", {})
+            addon_ip = info.get("ip_address")
+            state = info.get("state", "unknown")
+
+            if state != "started":
+                logger.error(f"AdGuard: Add-on '{slug}' is not running (state: {state}).")
+                return
+
+            if not addon_ip:
+                logger.error(f"AdGuard: Add-on '{slug}' has no IP address assigned.")
+                return
+
+            # AdGuard Home default web/API port inside the container is 3000
+            self.host = f"http://{addon_ip}:3000"
+            logger.info(f"AdGuardClient (HA add-on): Discovered {slug} at {self.host}")
+
+        except requests.exceptions.ConnectionError:
+            logger.error(f"AdGuard: Cannot reach Supervisor API to discover add-on '{slug}'.")
+        except Exception as e:
+            logger.error(f"AdGuard: Failed to discover HA add-on '{slug}': {e}")
 
     def get_query_log(self, client_ip, limit=500):
         """
@@ -122,7 +182,7 @@ class AdGuardClient:
             list[dict]: List of query log entries, or empty list on error.
         """
         if not self.host:
-            logger.warning("AdGuard host not configured.")
+            logger.warning("AdGuard: Client not initialized (no host resolved).")
             return []
 
         url = f"{self.host}/control/querylog"
