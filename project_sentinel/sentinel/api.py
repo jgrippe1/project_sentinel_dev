@@ -16,7 +16,7 @@ db = Datastore()
 from sentinel.cve_analyzer import HybridAnalyzer
 
 # Add-on version — keep in sync with config.yaml on each release
-_ADDON_VERSION = "1.0.45"
+_ADDON_VERSION = "1.0.46"
 
 # Load config similar to core.py
 OPTIONS_PATH = "/data/options.json"
