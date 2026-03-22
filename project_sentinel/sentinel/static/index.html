@@ -1135,7 +1135,10 @@
                     agLabel.innerText = `AdGuard: Connected (v${data.version || '?'})`;
                 } else {
                     agDot.className = 'status-dot status-error';
-                    agLabel.innerText = `AdGuard: Unreachable (${data.mode || 'unknown'})`;
+                    const detail = data.diag?.error || data.host || data.mode || 'unknown';
+                    agLabel.innerText = `AdGuard: Unreachable`;
+                    agLabel.title = detail;  // Hover tooltip with full details
+                    console.warn('AdGuard status:', JSON.stringify(data));
                 }
             } catch (e) {
                 agDot.className = 'status-dot status-error';

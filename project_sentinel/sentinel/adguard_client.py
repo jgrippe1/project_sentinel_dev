@@ -133,13 +133,15 @@ class AdGuardClient:
         """
         Initialize in HA add-on mode by discovering internal IP via Supervisor API.
 
-        The Supervisor API returns the add-on container's IP on the hassio network,
-        which is reachable from host_network add-ons like Sentinel.
+        Queries the Supervisor for the add-on's network info, then probes
+        multiple common ports to find the AdGuard Home API.
         """
         self.mode = "ha_addon"
+        self._diag = {}  # Diagnostic info for status endpoint
         token = os.environ.get("SUPERVISOR_TOKEN")
         if not token:
             logger.error("AdGuard: HA add-on mode requires SUPERVISOR_TOKEN (not running inside HA?).")
+            self._diag["error"] = "No SUPERVISOR_TOKEN"
             return
 
         try:
@@ -149,26 +151,66 @@ class AdGuardClient:
             response = requests.get(url, headers=headers, timeout=10)
             response.raise_for_status()
 
-            info = response.json().get("data", {})
-            addon_ip = info.get("ip_address")
+            resp_json = response.json()
+            info = resp_json.get("data", {})
+
+            # Log key fields for debugging
             state = info.get("state", "unknown")
+            addon_ip = info.get("ip_address", "")
+            hostname = info.get("hostname", "")
+            ingress_port = info.get("ingress_port")
+            network = info.get("network")
+            logger.info(
+                f"AdGuard Supervisor info: state={state}, ip={addon_ip}, "
+                f"hostname={hostname}, ingress_port={ingress_port}, network={network}"
+            )
+            self._diag["state"] = state
+            self._diag["ip"] = addon_ip
+            self._diag["hostname"] = hostname
 
             if state != "started":
                 logger.error(f"AdGuard: Add-on '{slug}' is not running (state: {state}).")
                 return
 
-            if not addon_ip:
-                logger.error(f"AdGuard: Add-on '{slug}' has no IP address assigned.")
+            # Build list of candidate hosts to try
+            candidates = []
+            if addon_ip:
+                candidates.append(addon_ip)
+            if hostname:
+                candidates.append(hostname)
+            # Also try the Docker DNS name (slug with underscores → hyphens)
+            docker_name = slug.replace("_", "-")
+            candidates.append(docker_name)
+
+            if not candidates:
+                logger.error(f"AdGuard: Add-on '{slug}' has no reachable address.")
+                self._diag["error"] = "No IP or hostname"
                 return
 
-            # AdGuard Home default web/API port inside the container is 3000
-            self.host = f"http://{addon_ip}:3000"
-            logger.info(f"AdGuardClient (HA add-on): Discovered {slug} at {self.host}")
+            # Try each candidate on common AdGuard ports
+            ports = [3000, 80, 8080, 443]
+            for host in candidates:
+                for port in ports:
+                    test_url = f"http://{host}:{port}/control/status"
+                    try:
+                        r = requests.get(test_url, timeout=3)
+                        if r.status_code == 200:
+                            self.host = f"http://{host}:{port}"
+                            logger.info(f"AdGuardClient (HA add-on): Connected to {self.host}")
+                            self._diag["resolved"] = self.host
+                            return
+                    except Exception:
+                        continue
+
+            logger.error(f"AdGuard: Tried {len(candidates)} hosts × {len(ports)} ports — none reachable.")
+            self._diag["error"] = f"Tried {candidates} on ports {ports}, none responded"
 
         except requests.exceptions.ConnectionError:
             logger.error(f"AdGuard: Cannot reach Supervisor API to discover add-on '{slug}'.")
+            self._diag["error"] = "Supervisor API unreachable"
         except Exception as e:
             logger.error(f"AdGuard: Failed to discover HA add-on '{slug}': {e}")
+            self._diag["error"] = str(e)
 
     def get_query_log(self, client_ip, limit=500):
         """
@@ -214,9 +256,16 @@ class AdGuardClient:
         Test connectivity to AdGuard Home by querying its status endpoint.
 
         Returns:
-            dict: {"connected": bool, "version": str|None, "mode": str}
+            dict: {"connected": bool, "version": str|None, "mode": str, "host": str, "diag": dict}
         """
-        result = {"connected": False, "version": None, "mode": self.mode or "unconfigured"}
+        diag = getattr(self, '_diag', {})
+        result = {
+            "connected": False,
+            "version": None,
+            "mode": self.mode or "unconfigured",
+            "host": self.host or "(none)",
+            "diag": diag,
+        }
 
         if not self.host:
             return result
