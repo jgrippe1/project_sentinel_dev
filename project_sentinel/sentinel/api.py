@@ -17,7 +17,7 @@ db = Datastore()
 from sentinel.cve_analyzer import HybridAnalyzer
 
 # Add-on version — keep in sync with config.yaml on each release
-_ADDON_VERSION = "1.0.50"
+_ADDON_VERSION = "1.0.51"
 
 # Load config similar to core.py
 OPTIONS_PATH = "/data/options.json"
@@ -96,6 +96,8 @@ def get_vulnerabilities():
 def approve_asset():
     try:
         data = request.json
+        if not data:
+            return jsonify({"error": "Invalid or missing JSON body"}), 400
         mac = data.get('mac')
         if not mac:
             return jsonify({"error": "MAC address required"}), 400
@@ -110,6 +112,8 @@ def analyze_metadata():
     try:
         _reload_config()  # Ensure fresh LLM config
         data = request.json
+        if not data:
+            return jsonify({"error": "Invalid or missing JSON body"}), 400
         name = data.get('name')
         hostname = data.get('hostname')
         mac = data.get('mac')
@@ -134,6 +138,8 @@ def analyze_cve():
     try:
         _reload_config()  # Ensure fresh LLM config
         data = request.json
+        if not data:
+            return jsonify({"error": "Invalid or missing JSON body"}), 400
         mac = data.get('mac')
         cve_id = data.get('cve_id')
 
@@ -171,6 +177,8 @@ def analyze_cve():
 def update_asset():
     try:
         data = request.json
+        if not data:
+            return jsonify({"error": "Invalid or missing JSON body"}), 400
         mac = data.get('mac')
         if not mac:
             return jsonify({"error": "MAC address required"}), 400
@@ -321,6 +329,8 @@ def get_stats():
 def suppress_vulnerability():
     try:
         data = request.json
+        if not data:
+            return jsonify({"error": "Invalid or missing JSON body"}), 400
         mac = data.get('mac')
         cve_id = data.get('cve_id')
         reason = data.get('reason')

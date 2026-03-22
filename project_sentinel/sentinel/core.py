@@ -127,15 +127,18 @@ def process_host(ip, mac, ports, db, nvd, analyzer):
                 descriptions = cve.get('descriptions', [{}])
                 description = descriptions[0].get('value', 'No description')
                 
-                # Extract CVSS score
+                # Extract CVSS score (with bounds check for empty metrics lists)
                 metrics = cve.get('metrics', {})
                 cvss_score = 0
-                if 'cvssMetricV31' in metrics:
-                    cvss_score = metrics['cvssMetricV31'][0]['cvssData']['baseScore']
-                elif 'cvssMetricV30' in metrics:
-                    cvss_score = metrics['cvssMetricV30'][0]['cvssData']['baseScore']
-                elif 'cvssMetricV2' in metrics:
-                    cvss_score = metrics['cvssMetricV2'][0]['cvssData']['baseScore']
+                cvss31 = metrics.get('cvssMetricV31', [])
+                cvss30 = metrics.get('cvssMetricV30', [])
+                cvss2 = metrics.get('cvssMetricV2', [])
+                if cvss31:
+                    cvss_score = cvss31[0].get('cvssData', {}).get('baseScore', 0)
+                elif cvss30:
+                    cvss_score = cvss30[0].get('cvssData', {}).get('baseScore', 0)
+                elif cvss2:
+                    cvss_score = cvss2[0].get('cvssData', {}).get('baseScore', 0)
                 
                 # 3.1 Version-Based Suppression
                 status = 'active'
@@ -211,6 +214,9 @@ def reassess_vulnerabilities(mac_address, db=None, analyzer=None):
 def main():
     logger.info("Starting Project Sentinel Core...")
     db = Datastore()
+    prev_nvd_key = None
+    nvd = None
+    analyzer = None
     
     while True:
         config = load_config()
@@ -218,8 +224,12 @@ def main():
         subnets = config.get("subnets", [])
         nvd_api_key = config.get("nvd_api_key", "")
         
-        nvd = NVDClient(api_key=nvd_api_key if nvd_api_key else None)
-        analyzer = HybridAnalyzer(config)
+        # Only recreate clients when config changes
+        if nvd is None or nvd_api_key != prev_nvd_key:
+            nvd = NVDClient(api_key=nvd_api_key if nvd_api_key else None)
+            prev_nvd_key = nvd_api_key
+        if analyzer is None:
+            analyzer = HybridAnalyzer(config, db=db)
         
         # Auto-detect subnet if empty (Re-using logic from PoC for now)
         if not subnets:
@@ -265,14 +275,15 @@ def main():
                 processed_ips = {} # ip -> mac
 
                 # Process Router Assets first (Best MAC/IP mapping)
+                # Resolve router MAC once per cycle, not per-device
+                router_mac = resolve_mac(router_host) if router_host else None
+
                 for asset in router_assets:
                     mac = asset['mac']
                     ip = asset['ip']
                     interface = asset.get('interface')
                     hostname = asset.get('hostname')
                     original_type = asset.get('type')
-                    # Resolve router's actual MAC address from ARP table
-                    router_mac = resolve_mac(router_host) if router_host else None
                     
                     db.upsert_asset(mac=mac, ip=ip, hostname=hostname, interface=interface, parent_mac=router_mac, original_device_type=original_type)
                     processed_macs.add(mac)

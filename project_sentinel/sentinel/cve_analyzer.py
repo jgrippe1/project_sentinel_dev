@@ -250,8 +250,10 @@ class HybridAnalyzer:
         try:
             # Special Handling for Anthropic
             if self.llm_provider == 'anthropic':
-                # Pass system instructions and user data directly to Anthropic's specific API format
-                return self._query_anthropic(sys_instructions, user_data)
+                content = self._call_anthropic(sys_instructions, user_data, temperature=0.1)
+                if content:
+                    return self._parse_content(content, "llm-anthropic")
+                return None
 
             # Standard OpenAI Compatible (OpenAI, Google, Ollama, etc.)
             headers = {
@@ -276,6 +278,10 @@ class HybridAnalyzer:
 
     def _query_anthropic(self, system_prompt, user_prompt):
         """Specific handler for Anthropic API."""
+        return self._call_anthropic(system_prompt, user_prompt, temperature=0.1)
+
+    def _call_anthropic(self, system_prompt, user_prompt, temperature=0.1):
+        """Shared Anthropic API call used by both CVE analysis and metadata inference."""
         try:
             headers = {
                 "x-api-key": self.llm_api_key,
@@ -287,14 +293,14 @@ class HybridAnalyzer:
                 "system": system_prompt,
                 "messages": [{"role": "user", "content": user_prompt}],
                 "max_tokens": 1024,
-                "temperature": 0.1
+                "temperature": temperature
             }
             url = f"{self.llm_base_url}/messages"
             response = requests.post(url, headers=headers, json=data, timeout=30)
             
             if response.status_code == 200:
                 content = response.json()['content'][0]['text']
-                return self._parse_content(content, "llm-anthropic")
+                return content
             else:
                 logger.error(f"Anthropic API Error: {response.status_code} - {response.text[:200]}")
                 return None
@@ -378,26 +384,10 @@ class HybridAnalyzer:
             
             # Use specific Anthropic handler if configured, to support system prompting correctly
             if self.llm_provider == 'anthropic':
-                headers = {
-                    "x-api-key": self.llm_api_key,
-                    "anthropic-version": "2023-06-01",
-                    "Content-Type": "application/json"
-                }
-                data = {
-                    "model": self.llm_model,
-                    "system": sys_instructions,
-                    "messages": [{"role": "user", "content": user_data}],
-                    "max_tokens": 1024,
-                    "temperature": 0.3
-                }
-                url = f"{self.llm_base_url}/messages"
-                response = requests.post(url, headers=headers, json=data, timeout=30)
-                if response.status_code == 200:
-                    content = response.json()['content'][0]['text']
+                content = self._call_anthropic(sys_instructions, user_data, temperature=0.3)
+                if content:
                     return self._parse_metadata_content(content)
-                else:
-                    logger.error(f"Anthropic API Error during inference: {response.status_code} - {response.text[:200]}")
-                    return None
+                return None
             
             headers = {
                 "Authorization": f"Bearer {self.llm_api_key}",
@@ -461,5 +451,5 @@ class HybridAnalyzer:
                 "method": method_name
             }
         except Exception as e:
-            logger.error(f"Failed to parse LLM JSON: {e}. Content: {content}")
+            logger.error(f"Failed to parse LLM JSON: {e}. Content: {str(content)[:200]}")
             return None

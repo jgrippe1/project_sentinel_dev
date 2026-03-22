@@ -50,7 +50,7 @@ OUI_MAP = {
 def lookup_mac_vendor_remote(mac):
     """
     Queries api.macvendors.com for exhaustive manufacturer lookup.
-    Only sends the OUI prefix (first 8 chars) to maclookup.app, not the full MAC.
+    Only sends the OUI prefix (first 8 chars) for privacy, not the full MAC.
     """
     try:
         # Only send the OUI prefix for privacy — full MAC is PII-adjacent
@@ -115,13 +115,13 @@ def grab_banner(ip, port, timeout=3):
                 
                 # If banner is generic or empty, try a full GET /
                 if not banner or ("HTTP/1.1" in banner and "Server:" not in banner):
-                    # Reconnect for GET
+                    # Reconnect for GET using a new managed socket
                     s.close()
-                    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    s.settimeout(timeout)
-                    s.connect((ip, port))
-                    s.sendall(b"GET / HTTP/1.1\r\nHost: " + ip.encode() + b"\r\nConnection: close\r\n\r\n")
-                    banner = s.recv(4096).decode('utf-8', errors='ignore').strip()
+                    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s2:
+                        s2.settimeout(timeout)
+                        s2.connect((ip, port))
+                        s2.sendall(b"GET / HTTP/1.1\r\nHost: " + ip.encode() + b"\r\nConnection: close\r\n\r\n")
+                        banner = s2.recv(4096).decode('utf-8', errors='ignore').strip()
                 return banner
             
             banner = s.recv(2048).decode('utf-8', errors='ignore').strip()

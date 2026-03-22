@@ -637,7 +637,7 @@ class Datastore:
             conn.close()
 
     def get_cve_cache(self, product, version):
-        """L-14: Returns cached CVE data if within TTL, otherwise None."""
+        """Returns cached CVE data if within TTL, otherwise None to trigger refresh."""
         conn = sqlite3.connect(self.db_path)
         try:
             c = conn.cursor()

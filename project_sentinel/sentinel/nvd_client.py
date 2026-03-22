@@ -1,4 +1,4 @@
-
+"""NVD Client — Rate-limited wrapper for the NIST National Vulnerability Database REST API."""
 import requests
 import time
 import logging
