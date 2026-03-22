@@ -17,7 +17,7 @@ db = Datastore()
 from sentinel.cve_analyzer import HybridAnalyzer
 
 # Add-on version — keep in sync with config.yaml on each release
-_ADDON_VERSION = "1.0.62"
+_ADDON_VERSION = "1.0.63"
 
 # Load config similar to core.py
 OPTIONS_PATH = "/data/options.json"
@@ -87,6 +87,114 @@ def _init_adguard():
 
 _init_adguard()
 
+# ---------- HA Device Registry ----------
+import time as _time
+_ha_device_cache = {"devices": [], "ts": 0}
+_HA_CACHE_TTL = 300  # 5 minutes
+
+def _fetch_ha_device_registry():
+    """
+    Fetch HA device registry via the /api/template endpoint.
+    The device registry is WebSocket-only, but /api/template lets us
+    render Jinja2 templates that access device_attr() and related helpers.
+    Falls back gracefully when running outside HA or without SUPERVISOR_TOKEN.
+    """
+    now = _time.time()
+    if _ha_device_cache["devices"] and (now - _ha_device_cache["ts"]) < _HA_CACHE_TTL:
+        return _ha_device_cache["devices"]
+
+    token = os.getenv("SUPERVISOR_TOKEN")
+    if not token:
+        return _ha_device_cache["devices"]  # Return stale or empty
+
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+
+    # Template that iterates over all devices in the registry and outputs JSON.
+    # Uses device_attr() which is available in HA templates.
+    tpl = """
+{%- set ns = namespace(devs=[]) -%}
+{%- for state in states -%}
+  {%- set did = device_id(state.entity_id) -%}
+  {%- if did and did not in ns.devs | map(attribute='id') | list -%}
+    {%- set ns.devs = ns.devs + [{
+      'id': did,
+      'name': device_attr(did, 'name') or '',
+      'name_by_user': device_attr(did, 'name_by_user') or '',
+      'manufacturer': device_attr(did, 'manufacturer') or '',
+      'model': device_attr(did, 'model') or '',
+      'sw_version': device_attr(did, 'sw_version') or '',
+      'hw_version': device_attr(did, 'hw_version') or '',
+      'area_id': device_attr(did, 'area_id') or '',
+      'connections': device_attr(did, 'connections') | list,
+      'identifiers': device_attr(did, 'identifiers') | list
+    }] -%}
+  {%- endif -%}
+{%- endfor -%}
+{{ ns.devs | to_json }}
+""".strip()
+
+    try:
+        resp = requests.post(
+            "http://supervisor/core/api/template",
+            headers=headers,
+            json={"template": tpl},
+            timeout=30
+        )
+        resp.raise_for_status()
+        devices = json.loads(resp.text)
+        _ha_device_cache["devices"] = devices
+        _ha_device_cache["ts"] = now
+        logger.info(f"Fetched {len(devices)} devices from HA device registry")
+        return devices
+    except requests.exceptions.ConnectionError:
+        logger.debug("HA Supervisor API not reachable (not running in HA?)")
+        return _ha_device_cache["devices"]
+    except Exception as e:
+        logger.warning(f"Failed to fetch HA device registry: {e}")
+        return _ha_device_cache["devices"]
+
+def _match_ha_device(mac, ip=None):
+    """
+    Find an HA device that matches a network asset by MAC or IP.
+    Returns the matched device dict or None.
+    """
+    devices = _fetch_ha_device_registry()
+    if not devices:
+        return None
+
+    mac_upper = mac.upper() if mac else ''
+    mac_clean = mac_upper.replace(':', '').replace('-', '')
+
+    for dev in devices:
+        # Check connections (typically [['mac', 'AA:BB:CC:DD:EE:FF']])
+        for conn in dev.get('connections', []):
+            if len(conn) >= 2:
+                conn_type, conn_val = conn[0], str(conn[1]).upper()
+                if conn_type == 'mac':
+                    conn_clean = conn_val.replace(':', '').replace('-', '')
+                    if conn_clean == mac_clean:
+                        return dev
+
+        # Check identifiers for IP/MAC patterns
+        for ident in dev.get('identifiers', []):
+            if isinstance(ident, (list, tuple)) and len(ident) >= 2:
+                ident_val = str(ident[1]).upper()
+                ident_clean = ident_val.replace(':', '').replace('-', '')
+                if ident_clean == mac_clean:
+                    return dev
+                if ip and str(ident[1]) == ip:
+                    return dev
+
+    return None
+
+def _get_integration_from_identifiers(ha_dev):
+    """Extract the integration domain from an HA device's identifiers."""
+    for ident in ha_dev.get('identifiers', []):
+        if isinstance(ident, (list, tuple)) and len(ident) >= 2:
+            # Identifiers are typically (domain, unique_id) pairs
+            return str(ident[0])
+    return ''
+
 @app.route('/')
 def index():
     return send_from_directory(app.static_folder, 'index.html')
@@ -101,10 +209,26 @@ def get_assets():
         assets = db.get_assets_with_services()
         # Attach cached DNS profiles
         dns_profiles = db.get_all_dns_profiles()
+        # Pre-fetch HA device registry (cached, ~5min TTL)
+        _fetch_ha_device_registry()
         for a in assets:
             mac = a.get('mac_address')
-            profile = dns_profiles.get(mac)
-            a['dns_profile'] = profile
+            ip = a.get('ip_address')
+            a['dns_profile'] = dns_profiles.get(mac)
+            # Cross-reference with HA device registry
+            ha_dev = _match_ha_device(mac, ip)
+            if ha_dev:
+                a['ha_device'] = {
+                    'name': ha_dev.get('name_by_user') or ha_dev.get('name', ''),
+                    'manufacturer': ha_dev.get('manufacturer', ''),
+                    'model': ha_dev.get('model', ''),
+                    'sw_version': ha_dev.get('sw_version', ''),
+                    'hw_version': ha_dev.get('hw_version', ''),
+                    'area_id': ha_dev.get('area_id', ''),
+                    'integration': _get_integration_from_identifiers(ha_dev),
+                }
+            else:
+                a['ha_device'] = None
         return jsonify(assets)
     except Exception as e:
         logger.error(f"Error fetching assets: {e}", exc_info=True)
@@ -160,7 +284,21 @@ def analyze_metadata():
                 "suggested_vendor": dns_profile.get("suggested_vendor"),
             }
 
-        result = analyzer.infer_device_metadata(name, hostname, mac, oui, dns_fingerprint=dns_context)
+        # Include HA device registry data if matched
+        ha_dev = _match_ha_device(mac, asset.get('ip_address') if asset else None)
+        ha_context = None
+        if ha_dev:
+            ha_context = {
+                "name": ha_dev.get('name_by_user') or ha_dev.get('name', ''),
+                "manufacturer": ha_dev.get('manufacturer', ''),
+                "model": ha_dev.get('model', ''),
+                "sw_version": ha_dev.get('sw_version', ''),
+                "integration": _get_integration_from_identifiers(ha_dev),
+            }
+
+        result = analyzer.infer_device_metadata(name, hostname, mac, oui,
+                                                dns_fingerprint=dns_context,
+                                                ha_device=ha_context)
         
         if result:
             return jsonify(result)
@@ -279,6 +417,19 @@ def get_ha_integrations():
     except Exception as e:
         logger.error(f"Error fetching HA integrations: {e}", exc_info=True)
         return jsonify({"error": "An internal error occurred"}), 500
+
+@app.route('/api/ha/devices')
+def get_ha_devices():
+    """
+    Returns the HA device registry (cached with 5-min TTL).
+    Used by the frontend to display device matches and enrichment data.
+    """
+    try:
+        devices = _fetch_ha_device_registry()
+        return jsonify({"devices": devices, "ha_available": len(devices) > 0})
+    except Exception as e:
+        logger.error(f"Error fetching HA devices: {e}", exc_info=True)
+        return jsonify({"devices": [], "ha_available": False})
 
 @app.route('/api/investigate/dns', methods=['POST'])
 def investigate_dns():

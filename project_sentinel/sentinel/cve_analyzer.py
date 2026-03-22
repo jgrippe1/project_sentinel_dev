@@ -323,10 +323,10 @@ class HybridAnalyzer:
             return None
 
 
-    def infer_device_metadata(self, name, hostname, mac, oui=None, dns_fingerprint=None):
+    def infer_device_metadata(self, name, hostname, mac, oui=None, dns_fingerprint=None, ha_device=None):
         """
         Uses the LLM to deduce device details (Vendor, Model, OS, Type) based on
-        scanned network identifiers and optionally DNS fingerprint data.
+        scanned network identifiers, DNS fingerprint data, and HA device registry data.
         
         Args:
             name (str): User-assigned name (e.g., "Kitchen Speaker").
@@ -335,6 +335,8 @@ class HybridAnalyzer:
             oui (str, optional): Organizationally Unique Identifier (Manufacturer).
             dns_fingerprint (dict, optional): DNS profile data with keys:
                 top_domains, platforms, suggested_type, suggested_vendor.
+            ha_device (dict, optional): HA device registry data with keys:
+                name, manufacturer, model, sw_version, integration.
             
         Returns:
             dict or None: Inferred metadata or None if LLM is disabled/fails.
@@ -356,6 +358,7 @@ class HybridAnalyzer:
         - If the name implies a specific product (e.g., "Kitchen Sonos"), infer Vendor="Sonos", Model="Speaker", OS="Linux (Sonos)".
         - If the name is generic (e.g., "iPhone"), infer Vendor="Apple", Model="iPhone", OS="iOS".
         - DNS queries are strong signals — domains like *.apple.com strongly suggest Apple, *.roku.com suggests Roku, etc.
+        - Home Assistant device registry data is HIGH CONFIDENCE — if manufacturer/model are provided from HA, use them directly.
         - If you cannot determine a field with confidence, return null.
 
         RESPONSE FORMAT (JSON ONLY):
@@ -373,6 +376,25 @@ class HybridAnalyzer:
         - MAC Address: {sanitize(mac)}
         - Manufacturer (OUI): {sanitize(oui)}
         """
+
+        # Append HA device registry data if available (highest priority)
+        if ha_device:
+            ha_name = ha_device.get("name", "")
+            ha_mfr = ha_device.get("manufacturer", "")
+            ha_model = ha_device.get("model", "")
+            ha_sw = ha_device.get("sw_version", "")
+            ha_int = ha_device.get("integration", "")
+
+            if ha_mfr:
+                user_data += f"\n        - HA Device Manufacturer: {sanitize(ha_mfr)}"
+            if ha_model:
+                user_data += f"\n        - HA Device Model: {sanitize(ha_model)}"
+            if ha_name:
+                user_data += f"\n        - HA Device Name: {sanitize(ha_name)}"
+            if ha_sw:
+                user_data += f"\n        - HA Software Version: {sanitize(ha_sw)}"
+            if ha_int:
+                user_data += f"\n        - HA Integration: {sanitize(ha_int)}"
 
         # Append DNS fingerprint data if available
         if dns_fingerprint:

@@ -686,8 +686,36 @@
                     </div>
                 </div>
 
-                <!-- Right: Security & Vulnerabilities -->
+                <!-- Right Column -->
                 <div class="modal-column">
+
+                    <!-- HA Device Match -->
+                    <div id="ha-device-match" class="hidden" style="margin-bottom: 1.5rem;">
+                        <div class="card" style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3);">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                                <span style="font-size: 1.1rem;">🏠</span>
+                                <span class="section-title" style="margin-bottom: 0; font-size: 0.8rem;">Home Assistant Device</span>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem 1rem; font-size: 0.8rem;">
+                                <div>
+                                    <span style="color: var(--text-muted); font-size: 0.65rem; text-transform: uppercase;">Manufacturer</span>
+                                    <div id="ha-manufacturer" style="font-weight: 500;">--</div>
+                                </div>
+                                <div>
+                                    <span style="color: var(--text-muted); font-size: 0.65rem; text-transform: uppercase;">Model</span>
+                                    <div id="ha-model" style="font-weight: 500;">--</div>
+                                </div>
+                                <div>
+                                    <span style="color: var(--text-muted); font-size: 0.65rem; text-transform: uppercase;">Integration</span>
+                                    <div id="ha-integration" style="font-weight: 500; color: var(--accent-blue);">--</div>
+                                </div>
+                                <div>
+                                    <span style="color: var(--text-muted); font-size: 0.65rem; text-transform: uppercase;">SW Version</span>
+                                    <div id="ha-sw-version">--</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
                     <!-- DNS Profile (AdGuard) -->
                     <div id="dns-profile-section" class="hidden" style="margin-bottom: 1.5rem;">
@@ -1485,6 +1513,19 @@
             } else {
                 document.getElementById('btn-reset-topology').classList.add('hidden');
             }
+            // Populate HA Device Match badge
+            const haMatch = document.getElementById('ha-device-match');
+            if (haMatch) {
+                if (a.ha_device) {
+                    haMatch.classList.remove('hidden');
+                    document.getElementById('ha-manufacturer').innerText = a.ha_device.manufacturer || '--';
+                    document.getElementById('ha-model').innerText = a.ha_device.model || '--';
+                    document.getElementById('ha-integration').innerText = a.ha_device.integration || '--';
+                    document.getElementById('ha-sw-version').innerText = a.ha_device.sw_version || '--';
+                } else {
+                    haMatch.classList.add('hidden');
+                }
+            }
 
             // Toggle DNS Profile section based on AdGuard config
             const dnsSection = document.getElementById('dns-profile-section');
@@ -1762,7 +1803,27 @@
 
         function getMatchedIntegrations(a) {
             const services = (a.services || []).map(s => s.banner + s.service_name).join(' ');
-            return installedIntegrations.filter(r => services.toLowerCase().includes(r.match.toLowerCase()));
+            let matched = installedIntegrations.filter(r => services.toLowerCase().includes(r.match.toLowerCase()));
+
+            // If HA device registry matched, include the HA integration
+            if (a.ha_device && a.ha_device.integration) {
+                const haInt = a.ha_device.integration;
+                const alreadyMatched = matched.find(m => m.id === haInt);
+                if (!alreadyMatched) {
+                    const inst = installedIntegrations.find(i => i.id === haInt);
+                    const meta = MASTER_METADATA[haInt];
+                    matched.push({
+                        id: haInt,
+                        icon: meta ? meta.icon : (inst ? inst.icon : '🏠'),
+                        label: meta ? meta.label : (inst ? inst.label : haInt.charAt(0).toUpperCase() + haInt.slice(1).replace('_', ' ')),
+                        url: `https://www.home-assistant.io/integrations/${haInt}`,
+                        match: haInt,
+                        ha_matched: true
+                    });
+                }
+            }
+
+            return matched;
         }
 
         function renderSuggestions(a) {
