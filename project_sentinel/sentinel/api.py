@@ -17,7 +17,7 @@ db = Datastore()
 from sentinel.cve_analyzer import HybridAnalyzer
 
 # Add-on version — keep in sync with config.yaml on each release
-_ADDON_VERSION = "1.0.63"
+_ADDON_VERSION = "1.0.64"
 
 # Load config similar to core.py
 OPTIONS_PATH = "/data/options.json"
@@ -215,20 +215,43 @@ def get_assets():
             mac = a.get('mac_address')
             ip = a.get('ip_address')
             a['dns_profile'] = dns_profiles.get(mac)
-            # Cross-reference with HA device registry
-            ha_dev = _match_ha_device(mac, ip)
-            if ha_dev:
-                a['ha_device'] = {
-                    'name': ha_dev.get('name_by_user') or ha_dev.get('name', ''),
-                    'manufacturer': ha_dev.get('manufacturer', ''),
-                    'model': ha_dev.get('model', ''),
-                    'sw_version': ha_dev.get('sw_version', ''),
-                    'hw_version': ha_dev.get('hw_version', ''),
-                    'area_id': ha_dev.get('area_id', ''),
-                    'integration': _get_integration_from_identifiers(ha_dev),
-                }
+
+            # If asset has confirmed HA device link, sync from HA registry
+            ha_dev_id = a.get('ha_device_id')
+            if ha_dev_id:
+                ha_dev = next((d for d in _ha_device_cache['devices'] if d.get('id') == ha_dev_id), None)
+                if ha_dev:
+                    a['ha_device'] = {
+                        'id': ha_dev_id,
+                        'name': ha_dev.get('name_by_user') or ha_dev.get('name', ''),
+                        'manufacturer': ha_dev.get('manufacturer', ''),
+                        'model': ha_dev.get('model', ''),
+                        'sw_version': ha_dev.get('sw_version', ''),
+                        'hw_version': ha_dev.get('hw_version', ''),
+                        'area_id': ha_dev.get('area_id', ''),
+                        'integration': _get_integration_from_identifiers(ha_dev),
+                        'confirmed': True,
+                    }
+                else:
+                    # HA device was removed from registry
+                    a['ha_device'] = {'id': ha_dev_id, 'confirmed': True, 'missing': True}
             else:
-                a['ha_device'] = None
+                # Try auto-matching unconfirmed
+                ha_dev = _match_ha_device(mac, ip)
+                if ha_dev:
+                    a['ha_device'] = {
+                        'id': ha_dev.get('id', ''),
+                        'name': ha_dev.get('name_by_user') or ha_dev.get('name', ''),
+                        'manufacturer': ha_dev.get('manufacturer', ''),
+                        'model': ha_dev.get('model', ''),
+                        'sw_version': ha_dev.get('sw_version', ''),
+                        'hw_version': ha_dev.get('hw_version', ''),
+                        'area_id': ha_dev.get('area_id', ''),
+                        'integration': _get_integration_from_identifiers(ha_dev),
+                        'confirmed': False,
+                    }
+                else:
+                    a['ha_device'] = None
         return jsonify(assets)
     except Exception as e:
         logger.error(f"Error fetching assets: {e}", exc_info=True)
@@ -374,7 +397,8 @@ def update_asset():
             vendor=data.get('vendor'),
             dismissed_fw_version=data.get('dismissed_fw_version'),
             dismissed_vendor=data.get('dismissed_vendor'),
-            manual_parent_mac=data.get('manual_parent_mac')
+            manual_parent_mac=data.get('manual_parent_mac'),
+            ha_device_id=data.get('ha_device_id')
         )
         
         # Trigger immediate re-assessment if firmware was updated
@@ -430,6 +454,80 @@ def get_ha_devices():
     except Exception as e:
         logger.error(f"Error fetching HA devices: {e}", exc_info=True)
         return jsonify({"devices": [], "ha_available": False})
+
+@app.route('/api/ha/confirm', methods=['POST'])
+def confirm_ha_device():
+    """
+    Confirm or unlink an HA device match for a network asset.
+    On confirm: auto-fills vendor, model, custom_name, location from HA data
+    and stores ha_device_id to keep fields in sync.
+    On unlink: clears ha_device_id (fields remain as-is for manual editing).
+    """
+    try:
+        data = request.json
+        if not data:
+            return jsonify({"error": "Invalid or missing JSON body"}), 400
+        mac = data.get('mac')
+        action = data.get('action')  # 'confirm' or 'unlink'
+        ha_device_id = data.get('ha_device_id')
+
+        if not mac or not action:
+            return jsonify({"error": "mac and action required"}), 400
+
+        if action == 'unlink':
+            db.update_asset_governance(mac=mac, ha_device_id='')
+            return jsonify({"status": "unlinked"})
+
+        if action == 'confirm' and ha_device_id:
+            # Find the device in our cache
+            devices = _fetch_ha_device_registry()
+            ha_dev = next((d for d in devices if d.get('id') == ha_device_id), None)
+
+            if not ha_dev:
+                return jsonify({"error": "HA device not found in registry"}), 404
+
+            # Auto-fill fields from HA device data
+            ha_name = ha_dev.get('name_by_user') or ha_dev.get('name', '')
+            ha_mfr = ha_dev.get('manufacturer', '')
+            ha_model = ha_dev.get('model', '')
+            ha_area = ha_dev.get('area_id', '')
+            ha_integration = _get_integration_from_identifiers(ha_dev)
+
+            # Build update fields — only overwrite if HA has data
+            update_kwargs = {'mac': mac, 'ha_device_id': ha_device_id}
+            if ha_name:
+                update_kwargs['custom_name'] = ha_name
+            if ha_mfr:
+                update_kwargs['vendor'] = ha_mfr
+            if ha_model:
+                update_kwargs['model'] = ha_model
+            if ha_area:
+                update_kwargs['location'] = ha_area
+            if ha_integration:
+                # Auto-confirm the integration
+                asset = db.get_asset(mac)
+                confirmed = json.loads(asset.get('confirmed_integrations', '[]')) if asset else []
+                if ha_integration not in confirmed:
+                    confirmed.append(ha_integration)
+                update_kwargs['confirmed_integrations'] = json.dumps(confirmed)
+
+            db.update_asset_governance(**update_kwargs)
+
+            return jsonify({
+                "status": "confirmed",
+                "applied": {
+                    "custom_name": ha_name,
+                    "vendor": ha_mfr,
+                    "model": ha_model,
+                    "location": ha_area,
+                    "integration": ha_integration
+                }
+            })
+
+        return jsonify({"error": "Invalid action"}), 400
+    except Exception as e:
+        logger.error(f"Error confirming HA device: {e}", exc_info=True)
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @app.route('/api/investigate/dns', methods=['POST'])
 def investigate_dns():

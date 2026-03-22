@@ -178,7 +178,8 @@ class Datastore:
                 'connected_to_mac': 'TEXT',
                 'connected_port': 'TEXT',
                 'connection_type': 'TEXT',
-                'manual_parent_mac': 'TEXT'
+                'manual_parent_mac': 'TEXT',
+                'ha_device_id': 'TEXT'
             }
 
             for col, col_type in new_columns.items():
@@ -429,7 +430,7 @@ class Datastore:
         finally:
             conn.close()
 
-    def update_asset_governance(self, mac, custom_name=None, location=None, device_type=None, tags=None, confirmed_integrations=None, dismissed_integrations=None, actual_fw_version=None, model=None, os=None, vendor=None, dismissed_fw_version=None, dismissed_vendor=None, manual_parent_mac=None):
+    def update_asset_governance(self, mac, custom_name=None, location=None, device_type=None, tags=None, confirmed_integrations=None, dismissed_integrations=None, actual_fw_version=None, model=None, os=None, vendor=None, dismissed_fw_version=None, dismissed_vendor=None, manual_parent_mac=None, ha_device_id=None):
         """Single dynamic UPDATE instead of up to 13 individual queries."""
         conn = sqlite3.connect(self.db_path)
         try:
@@ -444,7 +445,8 @@ class Datastore:
                 ('confirmed_integrations', confirmed_integrations),
                 ('dismissed_integrations', dismissed_integrations),
                 ('dismissed_fw_version', dismissed_fw_version),
-                ('dismissed_vendor', dismissed_vendor)
+                ('dismissed_vendor', dismissed_vendor),
+                ('ha_device_id', ha_device_id)
             ]
             for col_name, val in simple_fields:
                 if val is not None:

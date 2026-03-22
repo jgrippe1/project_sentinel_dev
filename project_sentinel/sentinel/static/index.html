@@ -689,12 +689,22 @@
                 <!-- Right Column -->
                 <div class="modal-column">
 
-                    <!-- HA Device Match -->
                     <div id="ha-device-match" class="hidden" style="margin-bottom: 1.5rem;">
-                        <div class="card" style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3);">
-                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
-                                <span style="font-size: 1.1rem;">🏠</span>
-                                <span class="section-title" style="margin-bottom: 0; font-size: 0.8rem;">Home Assistant Device</span>
+                        <div id="ha-device-card" class="card" style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3);">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <span style="font-size: 1.1rem;">🏠</span>
+                                    <span class="section-title" style="margin-bottom: 0; font-size: 0.8rem;">Home Assistant Device</span>
+                                    <span id="ha-link-status" class="hidden" style="font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; background: rgba(34, 197, 94, 0.15); color: var(--success); font-weight: 600;">🔗 Linked</span>
+                                </div>
+                                <div id="ha-actions" style="display: flex; gap: 0.3rem;">
+                                    <button id="btn-ha-confirm" class="btn btn-ghost hidden"
+                                        style="font-size: 0.65rem; padding: 2px 8px; border: 1px solid var(--success); color: var(--success);"
+                                        onclick="confirmHADevice()">✓ Confirm Link</button>
+                                    <button id="btn-ha-unlink" class="btn btn-ghost hidden"
+                                        style="font-size: 0.65rem; padding: 2px 8px; border: 1px solid var(--danger); color: var(--danger);"
+                                        onclick="unlinkHADevice()">✕ Unlink</button>
+                                </div>
                             </div>
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem 1rem; font-size: 0.8rem;">
                                 <div>
@@ -1516,12 +1526,33 @@
             // Populate HA Device Match badge
             const haMatch = document.getElementById('ha-device-match');
             if (haMatch) {
-                if (a.ha_device) {
+                if (a.ha_device && !a.ha_device.missing) {
                     haMatch.classList.remove('hidden');
                     document.getElementById('ha-manufacturer').innerText = a.ha_device.manufacturer || '--';
                     document.getElementById('ha-model').innerText = a.ha_device.model || '--';
                     document.getElementById('ha-integration').innerText = a.ha_device.integration || '--';
                     document.getElementById('ha-sw-version').innerText = a.ha_device.sw_version || '--';
+
+                    const card = document.getElementById('ha-device-card');
+                    const linkStatus = document.getElementById('ha-link-status');
+                    const btnConfirm = document.getElementById('btn-ha-confirm');
+                    const btnUnlink = document.getElementById('btn-ha-unlink');
+
+                    if (a.ha_device.confirmed) {
+                        // Confirmed — show linked badge + unlink button, green card
+                        card.style.background = 'rgba(34, 197, 94, 0.08)';
+                        card.style.borderColor = 'rgba(34, 197, 94, 0.3)';
+                        linkStatus.classList.remove('hidden');
+                        btnConfirm.classList.add('hidden');
+                        btnUnlink.classList.remove('hidden');
+                    } else {
+                        // Unconfirmed match — show confirm button, blue card
+                        card.style.background = 'rgba(59, 130, 246, 0.08)';
+                        card.style.borderColor = 'rgba(59, 130, 246, 0.3)';
+                        linkStatus.classList.add('hidden');
+                        btnConfirm.classList.remove('hidden');
+                        btnUnlink.classList.add('hidden');
+                    }
                 } else {
                     haMatch.classList.add('hidden');
                 }
@@ -1915,6 +1946,67 @@
             if (!intId) return;
             await updateIntStatus(mac, intId, 'add');
             input.value = "";
+        }
+
+        async function confirmHADevice() {
+            const mac = document.getElementById('detail-mac').value;
+            const a = allAssets.find(x => x.mac_address === mac);
+            if (!a || !a.ha_device || !a.ha_device.id) return;
+
+            const btn = document.getElementById('btn-ha-confirm');
+            btn.innerText = 'Linking...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('api/ha/confirm', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        mac,
+                        action: 'confirm',
+                        ha_device_id: a.ha_device.id
+                    })
+                });
+                const result = await res.json();
+                if (result.status === 'confirmed' && result.applied) {
+                    // Update local form fields with the applied values
+                    if (result.applied.custom_name) document.getElementById('detail-custom-name').value = result.applied.custom_name;
+                    if (result.applied.vendor) document.getElementById('detail-intel-vendor').value = result.applied.vendor;
+                    if (result.applied.model) document.getElementById('detail-intel-model').value = result.applied.model;
+                    if (result.applied.location) document.getElementById('detail-location').value = result.applied.location;
+                }
+
+                // Refresh the asset list and reopen this detail
+                const assetsRes = await fetch('api/assets');
+                allAssets = await assetsRes.json();
+                renderInventory();
+                openAssetDetail(mac);
+            } catch (e) {
+                console.error('Failed to confirm HA device:', e);
+            } finally {
+                btn.innerText = '✓ Confirm Link';
+                btn.disabled = false;
+            }
+        }
+
+        async function unlinkHADevice() {
+            const mac = document.getElementById('detail-mac').value;
+
+            try {
+                await fetch('api/ha/confirm', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mac, action: 'unlink' })
+                });
+
+                // Refresh the asset list and reopen this detail
+                const assetsRes = await fetch('api/assets');
+                allAssets = await assetsRes.json();
+                renderInventory();
+                openAssetDetail(mac);
+            } catch (e) {
+                console.error('Failed to unlink HA device:', e);
+            }
         }
 
         async function autosuggestMetadata() {
