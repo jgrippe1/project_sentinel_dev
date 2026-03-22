@@ -86,7 +86,7 @@ def fetch_sentinel_data(db_path):
         c.execute("SELECT COUNT(*) FROM assets WHERE status='active'")
         data["device_count"] = c.fetchone()[0]
         
-        # M-6 FIX: Only count active (non-suppressed) vulnerabilities
+        # Only count active (non-suppressed) vulnerabilities
         c.execute("SELECT COUNT(*) FROM vulnerabilities WHERE status != 'suppressed' OR status IS NULL")
         data["vulnerability_count"] = c.fetchone()[0]
 

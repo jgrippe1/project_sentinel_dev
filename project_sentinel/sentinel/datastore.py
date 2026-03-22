@@ -1,3 +1,4 @@
+"""Datastore — SQLite persistence layer for assets, services, vulnerabilities, and caches."""
 import sqlite3
 import datetime
 import os
@@ -11,7 +12,7 @@ DB_PATH = os.getenv("SENTINEL_DB_PATH", "/data/sentinel.db")
 if not os.path.exists("/data") and "SENTINEL_DB_PATH" not in os.environ:
     DB_PATH = "sentinel.db"
 
-# L-14: Default CVE cache TTL in hours (7 days)
+# Default CVE cache TTL in hours (7 days)
 CVE_CACHE_TTL_HOURS = 168
 
 class Datastore:
@@ -259,7 +260,7 @@ class Datastore:
                 updates = ['ip_address=?', 'last_seen=?', "status='active'"]
                 params = [ip, now]
                 
-                # M-7 FIX: Use `is not None` instead of truthy check to allow empty strings and 0
+                # Use `is not None` to allow empty strings and 0 as valid updates
                 optional_fields = [
                     ('hostname', hostname), ('vendor', vendor), ('interface', interface),
                     ('parent_mac', parent_mac), ('original_device_type', original_device_type),
@@ -492,8 +493,9 @@ class Datastore:
 
     def upsert_vulnerability(self, mac, cve_id, cvss_score, description, status='active', suppression_reason=None, suppression_logic=None, user_version=None):
         """
-        H-5 FIX: Always overwrite status (no COALESCE). Only preserve suppression
-        fields when the incoming status is not attempting to clear them.
+        Insert or update a vulnerability record.
+        Always overwrites status to support un-suppression on re-scan.
+        Only preserves suppression fields when explicit values are provided.
         """
         conn = sqlite3.connect(self.db_path)
         try:
@@ -642,7 +644,7 @@ class Datastore:
             c.execute("SELECT json_data, timestamp FROM cve_cache WHERE product=? AND version=?", (product, version))
             row = c.fetchone()
             if row:
-                # L-14 FIX: Check TTL — stale cache returns None to trigger refresh
+                # Check TTL — stale cache returns None to trigger NVD refresh
                 try:
                     cached_time = datetime.datetime.fromisoformat(row[1])
                     age_hours = (datetime.datetime.now() - cached_time).total_seconds() / 3600
@@ -687,7 +689,7 @@ class Datastore:
             conn.close()
 
     def update_asset_topology(self, mac, connected_to_mac, connected_port, connection_type):
-        """M-14: Targeted topology update — updates only 3 fields instead of full row rewrite."""
+        """Targeted topology update — updates only connection fields without full row rewrite."""
         conn = sqlite3.connect(self.db_path)
         try:
             c = conn.cursor()

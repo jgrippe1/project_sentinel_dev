@@ -1,3 +1,4 @@
+"""Scanner — Network discovery via port scanning, ARP resolution, and ASUS router SSH integration."""
 import socket
 import subprocess
 import ipaddress

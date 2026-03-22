@@ -1,3 +1,4 @@
+"""Version Utils — Firmware version parsing, comparison, and CVE applicability heuristics."""
 import re
 import logging
 

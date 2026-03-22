@@ -1,3 +1,4 @@
+"""Core — Main scan loop: discovery, enrichment, vulnerability assessment, and topology mapping."""
 import time
 import json
 import os
@@ -21,7 +22,7 @@ def load_config():
         "subnets": [],
         "log_level": "info",
         "nvd_api_key": "",
-        "router_host": "192.168.50.1",
+        "router_host": "192.168.1.1",
         "router_port": 22,
         "router_username": "",
         "router_password": "",
@@ -170,7 +171,7 @@ def reassess_vulnerabilities(mac_address, db=None, analyzer=None):
     """
     Manually triggers a re-assessment of all active vulnerabilities for an asset
     against its current 'actual_fw_version'.
-    L-12 FIX: Accepts optional db/analyzer to avoid re-creating on each call.
+    Accepts optional db/analyzer params to avoid re-creating instances on each call.
     """
     if db is None or analyzer is None:
         config = load_config()
@@ -186,7 +187,7 @@ def reassess_vulnerabilities(mac_address, db=None, analyzer=None):
 
     logger.info(f"Re-assessing vulnerabilities for {mac_address} against version {actual_ver}...")
     
-    # M-5 FIX: Use targeted query instead of fetching all vulnerabilities
+    # Use targeted query instead of fetching all vulnerabilities
     asset_vulns = db.get_vulnerabilities_for_asset(mac_address)
     
     for v in asset_vulns:
@@ -270,7 +271,7 @@ def main():
                     interface = asset.get('interface')
                     hostname = asset.get('hostname')
                     original_type = asset.get('type')
-                    # M-11 FIX: Resolve router's actual MAC from ARP if possible
+                    # Resolve router's actual MAC address from ARP table
                     router_mac = resolve_mac(router_host) if router_host else None
                     
                     db.upsert_asset(mac=mac, ip=ip, hostname=hostname, interface=interface, parent_mac=router_mac, original_device_type=original_type)

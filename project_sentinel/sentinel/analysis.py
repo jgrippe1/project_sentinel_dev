@@ -1,3 +1,4 @@
+"""Analysis — Banner parsing, device intelligence, OUI vendor lookup, and SSL certificate inspection."""
 import re
 import ssl
 import socket
@@ -49,7 +50,7 @@ OUI_MAP = {
 def lookup_mac_vendor_remote(mac):
     """
     Queries api.macvendors.com for exhaustive manufacturer lookup.
-    M-2 FIX: Only sends the OUI prefix (first 8 chars) instead of the full MAC.
+    Only sends the OUI prefix (first 8 chars) to maclookup.app, not the full MAC.
     """
     try:
         # Only send the OUI prefix for privacy — full MAC is PII-adjacent
@@ -236,8 +237,8 @@ def analyze_device_intelligence(banner):
 def get_ssl_expiry(ip, port, timeout=3):
     """
     Attempts to retrieve the SSL certificate expiry date for a given IP and port.
-    M-3 FIX: Uses binary_form=True since CERT_NONE causes getpeercert() to return
-    an empty dict. E-8 FIX: Uses in-memory cadata= instead of temp file.
+    Uses binary_form=True since CERT_NONE causes getpeercert() to return an empty dict.
+    Uses in-memory cadata= instead of writing a temp file to disk.
     Returns a datetime object or None.
     """
     try:
@@ -254,7 +255,7 @@ def get_ssl_expiry(ip, port, timeout=3):
                 # Convert DER to PEM, load into a context, and read parsed certs
                 pem_data = ssl.DER_cert_to_PEM_cert(der_cert)
                 
-                # E-8 FIX: Use in-memory cadata instead of writing a temp file
+                # Use in-memory cadata to avoid writing a temp file for self-signed certs
                 ctx2 = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
                 ctx2.check_hostname = False
                 ctx2.verify_mode = ssl.CERT_NONE

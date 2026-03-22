@@ -1,3 +1,4 @@
+"""Topology — Layer 2 network topology mapping via SNMP FDB/ARP/LLDP and unmanaged switch inference."""
 import logging
 import time
 import uuid
@@ -124,8 +125,7 @@ class TopologyMapper:
         """
         logger.info("Starting Layer 2 Topology Scan...")
         
-        # L-21 FIX: Use get_assets() — we only need device_type to find switches.
-        # Also do a targeted check for SNMP service (port 161) via DB if needed.
+        # Use get_assets() — we only need device_type to identify switches.
         assets = self.db.get_assets()
         switches = []
         for a in assets:
@@ -219,8 +219,8 @@ class TopologyMapper:
 
     def _update_asset_connection(self, mac, connected_to_mac, connected_port, connection_type):
         """
-        M-14 FIX: Use targeted topology update instead of full row read-rewrite.
-        If the MAC doesn't exist yet, create a minimal asset entry.
+        Update topology connection fields for a known asset.
+        Uses targeted UPDATE for efficiency. Creates a new asset entry if unknown.
         """
         asset = self.db.get_asset(mac)
         if asset:

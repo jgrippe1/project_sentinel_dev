@@ -1,3 +1,4 @@
+"""API — Flask REST endpoints for the Sentinel dashboard, analysis, and asset management."""
 import logging
 import os
 import requests
@@ -21,10 +22,10 @@ _ADDON_VERSION = "1.0.50"
 # Load config similar to core.py
 OPTIONS_PATH = "/data/options.json"
 config = {"options": {}}
-_config_mtime = 0  # M-10: Track file modification time
+_config_mtime = 0  # Track file modification time for hot-reload
 
 def _reload_config():
-    """M-10 FIX: Reload config from disk if the file has been modified since last load."""
+    """Reload config from disk if the file has been modified since last load."""
     global config, _config_mtime, analyzer
     try:
         if not os.path.exists(OPTIONS_PATH):
@@ -107,7 +108,7 @@ def approve_asset():
 @app.route('/api/analyze/metadata', methods=['POST'])
 def analyze_metadata():
     try:
-        _reload_config()  # M-10: Ensure fresh LLM config
+        _reload_config()  # Ensure fresh LLM config
         data = request.json
         name = data.get('name')
         hostname = data.get('hostname')
@@ -131,7 +132,7 @@ def analyze_metadata():
 @app.route('/api/analyze/cve', methods=['POST'])
 def analyze_cve():
     try:
-        _reload_config()  # M-10: Ensure fresh LLM config
+        _reload_config()  # Ensure fresh LLM config
         data = request.json
         mac = data.get('mac')
         cve_id = data.get('cve_id')
@@ -241,7 +242,7 @@ def get_config():
     try:
         # Check if LLM is enabled in options
         llm_enabled = config['options'].get('llm_enabled', False)
-        router_host = config['options'].get('router_host', '192.168.50.1')
+        router_host = config['options'].get('router_host', '192.168.1.1')
         return jsonify({
             "llm_enabled": llm_enabled,
             "router_host": router_host,
@@ -338,7 +339,7 @@ def suppress_vulnerability():
 @app.route('/api/report/security')
 def export_security_report():
     try:
-        # E-7 FIX: Use get_assets() — report doesn't use service data
+        # Use get_assets() — security report doesn't need service data
         assets = db.get_assets()
         vulns = db.get_all_vulnerabilities()
         

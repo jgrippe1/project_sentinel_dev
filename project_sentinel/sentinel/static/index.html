@@ -1644,7 +1644,7 @@
             }[tag]));
         }
 
-        // M-9 FIX: Escape for JavaScript string context (inside onclick='...' handlers)
+        // Escape for JavaScript string context (inside onclick='...' handlers)
         function escapeJSString(str) {
             if (!str) return '';
             return str.toString().replace(/[\\'"\n\r]/g, ch => '\\' + ch);
@@ -1909,7 +1909,7 @@
 
         function renderTopology() {
             const container = document.getElementById('topology-tree-container');
-            const gatewayIP = appConfig.router_host || '192.168.50.1'; // Fallback if config not loaded
+            const gatewayIP = appConfig.router_host || '192.168.1.1';
 
             // 1. Build Adjacency List
             const topoMap = new Map();
