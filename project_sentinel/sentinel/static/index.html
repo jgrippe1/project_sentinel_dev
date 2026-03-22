@@ -24,6 +24,39 @@
             --accent-blue: #0ea5e9;
         }
 
+        /* Status dot indicators */
+        .status-dot {
+            width: 8px; height: 8px; border-radius: 50%; display: inline-block;
+        }
+        .status-on {
+            background: var(--success);
+            box-shadow: 0 0 6px var(--success);
+            animation: pulse-dot 2s infinite;
+        }
+        .status-off {
+            background: var(--text-muted); opacity: 0.5;
+        }
+        .status-error {
+            background: var(--danger);
+            box-shadow: 0 0 6px var(--danger);
+        }
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* DNS scan spinner */
+        .dns-spinner {
+            width: 32px; height: 32px; margin: 0 auto;
+            border: 3px solid var(--glass-border);
+            border-top: 3px solid var(--accent-blue);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -704,8 +737,9 @@
                             <!-- DNS results injected here -->
                         </div>
                         <div id="dns-loading" class="card hidden" style="text-align: center; padding: 2rem;">
-                            <span style="font-size: 1.2rem;">⏳</span>
-                            <p style="margin-top: 0.5rem; color: var(--text-muted);">Querying AdGuard Home logs...</p>
+                            <div class="dns-spinner"></div>
+                            <p style="margin-top: 0.75rem; color: var(--text-muted); font-size: 0.85rem;">Querying AdGuard Home DNS logs...</p>
+                            <p id="dns-timer" style="margin-top: 0.25rem; color: var(--text-muted); font-size: 0.7rem;"></p>
                         </div>
                     </div>
                 </div>
@@ -793,6 +827,23 @@
                     <span class="section-title">Governance Coverage</span>
                     <h2 id="dash-gov-percent">0%</h2>
                     <p style="font-size: 0.8rem; color: var(--text-muted);">Categorized & Named</p>
+                </div>
+            </div>
+
+            <!-- Integration Status -->
+            <div id="dash-integrations" class="card" style="margin-bottom: 2rem; padding: 1rem 1.5rem;">
+                <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+                    <span class="section-title" style="margin-bottom: 0; font-size: 0.8rem;">Integrations</span>
+                    <div style="display: flex; gap: 1.5rem; flex-wrap: wrap;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem;">
+                            <span id="status-llm-dot" class="status-dot status-off"></span>
+                            <span id="status-llm-label">LLM: --</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem;">
+                            <span id="status-adguard-dot" class="status-dot status-off"></span>
+                            <span id="status-adguard-label">AdGuard: --</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -979,6 +1030,14 @@
             loadingDiv.classList.remove('hidden');
             resultsDiv.style.display = 'none';
 
+            // Start elapsed timer
+            const timerEl = document.getElementById('dns-timer');
+            const startTime = Date.now();
+            const timerInterval = setInterval(() => {
+                const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+                timerEl.innerText = `${elapsed}s elapsed`;
+            }, 100);
+
             try {
                 const res = await fetch('api/investigate/dns', {
                     method: 'POST',
@@ -1036,9 +1095,51 @@
                 resultsDiv.innerHTML = `<p style="color: var(--danger); padding: 1rem;">Failed to query AdGuard Home.</p>`;
                 resultsDiv.style.display = 'block';
             } finally {
+                clearInterval(timerInterval);
                 loadingDiv.classList.add('hidden');
                 btn.disabled = false;
                 btn.innerText = 'Scan DNS Logs';
+            }
+        }
+
+        let dnsTimerInterval = null;
+
+        async function updateIntegrationStatus() {
+            // LLM status (from appConfig already loaded)
+            const llmDot = document.getElementById('status-llm-dot');
+            const llmLabel = document.getElementById('status-llm-label');
+            if (appConfig.llm_enabled) {
+                llmDot.className = 'status-dot status-on';
+                llmLabel.innerText = 'LLM: Connected';
+            } else {
+                llmDot.className = 'status-dot status-off';
+                llmLabel.innerText = 'LLM: Disabled';
+            }
+
+            // AdGuard status (live check)
+            const agDot = document.getElementById('status-adguard-dot');
+            const agLabel = document.getElementById('status-adguard-label');
+
+            if (!appConfig.adguard_enabled) {
+                agDot.className = 'status-dot status-off';
+                agLabel.innerText = 'AdGuard: Not Configured';
+                return;
+            }
+
+            agLabel.innerText = 'AdGuard: Checking...';
+            try {
+                const res = await fetch('api/adguard/status');
+                const data = await res.json();
+                if (data.connected) {
+                    agDot.className = 'status-dot status-on';
+                    agLabel.innerText = `AdGuard: Connected (v${data.version || '?'})`;
+                } else {
+                    agDot.className = 'status-dot status-error';
+                    agLabel.innerText = `AdGuard: Unreachable (${data.mode || 'unknown'})`;
+                }
+            } catch (e) {
+                agDot.className = 'status-dot status-error';
+                agLabel.innerText = 'AdGuard: Error';
             }
         }
 
@@ -1067,6 +1168,7 @@
                 initColumnSelector();
                 sortInventory(sortConfig.key, true); // initial sort
                 renderSecurity();
+                updateIntegrationStatus();
                 document.getElementById('loader').classList.add('hidden');
             } catch (err) { console.error(err); }
         }

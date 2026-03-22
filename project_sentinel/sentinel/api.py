@@ -17,7 +17,7 @@ db = Datastore()
 from sentinel.cve_analyzer import HybridAnalyzer
 
 # Add-on version — keep in sync with config.yaml on each release
-_ADDON_VERSION = "1.0.53"
+_ADDON_VERSION = "1.0.54"
 
 # Load config similar to core.py
 OPTIONS_PATH = "/data/options.json"
@@ -298,6 +298,15 @@ def investigate_dns():
     except Exception as e:
         logger.error(f"Error investigating DNS for asset: {e}", exc_info=True)
         return jsonify({"error": "An internal error occurred"}), 500
+
+@app.route('/api/adguard/status')
+def adguard_status():
+    """Returns AdGuard Home connection health status."""
+    if not adguard_client:
+        return jsonify({"configured": False, "connected": False})
+    result = adguard_client.test_connection()
+    result["configured"] = True
+    return jsonify(result)
 
 @app.route('/api/config')
 def get_config():

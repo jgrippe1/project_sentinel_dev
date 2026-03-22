@@ -209,6 +209,34 @@ class AdGuardClient:
             logger.error(f"AdGuard: Error fetching query log: {e}")
             return []
 
+    def test_connection(self):
+        """
+        Test connectivity to AdGuard Home by querying its status endpoint.
+
+        Returns:
+            dict: {"connected": bool, "version": str|None, "mode": str}
+        """
+        result = {"connected": False, "version": None, "mode": self.mode or "unconfigured"}
+
+        if not self.host:
+            return result
+
+        try:
+            response = self.session.get(f"{self.host}/control/status", timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                result["connected"] = True
+                result["version"] = data.get("version", "unknown")
+                logger.info(f"AdGuard: Connection OK (v{result['version']})")
+            else:
+                logger.warning(f"AdGuard: Status check returned {response.status_code}")
+        except requests.exceptions.ConnectionError:
+            logger.error(f"AdGuard: Cannot connect to {self.host}")
+        except Exception as e:
+            logger.error(f"AdGuard: Health check failed: {e}")
+
+        return result
+
     def get_dns_fingerprint(self, client_ip, limit=500):
         """
         Analyze DNS query log for a client IP to extract a device fingerprint.
