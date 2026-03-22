@@ -111,7 +111,7 @@ class AdGuardClient:
         if host.startswith("http://") or host.startswith("https://"):
             self._init_direct(host, username, password)
         else:
-            self._init_ha_addon(host)
+            self._init_ha_addon(host, username, password)
 
     def _init_direct(self, host, username, password):
         """Initialize in direct connection mode with optional basic auth."""
@@ -129,7 +129,7 @@ class AdGuardClient:
 
         logger.info(f"AdGuardClient (direct): {self.host} (auth={'yes' if username else 'no'})")
 
-    def _init_ha_addon(self, slug):
+    def _init_ha_addon(self, slug, username="", password=""):
         """
         Initialize in HA add-on mode by discovering AdGuard via Supervisor API.
 
@@ -188,15 +188,18 @@ class AdGuardClient:
                     host_ports.add(p)
 
                 # Try both HTTPS and HTTP (add-on may have SSL enabled)
+                # Accept 200 or 401 — both mean AdGuard is running on that port
                 for port in sorted(host_ports):
                     for scheme in ["https", "http"]:
                         test_url = f"{scheme}://127.0.0.1:{port}/control/status"
                         try:
                             r = requests.get(test_url, timeout=3, verify=False)
-                            if r.status_code == 200:
+                            if r.status_code in (200, 401, 403):
                                 self.host = f"{scheme}://127.0.0.1:{port}"
                                 self.session.verify = False
-                                logger.info(f"AdGuardClient (host_network): Connected at {self.host}")
+                                if username:
+                                    self.session.auth = (username, password or "")
+                                logger.info(f"AdGuardClient (host_network): Found at {self.host} (status={r.status_code})")
                                 self._diag["resolved"] = self.host
                                 return
                         except Exception:
@@ -243,7 +246,7 @@ class AdGuardClient:
                     f"Falling back to localhost probe..."
                 )
                 self._diag["warning"] = "403 from Supervisor, trying localhost fallback"
-                if self._try_localhost_fallback():
+                if self._try_localhost_fallback(username, password):
                     return
                 self._diag["error"] = "403 + localhost fallback failed"
             else:
@@ -253,12 +256,12 @@ class AdGuardClient:
             logger.error(f"AdGuard: Failed to discover HA add-on '{slug}': {e}")
             self._diag["error"] = str(e)
 
-    def _try_localhost_fallback(self):
+    def _try_localhost_fallback(self, username="", password=""):
         """
         Probe 127.0.0.1 on common AdGuard ports with both HTTPS and HTTP.
         Used as a fallback when Supervisor API is inaccessible (403).
         Works because both Sentinel and AdGuard typically use host_network.
-        SSL verify is disabled for self-signed certs on localhost.
+        Accepts 200/401/403 as "service found" — 401 means auth required.
         """
         fallback_ports = [3000, 80, 8080, 443]
         schemes = ["https", "http"]
@@ -267,11 +270,12 @@ class AdGuardClient:
                 test_url = f"{scheme}://127.0.0.1:{port}/control/status"
                 try:
                     r = requests.get(test_url, timeout=3, verify=False)
-                    if r.status_code == 200:
+                    if r.status_code in (200, 401, 403):
                         self.host = f"{scheme}://127.0.0.1:{port}"
-                        # Disable SSL verify on session for self-signed certs
                         self.session.verify = False
-                        logger.info(f"AdGuardClient (localhost fallback): Connected at {self.host}")
+                        if username:
+                            self.session.auth = (username, password or "")
+                        logger.info(f"AdGuardClient (localhost fallback): Found at {self.host} (status={r.status_code})")
                         self._diag["resolved"] = self.host
                         return True
                 except Exception:
