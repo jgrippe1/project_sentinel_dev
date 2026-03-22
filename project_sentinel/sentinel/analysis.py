@@ -86,6 +86,10 @@ def grab_banner(ip, port, timeout=3):
     """
     Connects to an IP and port to grab the banner.
     Supports SSL for port 443.
+    
+    SECURITY NOTE: SSL certificate verification is intentionally disabled.
+    Local IoT devices typically use self-signed certs. This context is
+    only used for LAN banner grabbing, never for external API calls.
     """
     try:
         if port == 443:

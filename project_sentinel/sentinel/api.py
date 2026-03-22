@@ -4,6 +4,7 @@ import requests
 import io
 import csv
 import json
+import yaml
 from flask import Flask, jsonify, send_from_directory, request, Response
 from sentinel.datastore import Datastore
 
@@ -14,6 +15,17 @@ logger = logging.getLogger("SentinelAPI")
 app = Flask(__name__, static_folder='static')
 db = Datastore()
 from sentinel.cve_analyzer import HybridAnalyzer
+
+# Read add-on version from config.yaml at startup
+_ADDON_VERSION = "unknown"
+try:
+    _config_yaml_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config.yaml')
+    if os.path.exists(_config_yaml_path):
+        with open(_config_yaml_path, 'r') as _f:
+            _addon_config = yaml.safe_load(_f)
+            _ADDON_VERSION = _addon_config.get('version', 'unknown')
+except Exception:
+    pass
 
 # Load config similar to core.py
 OPTIONS_PATH = "/data/options.json"
@@ -51,8 +63,8 @@ def get_assets():
         assets = db.get_assets_with_services()
         return jsonify(assets)
     except Exception as e:
-        logger.error(f"Error fetching assets: {e}")
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Error fetching assets: {e}", exc_info=True)
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @app.route('/api/vulnerabilities')
 def get_vulnerabilities():
@@ -60,8 +72,8 @@ def get_vulnerabilities():
         vulnerabilities = db.get_all_vulnerabilities()
         return jsonify(vulnerabilities)
     except Exception as e:
-        logger.error(f"Error fetching vulnerabilities: {e}")
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Error fetching vulnerabilities: {e}", exc_info=True)
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @app.route('/api/assets/approve', methods=['POST'])
 def approve_asset():
@@ -73,8 +85,8 @@ def approve_asset():
         db.approve_asset(mac)
         return jsonify({"status": "success"})
     except Exception as e:
-        logger.error(f"Error approving asset: {e}")
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Error approving asset: {e}", exc_info=True)
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @app.route('/api/analyze/metadata', methods=['POST'])
 def analyze_metadata():
@@ -96,8 +108,8 @@ def analyze_metadata():
             return jsonify({"error": "LLM returned no data"}), 500
             
     except Exception as e:
-        logger.error(f"Error in analyze_metadata: {e}")
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Error in analyze_metadata: {e}", exc_info=True)
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @app.route('/api/analyze/cve', methods=['POST'])
 def analyze_cve():
@@ -146,8 +158,8 @@ def analyze_cve():
         return jsonify(analysis)
 
     except Exception as e:
-        logger.error(f"Error in analyze_cve: {e}")
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Error in analyze_cve: {e}", exc_info=True)
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @app.route('/api/assets/update', methods=['POST'])
 def update_asset():
@@ -185,8 +197,8 @@ def update_asset():
 
         return jsonify({"status": "success"})
     except Exception as e:
-        logger.error(f"Error updating asset: {e}")
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Error updating asset: {e}", exc_info=True)
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @app.route('/api/ha/integrations')
 def get_ha_integrations():
@@ -196,8 +208,8 @@ def get_ha_integrations():
     """
     token = os.getenv("SUPERVISOR_TOKEN")
     if not token:
-        # Fallback for local testing - return empty or a mock list
-        return jsonify(["nginx", "ssh", "esphome", "generic", "adguard"])
+        logger.warning("SUPERVISOR_TOKEN not available. Returning empty integration list.")
+        return jsonify([])
     
     try:
         url = "http://supervisor/core/api/config"
@@ -213,8 +225,8 @@ def get_ha_integrations():
         components = config.get("components", [])
         return jsonify(components)
     except Exception as e:
-        logger.error(f"Error fetching HA integrations: {e}")
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Error fetching HA integrations: {e}", exc_info=True)
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @app.route('/api/config')
 def get_config():
@@ -228,11 +240,11 @@ def get_config():
         return jsonify({
             "llm_enabled": llm_enabled,
             "router_host": router_host,
-            "version": "1.0.43" 
+            "version": _ADDON_VERSION
         })
     except Exception as e:
-        logger.error(f"Error fetching config: {e}")
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Error fetching config: {e}", exc_info=True)
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @app.route('/api/stats')
 def get_stats():
@@ -296,8 +308,8 @@ def get_stats():
             "priority_queue": priority_list[:5]
         })
     except Exception as e:
-        logger.error(f"Error fetching stats: {e}")
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Error fetching stats: {e}", exc_info=True)
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @app.route('/api/vulnerabilities/suppress', methods=['POST'])
 def suppress_vulnerability():
@@ -315,8 +327,8 @@ def suppress_vulnerability():
         db.suppress_vulnerability(mac, cve_id, reason, logic, user_ver)
         return jsonify({"status": "success"})
     except Exception as e:
-        logger.error(f"Error suppressing vulnerability: {e}")
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Error suppressing vulnerability: {e}", exc_info=True)
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @app.route('/api/report/security')
 def export_security_report():
@@ -369,9 +381,9 @@ def export_security_report():
             headers={"Content-disposition": "attachment; filename=sentinel_security_report.csv"}
         )
     except Exception as e:
-        logger.error(f"Error generating security report: {e}")
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Error generating security report: {e}", exc_info=True)
+        return jsonify({"error": "An internal error occurred"}), 500
 
 if __name__ == '__main__':
-    # For local debugging
-    app.run(host='0.0.0.0', port=8099, debug=True)
+    # For local debugging only — debug=False to prevent Werkzeug debugger exposure
+    app.run(host='0.0.0.0', port=8099, debug=False)

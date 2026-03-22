@@ -113,3 +113,9 @@ Contributions are welcome! Please feel free to submit a Pull Request or open an 
 
 ---
 *Disclaimer: Project Sentinel is intended for home security auditing. Use responsibly on your own network.*
+
+## 🔒 Privacy & Data
+
+- **MAC Address Lookups**: For devices not in the built-in OUI map, Sentinel queries `api.macvendors.com` with the device's MAC address to identify the manufacturer. MAC addresses may be considered PII in some jurisdictions.
+- **Shared Database**: The SQLite database (`/share/sentinel.db`) contains your full network inventory (IPs, MACs, hostnames, firmware versions, vulnerability data). It is readable by any Home Assistant add-on that maps the `/share` volume.
+- **LLM Analysis (Optional)**: When enabled, device metadata and CVE descriptions are sent to the configured LLM provider for analysis.

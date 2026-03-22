@@ -2,6 +2,7 @@
 import json
 import logging
 import requests
+from urllib.parse import urlparse
 from sentinel.datastore import Datastore
 from sentinel.version_utils import analyze_version_safety
 
@@ -91,6 +92,26 @@ class HybridAnalyzer:
         logger.info(f"HybridAnalyzer Initialized: Provider={self.llm_provider}, Enabled={self.llm_enabled}, Model={self.llm_model}, BaseURL={self.llm_base_url}")
         if not self.llm_api_key:
             logger.warning("HybridAnalyzer: No LLM API Key found in config!")
+        
+        # Validate LLM base URL (SSRF prevention)
+        if self.llm_base_url:
+            self._validate_llm_url(self.llm_base_url)
+
+    def _validate_llm_url(self, url):
+        """Validates LLM base URL to prevent SSRF against internal HA services."""
+        try:
+            parsed = urlparse(url)
+            blocked_hosts = ['supervisor', 'hassio', 'homeassistant']
+            if parsed.hostname and parsed.hostname.lower() in blocked_hosts:
+                logger.error(f"SECURITY: LLM base URL points to internal HA service '{parsed.hostname}'. This is blocked.")
+                self.llm_enabled = False
+                return
+            if parsed.scheme not in ('http', 'https', ''):
+                logger.error(f"SECURITY: LLM base URL has invalid scheme '{parsed.scheme}'. Disabling LLM.")
+                self.llm_enabled = False
+        except Exception as e:
+            logger.error(f"Failed to validate LLM URL: {e}")
+            self.llm_enabled = False
 
     def analyze(self, cve_id, cve_description, asset_context):
         """

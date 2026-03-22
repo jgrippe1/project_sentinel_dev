@@ -49,6 +49,8 @@ class RouterDiscovery:
 
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        logger.warning(f"SSH: Accepting host key for {self.host} without verification (TOFU). "
+                       f"Consider pinning the key for production use.")
 
         try:
             if self.ssh_key:
@@ -58,7 +60,7 @@ class RouterDiscovery:
                     if not self.password:
                         return []
                 else:
-                    logger.debug(f"Connecting to router {self.host} with SSH key: {self.ssh_key}")
+                    logger.debug(f"Connecting to router {self.host} with SSH key authentication")
                     ssh.connect(self.host, port=self.port, username=self.username, key_filename=self.ssh_key, timeout=10)
             
             if not self.ssh_key or (self.password and not ssh.get_transport()):
