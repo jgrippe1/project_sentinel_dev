@@ -3,12 +3,13 @@ import json
 import os
 import sys
 import logging
-from sentinel.scanner import scan_subnet, TOP_20_PORTS
-from sentinel.analysis import grab_banner, analyze_banner
+from sentinel.scanner import scan_subnet, TOP_20_PORTS, resolve_mac
+from sentinel.analysis import grab_banner, analyze_banner, analyze_device_intelligence, get_ssl_expiry, get_vendor_from_mac, OUI_MAP
 from sentinel.datastore import Datastore
 from sentinel.nvd_client import NVDClient
 from sentinel.version_utils import is_safe_version, extract_affected_version
 from sentinel.cve_analyzer import HybridAnalyzer
+from sentinel.topology import TopologyMapper
 
 # Configure Logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -64,7 +65,6 @@ def process_host(ip, mac, ports, db, nvd, analyzer):
         product, version, os_found = analyze_banner(banner)
         
         # 2.5a Advanced Intelligence Mining
-        from sentinel.analysis import analyze_device_intelligence
         device_intel = analyze_device_intelligence(banner)
         
         # Merge intelligence
@@ -95,7 +95,6 @@ def process_host(ip, mac, ports, db, nvd, analyzer):
         
         # 2.5b SSL Certificate Check (Certificate Sentinel)
         if port in [443, 8443, 8123]: # Common SSL ports
-            from sentinel.analysis import get_ssl_expiry
             expiry = get_ssl_expiry(ip, port)
             if expiry:
                 db.upsert_service(
@@ -210,41 +209,6 @@ def reassess_vulnerabilities(mac_address):
                 user_ver=actual_ver
             )
             logger.info(f"Vulnerability {cve_id} auto-suppressed during re-assessment.")
-    
-    # Final step: Merge base intelligence with mining results
-    from sentinel.analysis import get_vendor_from_mac, OUI_MAP
-    
-    # OUI Cache Check
-    prefix = mac[:8].upper()
-    oui_vendor = db.get_oui_cache(prefix)
-    
-    if not oui_vendor:
-        oui_vendor = get_vendor_from_mac(mac)
-        if oui_vendor:
-            db.set_oui_cache(prefix, oui_vendor)
-    
-    # Enhanced Logging for OUI
-    if oui_vendor:
-        prefix = mac[:8].upper()
-        if prefix in OUI_MAP:
-            logger.info(f"OUI Intelligence (Local Map) for {ip}: {oui_vendor}")
-        else:
-            logger.info(f"OUI Intelligence (Global API) for {ip}: {oui_vendor}")
-
-    final_vendor = aggregated_intel['vendor'] or oui_vendor
-    if final_vendor:
-        logger.info(f"Final Intelligence Baseline for {ip}: Vendor={final_vendor}, Model={aggregated_intel['model']}, OS={aggregated_intel['os']}")
-
-    # Commit to database
-    db.upsert_asset(
-        mac=mac, 
-        ip=ip, 
-        os=aggregated_intel['os'], 
-        model=aggregated_intel['model'], 
-        fw_version=aggregated_intel['fw_version'],
-        vendor=final_vendor,
-        oui_vendor=oui_vendor
-    )
 
 def main():
     logger.info("Starting Project Sentinel Core...")
@@ -318,7 +282,6 @@ def main():
                     process_host(ip, mac, ports, db, nvd, analyzer)
 
                 # Process remaining active hosts (those not seen by router)
-                from sentinel.scanner import resolve_mac
                 for ip, ports in scanned_hosts.items():
                     if ip in processed_ips:
                         continue # Already handled via router discovery
@@ -346,10 +309,9 @@ def main():
             except Exception as e:
                 logger.error(f"Error during scan of {subnet}: {e}")
 
-                logger.info(f"Scan cycle complete for subnet {subnet}.")
+            logger.info(f"Scan cycle complete for subnet {subnet}.")
 
             # 3. Layer 2 Topology Mapping
-            from sentinel.topology import TopologyMapper
             topo = TopologyMapper(db, config)
             try:
                 topo.scan_network_topology()

@@ -51,18 +51,17 @@ OUI_MAP = {
 def lookup_mac_vendor_remote(mac):
     """
     Queries api.macvendors.com for exhaustive manufacturer lookup.
-    Includes rate-limit handling and caching is expected at the caller level.
+    M-2 FIX: Only sends the OUI prefix (first 8 chars) instead of the full MAC.
     """
     try:
-        # We only need the first 3 or 4 segments usually, but sending full MAC is fine
-        url = f"https://api.macvendors.com/{mac}"
+        # Only send the OUI prefix for privacy — full MAC is PII-adjacent
+        oui_prefix = mac[:8] if len(mac) >= 8 else mac
+        url = f"https://api.macvendors.com/{oui_prefix}"
         response = requests.get(url, timeout=5)
         
         if response.status_code == 200:
             return response.text.strip()
         elif response.status_code == 429:
-            # Rate limited - api.macvendors.com allows 2 req/sec usually or 1000/day
-            # We'll just return None and let the next cycle try
             return None
         return None
     except Exception:
@@ -239,6 +238,9 @@ def analyze_device_intelligence(banner):
 def get_ssl_expiry(ip, port, timeout=3):
     """
     Attempts to retrieve the SSL certificate expiry date for a given IP and port.
+    M-3 FIX: Uses binary_form=True since CERT_NONE causes getpeercert() to return
+    an empty dict. We write the DER cert to a temp file and use ssl's internal
+    decoder to extract the notAfter field.
     Returns a datetime object or None.
     """
     try:
@@ -248,11 +250,34 @@ def get_ssl_expiry(ip, port, timeout=3):
         
         with socket.create_connection((ip, port), timeout=timeout) as sock:
             with context.wrap_socket(sock, server_hostname=ip) as ssock:
-                cert_dict = ssock.getpeercert()
-                if cert_dict and 'notAfter' in cert_dict:
-                    expiry_str = cert_dict['notAfter']
-                    # Example: 'Aug 21 12:00:00 2026 GMT'
-                    return datetime.datetime.strptime(expiry_str, '%b %d %H:%M:%S %Y %Z')
+                der_cert = ssock.getpeercert(binary_form=True)
+                if not der_cert:
+                    return None
+                
+                # Decode the DER cert using CPython's internal _ssl module
+                # This is the same function that getpeercert() uses internally
+                import tempfile, os as _os
+                pem_data = ssl.DER_cert_to_PEM_cert(der_cert)
+                
+                # Write PEM to temp file so ssl can load it as a CA cert
+                with tempfile.NamedTemporaryFile(mode='w', suffix='.pem', delete=False) as tmp:
+                    tmp.write(pem_data)
+                    tmp_path = tmp.name
+                
+                try:
+                    # Create a new context that trusts this cert and decode it
+                    ctx2 = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+                    ctx2.check_hostname = False
+                    ctx2.verify_mode = ssl.CERT_NONE
+                    ctx2.load_verify_locations(tmp_path)
+                    
+                    # Get certs from the context's cert store
+                    for cert_info in ctx2.get_ca_certs():
+                        not_after = cert_info.get('notAfter')
+                        if not_after:
+                            return datetime.datetime.strptime(not_after, '%b %d %H:%M:%S %Y %Z')
+                finally:
+                    _os.unlink(tmp_path)
         
     except Exception:
         pass

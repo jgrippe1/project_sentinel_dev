@@ -110,6 +110,9 @@ class TopologyMapper:
     def __init__(self, db, config):
         self.db = db
         community = config.get("options", {}).get("snmp_community", "public")
+        if community == "public":
+            logger.warning("SNMP community string is set to default 'public'. "
+                         "Consider changing this for security (transmitted in cleartext).")
         self.snmp = SNMPClient(community=community)
 
     def scan_network_topology(self):

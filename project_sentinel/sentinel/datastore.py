@@ -2,6 +2,9 @@ import sqlite3
 import datetime
 import os
 import json
+import logging
+
+logger = logging.getLogger("Datastore")
 
 DB_PATH = os.getenv("SENTINEL_DB_PATH", "/data/sentinel.db")
 # Fallback for local testing if not running in Add-on environment
@@ -120,26 +123,20 @@ class Datastore:
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
         
-        # Check for 'interface' column in 'assets' table
+        # L-2 FIX: Cache PRAGMA results once instead of calling 3+ times
         c.execute("PRAGMA table_info(assets)")
         columns = [info[1] for info in c.fetchall()]
         
         if 'interface' not in columns:
-            print("Migrating database: Adding 'interface' column to 'assets' table.")
+            logger.info("Migrating database: Adding 'interface' column to 'assets' table.")
             try:
                 c.execute("ALTER TABLE assets ADD COLUMN interface TEXT")
             except Exception as e:
-                print(f"Migration error (interface): {e}")
+                logger.warning(f"Migration error (interface): {e}")
 
-        new_columns = {
-            'approved': 'INTEGER DEFAULT 0',
-            'tags': "TEXT DEFAULT '[]'",
-            'owner': 'TEXT',
-            'location': 'TEXT',
-            'device_type': 'TEXT',
-            'parent_mac': 'TEXT'
-        }
-
+        # H-1 NOTE: Column names & types are developer-controlled constants.
+        # DDL (ALTER TABLE) does not support parameterized queries, so f-strings
+        # are used here intentionally. Never populate these dicts from user input.
         new_columns = {
             'approved': 'INTEGER DEFAULT 0',
             'tags': "TEXT DEFAULT '[]'",
@@ -149,89 +146,70 @@ class Datastore:
             'original_device_type': 'TEXT',
             'parent_mac': 'TEXT',
             'confirmed_integrations': "TEXT DEFAULT '[]'",
-            'dismissed_integrations': "TEXT DEFAULT '[]'"
+            'dismissed_integrations': "TEXT DEFAULT '[]'",
+            'hw_version': 'TEXT',
+            'fw_version': 'TEXT',
+            'model': 'TEXT',
+            'os': 'TEXT',
+            'oui_vendor': 'TEXT',
+            'actual_fw_version': 'TEXT',
+            'fw_verified_at': 'DATETIME',
+            'dismissed_fw_version': 'TEXT',
+            'dismissed_vendor': 'TEXT',
+            'connected_to_mac': 'TEXT',
+            'connected_port': 'TEXT',
+            'connection_type': 'TEXT',
+            'manual_parent_mac': 'TEXT'
         }
 
         for col, col_type in new_columns.items():
             if col not in columns:
-                print(f"Migrating database: Adding '{col}' column to 'assets' table.")
+                logger.info(f"Migrating database: Adding '{col}' column to 'assets' table.")
                 try:
                     c.execute(f"ALTER TABLE assets ADD COLUMN {col} {col_type}")
                     if col == 'approved':
                         c.execute("UPDATE assets SET approved = 1")
                 except Exception as e:
-                    print(f"Migration error ({col}): {e}")
+                    logger.warning(f"Migration error ({col}): {e}")
 
-        # Check for 'original_device_type' in 'assets' table
-        if 'original_device_type' not in columns:
-            print("Migrating database: Adding 'original_device_type' column to 'assets' table.")
+        # Migrate custom_name from legacy 'owner' column
+        if 'owner' in columns and 'custom_name' in columns:
             try:
-                c.execute("ALTER TABLE assets ADD COLUMN original_device_type TEXT")
+                c.execute("UPDATE assets SET custom_name = owner WHERE custom_name IS NULL AND owner IS NOT NULL")
             except Exception as e:
-                print(f"Migration error (original_device_type): {e}")
-
-        # Phase 30: Advanced Asset Intelligence
-        new_cols = {
-            'hw_version': 'TEXT',
-            'fw_version': 'TEXT',
-            'model': 'TEXT',
-            'os': 'TEXT',
-            'oui_vendor': 'TEXT'
-        }
-        for col, col_type in new_cols.items():
-            if col not in columns:
-                print(f"Migrating database: Adding '{col}' column to 'assets' table.")
-                try:
-                    c.execute(f"ALTER TABLE assets ADD COLUMN {col} {col_type}")
-                except Exception as e:
-                    print(f"Migration error ({col}): {e}")
-
-        # Check for 'custom_name' in 'assets' table
-        if 'custom_name' not in columns:
-            print("Migrating database: Adding 'custom_name' column to 'assets' table.")
-            try:
-                c.execute("ALTER TABLE assets ADD COLUMN custom_name TEXT")
-                # If 'owner' exists, we can migrate it
-                if 'owner' in columns:
-                    c.execute("UPDATE assets SET custom_name = owner")
-            except Exception as e:
-                print(f"Migration error (custom_name): {e}")
+                logger.warning(f"Migration error (owner->custom_name): {e}")
 
         # Check for 'cert_expiry' in 'services' table
         c.execute("PRAGMA table_info(services)")
         service_columns = [info[1] for info in c.fetchall()]
         if 'cert_expiry' not in service_columns:
-            print("Migrating database: Adding 'cert_expiry' column to 'services' table.")
+            logger.info("Migrating database: Adding 'cert_expiry' column to 'services' table.")
             try:
                 c.execute("ALTER TABLE services ADD COLUMN cert_expiry DATETIME")
             except Exception as e:
-                print(f"Migration error (cert_expiry): {e}")
+                logger.warning(f"Migration error (cert_expiry): {e}")
 
-        # Phase 40: Firmware Verification & Suppression
-        # Assets Update
-        c.execute("PRAGMA table_info(assets)")
-        asset_columns = [info[1] for info in c.fetchall()]
-        if 'actual_fw_version' not in asset_columns:
-            print("Migrating database: Adding actual_fw_version to assets.")
-            c.execute("ALTER TABLE assets ADD COLUMN actual_fw_version TEXT")
-            c.execute("ALTER TABLE assets ADD COLUMN fw_verified_at DATETIME")
-            
         # Vulnerabilities Update
         c.execute("PRAGMA table_info(vulnerabilities)")
         vuln_columns = [info[1] for info in c.fetchall()]
-        if 'status' not in vuln_columns:
-            print("Migrating database: Adding 'status' column to 'vulnerabilities' table.")
-            c.execute("ALTER TABLE vulnerabilities ADD COLUMN status TEXT DEFAULT 'active'")
-        if 'suppression_reason' not in vuln_columns:
-            print("Migrating database: Adding suppression fields to vulnerabilities.")
-            c.execute("ALTER TABLE vulnerabilities ADD COLUMN suppression_reason TEXT")
-            c.execute("ALTER TABLE vulnerabilities ADD COLUMN suppression_logic TEXT")
-            c.execute("ALTER TABLE vulnerabilities ADD COLUMN user_version TEXT")
+        vuln_migrations = {
+            'status': "TEXT DEFAULT 'active'",
+            'suppression_reason': 'TEXT',
+            'suppression_logic': 'TEXT',
+            'user_version': 'TEXT'
+        }
+        for col, col_type in vuln_migrations.items():
+            if col not in vuln_columns:
+                logger.info(f"Migrating database: Adding '{col}' to vulnerabilities.")
+                try:
+                    c.execute(f"ALTER TABLE vulnerabilities ADD COLUMN {col} {col_type}")
+                except Exception as e:
+                    logger.warning(f"Migration error ({col}): {e}")
 
         # Hybrid Verification Cache Update
         c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='cve_verifications'")
         if not c.fetchone():
-            print("Migrating database: Creating 'cve_verifications' table.")
+            logger.info("Migrating database: Creating 'cve_verifications' table.")
             c.execute('''
                 CREATE TABLE IF NOT EXISTS cve_verifications (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -247,37 +225,7 @@ class Datastore:
                     UNIQUE(cve_id, version_string, vendor, model)
                 )
             ''')
-            print("Migrating database: Adding suppression fields to vulnerabilities.")
-            c.execute("ALTER TABLE vulnerabilities ADD COLUMN status TEXT DEFAULT 'active'")
-            c.execute("ALTER TABLE vulnerabilities ADD COLUMN suppression_reason TEXT")
-            c.execute("ALTER TABLE vulnerabilities ADD COLUMN suppression_logic TEXT")
-            c.execute("ALTER TABLE vulnerabilities ADD COLUMN user_version TEXT")
 
-        # Phase 50: Advanced Metadata Refinement (v1.0.11)
-        # Check for 'dismissed_fw_version' and 'dismissed_vendor'
-        c.execute("PRAGMA table_info(assets)")
-        asset_cols = [info[1] for info in c.fetchall()]
-        
-        if 'dismissed_fw_version' not in asset_cols:
-            print("Migrating database: Adding 'dismissed_fw_version' to assets.")
-            c.execute("ALTER TABLE assets ADD COLUMN dismissed_fw_version TEXT")
-            
-        if 'dismissed_vendor' not in asset_cols:
-            print("Migrating database: Adding 'dismissed_vendor' to assets.")
-            c.execute("ALTER TABLE assets ADD COLUMN dismissed_vendor TEXT")
-            
-        # Phase 60: Layer 2 Topology Mapping
-        if 'connected_to_mac' not in asset_cols:
-            print("Migrating database: Adding topology columns to assets.")
-            c.execute("ALTER TABLE assets ADD COLUMN connected_to_mac TEXT")
-            c.execute("ALTER TABLE assets ADD COLUMN connected_port TEXT")
-            c.execute("ALTER TABLE assets ADD COLUMN connection_type TEXT")
-
-        # Phase 70: Manual Topology Overrides
-        if 'manual_parent_mac' not in asset_cols:
-            print("Migrating database: Adding manual_parent_mac to assets.")
-            c.execute("ALTER TABLE assets ADD COLUMN manual_parent_mac TEXT")
-        
         conn.commit()
         conn.close()
 
@@ -287,57 +235,52 @@ class Datastore:
         now = datetime.datetime.now()
         
         # --- Deduplication Logic ---
-        # If this is a real MAC, check if a placeholder exists for this IP
         if mac and ip and not mac.startswith('mac_'):
             placeholder_mac = f"mac_{ip.replace('.', '_')}"
             c.execute("SELECT mac_address FROM assets WHERE mac_address=?", (placeholder_mac,))
             if c.fetchone():
-                print(f"Datastore: Triggering merge of placeholder {placeholder_mac} into real MAC {mac}")
-                conn.close() # Close to allow merge_assets to open its own connection or refactor to share
+                logger.info(f"Datastore: Triggering merge of placeholder {placeholder_mac} into real MAC {mac}")
+                conn.close()
                 self.merge_assets(mac, placeholder_mac)
                 conn = sqlite3.connect(self.db_path)
                 c = conn.cursor()
-        # ---------------------------
 
         # Check if exists
         c.execute("SELECT first_seen FROM assets WHERE mac_address=?", (mac,))
         row = c.fetchone()
         
         if row:
-            c.execute('''
-                UPDATE assets 
-                SET ip_address=?, last_seen=?, status='active'
-                WHERE mac_address=?
-            ''', (ip, now, mac))
-            if hostname:
-                 c.execute("UPDATE assets SET hostname=? WHERE mac_address=?", (hostname, mac))
-            if vendor:
-                 c.execute("UPDATE assets SET vendor=? WHERE mac_address=?", (vendor, mac))
-            if interface:
-                 c.execute("UPDATE assets SET interface=? WHERE mac_address=?", (interface, mac))
-            if parent_mac:
-                 c.execute("UPDATE assets SET parent_mac=? WHERE mac_address=?", (parent_mac, mac))
-            if original_device_type:
-                 c.execute("UPDATE assets SET original_device_type=? WHERE mac_address=?", (original_device_type, mac))
-            if hw_version:
-                 c.execute("UPDATE assets SET hw_version=? WHERE mac_address=?", (hw_version, mac))
-            if fw_version:
-                 c.execute("UPDATE assets SET fw_version=? WHERE mac_address=?", (fw_version, mac))
-            if model:
-                 c.execute("UPDATE assets SET model=? WHERE mac_address=?", (model, mac))
-            if os:
-                 c.execute("UPDATE assets SET os=? WHERE mac_address=?", (os, mac))
-            if oui_vendor:
-                 c.execute("UPDATE assets SET oui_vendor=? WHERE mac_address=?", (oui_vendor, mac))
-            if connected_to_mac is not None:
-                 c.execute("UPDATE assets SET connected_to_mac=? WHERE mac_address=?", (connected_to_mac, mac))
-            if connected_port is not None:
-                 c.execute("UPDATE assets SET connected_port=? WHERE mac_address=?", (connected_port, mac))
-            if connection_type is not None:
-                 c.execute("UPDATE assets SET connection_type=? WHERE mac_address=?", (connection_type, mac))
+            # E-4 FIX: Build a single UPDATE with dynamic SET clauses
+            updates = ['ip_address=?', 'last_seen=?', "status='active'"]
+            params = [ip, now]
+            
+            optional_fields = [
+                ('hostname', hostname), ('vendor', vendor), ('interface', interface),
+                ('parent_mac', parent_mac), ('original_device_type', original_device_type),
+                ('hw_version', hw_version), ('fw_version', fw_version), ('model', model),
+                ('os', os), ('oui_vendor', oui_vendor)
+            ]
+            for col_name, val in optional_fields:
+                if val:
+                    updates.append(f"{col_name}=?")
+                    params.append(val)
+            
+            # These use 'is not None' because empty string has meaning (clear value)
+            none_check_fields = [
+                ('connected_to_mac', connected_to_mac), ('connected_port', connected_port),
+                ('connection_type', connection_type)
+            ]
+            for col_name, val in none_check_fields:
+                if val is not None:
+                    updates.append(f"{col_name}=?")
+                    params.append(val)
+            
             if manual_parent_mac is not None:
-                 val = None if manual_parent_mac == "" else manual_parent_mac
-                 c.execute("UPDATE assets SET manual_parent_mac=? WHERE mac_address=?", (val, mac))
+                updates.append("manual_parent_mac=?")
+                params.append(None if manual_parent_mac == "" else manual_parent_mac)
+            
+            params.append(mac)
+            c.execute(f"UPDATE assets SET {', '.join(updates)} WHERE mac_address=?", tuple(params))
         else:
             c.execute('''
                 INSERT INTO assets (mac_address, ip_address, hostname, vendor, interface, parent_mac, original_device_type, hw_version, fw_version, model, os, oui_vendor, connected_to_mac, connected_port, connection_type, manual_parent_mac, first_seen, last_seen)
@@ -561,18 +504,26 @@ class Datastore:
         conn.close()
 
     def get_assets_with_services(self):
+        """E-1 FIX: Fetch all assets and services in two queries, then merge in-memory."""
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         c = conn.cursor()
         
-        # Get all assets
         c.execute("SELECT * FROM assets")
         assets = [dict(row) for row in c.fetchall()]
         
-        # For each asset, get its services
+        # Bulk fetch all services and group by MAC
+        c.execute("SELECT * FROM services")
+        services_by_mac = {}
+        for row in c.fetchall():
+            svc = dict(row)
+            mac = svc['mac_address']
+            if mac not in services_by_mac:
+                services_by_mac[mac] = []
+            services_by_mac[mac].append(svc)
+        
         for asset in assets:
-            c.execute("SELECT * FROM services WHERE mac_address=?", (asset['mac_address'],))
-            asset['services'] = [dict(row) for row in c.fetchall()]
+            asset['services'] = services_by_mac.get(asset['mac_address'], [])
             
         conn.close()
         return assets
@@ -624,6 +575,16 @@ class Datastore:
         conn.commit()
         conn.close()
 
+    def get_vulnerability(self, mac, cve_id):
+        """E-2: Targeted single-vulnerability lookup instead of fetching all."""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        c.execute("SELECT * FROM vulnerabilities WHERE mac_address=? AND cve_id=?", (mac, cve_id))
+        row = c.fetchone()
+        conn.close()
+        return dict(row) if row else None
+
     def get_cve_cache(self, product, version):
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
@@ -633,7 +594,7 @@ class Datastore:
         if row:
             try:
                 return json.loads(row[0])
-            except:
+            except (json.JSONDecodeError, ValueError):
                 return None
         return None
 

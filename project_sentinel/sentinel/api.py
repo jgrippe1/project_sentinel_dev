@@ -16,7 +16,7 @@ db = Datastore()
 from sentinel.cve_analyzer import HybridAnalyzer
 
 # Add-on version — keep in sync with config.yaml on each release
-_ADDON_VERSION = "1.0.46"
+_ADDON_VERSION = "1.0.47"
 
 # Load config similar to core.py
 OPTIONS_PATH = "/data/options.json"
@@ -125,10 +125,8 @@ def analyze_cve():
                 "method": "pre-check"
             })
 
-        # Fetch vulns to get description
-        # Ideally we'd have a get_cve(id) method, but we can search current vulns
-        all_vulns = db.get_all_vulnerabilities()
-        vuln = next((v for v in all_vulns if v['cve_id'] == cve_id and v['mac_address'] == mac), None)
+        # E-2 FIX: Targeted lookup instead of fetching all vulnerabilities
+        vuln = db.get_vulnerability(mac, cve_id)
         
         if not vuln:
              return jsonify({"error": "Vulnerability not found on this asset"}), 404

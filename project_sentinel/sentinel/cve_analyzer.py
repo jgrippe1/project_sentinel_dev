@@ -295,7 +295,7 @@ class HybridAnalyzer:
                 content = response.json()['content'][0]['text']
                 return self._parse_content(content, "llm-anthropic")
             else:
-                logger.error(f"Anthropic API Error: {response.status_code} - {response.text}")
+                logger.error(f"Anthropic API Error: {response.status_code} - {response.text[:200]}")
                 return None
         except Exception as e:
             logger.error(f"Anthropic Exception: {e}")
@@ -312,7 +312,7 @@ class HybridAnalyzer:
                 logger.error(f"Unexpected JSON structure from LLM: {resp_json}")
                 return None
         else:
-            logger.error(f"LLM API Error: {response.status_code} - {response.text}")
+            logger.error(f"LLM API Error: {response.status_code} - {response.text[:200]}")
             return None
 
 
@@ -395,7 +395,7 @@ class HybridAnalyzer:
                     content = response.json()['content'][0]['text']
                     return self._parse_metadata_content(content)
                 else:
-                    logger.error(f"Anthropic API Error during inference: {response.status_code} - {response.text}")
+                    logger.error(f"Anthropic API Error during inference: {response.status_code} - {response.text[:200]}")
                     return None
             
             headers = {
@@ -417,7 +417,7 @@ class HybridAnalyzer:
                 content = resp_json['choices'][0]['message']['content']
                 return self._parse_metadata_content(content)
             else:
-                logger.error(f"LLM API Error during inference: {response.status_code} - {response.text}")
+                logger.error(f"LLM API Error during inference: {response.status_code} - {response.text[:200]}")
                 return None
         except Exception as e:
             import traceback

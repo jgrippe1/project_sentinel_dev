@@ -1345,7 +1345,7 @@
                                 </div>
                                 <span style="color: var(--danger); font-weight: 800;">${v.cvss_score}</span>
                             </div>
-                            <p style="font-size: 0.8rem; margin: 0.5rem 0; color: var(--text-muted);">${v.description.substring(0, 80)}...</p>
+                            <p style="font-size: 0.8rem; margin: 0.5rem 0; color: var(--text-muted);">${escapeHTML(v.description.substring(0, 80))}...</p>
                             <button class="btn btn-ghost" style="padding: 2px 8px; font-size: 0.7rem;" onclick="openRemediationModal('${v.cve_id}', '${v.mac_address}')">${isSuppressed ? 'View Details' : 'Details & Remediate'}</button>
                         </div>
                     `;
@@ -1732,12 +1732,12 @@
             body.innerHTML = `
                 <div style="text-align: center; margin-bottom: 1.5rem;">
                     <span style="font-size: 3rem;">${icon}</span>
-                    <h2 style="color: ${color}; margin-top: 0.5rem;">${analysis.result}</h2>
+                    <h2 style="color: ${color}; margin-top: 0.5rem;">${escapeHTML(analysis.result)}</h2>
                     <p style="color: var(--text-muted); font-size: 0.9rem;">Confidence: ${analysis.confidence}%</p>
                 </div>
                 <div class="card" style="background: rgba(255,255,255,0.05);">
                     <strong style="display: block; margin-bottom: 0.5rem; color: var(--primary);">Reasoning:</strong>
-                    <p style="line-height: 1.6;">${analysis.reason}</p>
+                    <p style="line-height: 1.6;">${escapeHTML(analysis.reason)}</p>
                 </div>
             `;
 
@@ -1791,7 +1791,7 @@
                         <div style="font-weight: 600; font-family: monospace; color: var(--primary); text-decoration: underline; cursor: pointer;" onclick="openRemediationModal('${v.cve_id}', '${v.mac_address}')">${v.cve_id}</div>
                         ${isSuppressed ? `<div style="font-size: 0.7rem; color: #4CAF50;">✅ Suppressed: ${escapeHTML(v.suppression_reason)}</div>` : ''}
                     </td>
-                    <td>${v.ip_address}</td>
+                    <td>${escapeHTML(v.ip_address)}</td>
                     <td style="text-align: right;">
                         ${isSuppressed ?
                         '<span style="color: var(--text-muted); font-size: 0.8rem;">User Verified</span>' :
@@ -1817,7 +1817,7 @@
                 </div>
                 
                 <span class="section-title">Risk Description</span>
-                <p style="margin-bottom: 1.5rem; line-height: 1.6;">${v.description}</p>
+                <p style="margin-bottom: 1.5rem; line-height: 1.6;">${escapeHTML(v.description)}</p>
                 
                 <div style="margin-bottom: 2rem;">
                     <a href="https://nvd.nist.gov/vuln/detail/${v.cve_id}" target="_blank" class="btn btn-ghost" style="display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none;">
@@ -1835,8 +1835,8 @@
                     ${isSuppressed ?
                     `<div class="card" style="background: rgba(16, 185, 129, 0.1); border-color: var(--success); margin-bottom: 0;">
                             <p style="color: var(--success); font-weight: 600;">✅ This vulnerability has been suppressed.</p>
-                            <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.5rem;">Reason: ${v.suppression_reason}</p>
-                            ${v.suppression_logic ? `<p style="font-size: 0.75rem; font-family: monospace; color: var(--text-muted); margin-top: 0.25rem;">Logic: ${v.suppression_logic}</p>` : ''}
+                            <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.5rem;">Reason: ${escapeHTML(v.suppression_reason)}</p>
+                            ${v.suppression_logic ? `<p style="font-size: 0.75rem; font-family: monospace; color: var(--text-muted); margin-top: 0.25rem;">Logic: ${escapeHTML(v.suppression_logic)}</p>` : ''}
                         </div>` :
                     `<button class="btn btn-danger" style="width: 100%; padding: 1rem;" onclick="suppressVulnerability('${v.mac_address}', '${v.cve_id}'); closeModal('remediation');">
                             Dismiss Vulnerability
@@ -1964,7 +1964,7 @@
                             <span class="tree-icon" style="margin-right: 12px;">${icon}</span>
                             <div>
                                 <strong>${title}</strong>
-                                <span style="font-size: 0.75rem; color: var(--text-muted); margin-left: 10px;">${node.mac_address}</span>
+                                <span style="font-size: 0.75rem; color: var(--text-muted); margin-left: 10px;">${escapeHTML(node.mac_address)}</span>
                                 ${node.connected_port ? `<span style="font-size: 0.7rem; color: var(--primary); margin-left: 10px;">↳ Port ${node.connected_port}</span>` : ''}
                             </div>
                             <div style="margin-left: auto;">
