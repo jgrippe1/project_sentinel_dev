@@ -1075,13 +1075,13 @@
             document.getElementById('inbox-empty').classList.add('hidden');
 
             container.innerHTML = inbox.map(a => `
-                <div class="card clickable" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;" onclick="openAssetDetail('${a.mac_address}')">
+                <div class="card clickable" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;" onclick="openAssetDetail('${escapeJSString(a.mac_address)}')">
                     <div>
                         <h4 style="color: var(--warning)">NEW DISCOVERY: ${escapeHTML(a.hostname || a.ip_address)}</h4>
                         <p style="font-size: 0.8rem; color: var(--text-muted)">MAC: ${escapeHTML(a.mac_address)} | Vendor: ${escapeHTML(a.vendor || 'Unknown')}</p>
                     </div>
                     <div style="display: flex; gap: 0.5rem;">
-                        <button class="btn btn-ghost" onclick="event.stopPropagation(); approveAsset('${a.mac_address}')">Dismiss</button>
+                        <button class="btn btn-ghost" onclick="event.stopPropagation(); approveAsset('${escapeJSString(a.mac_address)}')">Dismiss</button>
                     </div>
                 </div>
             `).join('');
@@ -1340,13 +1340,13 @@
                         <div class="vuln-item" style="background: rgba(${isSuppressed ? '255, 255, 255' : '244, 63, 94'}, ${bgOpacity});">
                             <div style="display: flex; justify-content: space-between; align-items: start;">
                                 <div style="display: flex; flex-direction: column;">
-                                    <strong class="clickable" onclick="openRemediationModal('${v.cve_id}', '${v.mac_address}')" style="color: var(--primary); text-decoration: underline;">${v.cve_id}</strong>
+                                    <strong class="clickable" onclick="openRemediationModal('${escapeJSString(v.cve_id)}', '${escapeJSString(v.mac_address)}')" style="color: var(--primary); text-decoration: underline;">${v.cve_id}</strong>
                                     <span style="font-size: 0.65rem; color: ${statusColor}; font-weight: 800; margin-top: 2px;">● ${statusText}</span>
                                 </div>
                                 <span style="color: var(--danger); font-weight: 800;">${v.cvss_score}</span>
                             </div>
                             <p style="font-size: 0.8rem; margin: 0.5rem 0; color: var(--text-muted);">${escapeHTML(v.description.substring(0, 80))}...</p>
-                            <button class="btn btn-ghost" style="padding: 2px 8px; font-size: 0.7rem;" onclick="openRemediationModal('${v.cve_id}', '${v.mac_address}')">${isSuppressed ? 'View Details' : 'Details & Remediate'}</button>
+                            <button class="btn btn-ghost" style="padding: 2px 8px; font-size: 0.7rem;" onclick="openRemediationModal('${escapeJSString(v.cve_id)}', '${escapeJSString(v.mac_address)}')">${isSuppressed ? 'View Details' : 'Details & Remediate'}</button>
                         </div>
                     `;
                 }).join('');
@@ -1632,7 +1632,7 @@
             loadData();
         }
 
-        // Security: Prevent XSS
+        // Security: Prevent XSS in HTML content
         function escapeHTML(str) {
             if (!str) return '';
             return str.toString().replace(/[&<>'"]/g, tag => ({
@@ -1642,6 +1642,12 @@
                 "'": '&#39;',
                 '"': '&quot;'
             }[tag]));
+        }
+
+        // M-9 FIX: Escape for JavaScript string context (inside onclick='...' handlers)
+        function escapeJSString(str) {
+            if (!str) return '';
+            return str.toString().replace(/[\\'"\n\r]/g, ch => '\\' + ch);
         }
 
         async function resetTopologyOverride() {
@@ -1788,14 +1794,14 @@
                 <tr>
                     <td><span style="background: ${isSuppressed ? 'var(--text-muted)' : (v.cvss_score >= 9 ? 'var(--danger)' : v.cvss_score >= 7 ? 'var(--warning)' : 'var(--primary)')}; border-radius: 4px; padding: 2px 6px; font-weight: 800; font-size: 0.75rem; color: white;">${isSuppressed ? 'RESOLVED' : (v.cvss_score >= 9 ? 'CRITICAL' : v.cvss_score >= 7 ? 'HIGH' : 'MEDIUM')}</span></td>
                     <td>
-                        <div style="font-weight: 600; font-family: monospace; color: var(--primary); text-decoration: underline; cursor: pointer;" onclick="openRemediationModal('${v.cve_id}', '${v.mac_address}')">${v.cve_id}</div>
+                        <div style="font-weight: 600; font-family: monospace; color: var(--primary); text-decoration: underline; cursor: pointer;" onclick="openRemediationModal('${escapeJSString(v.cve_id)}', '${escapeJSString(v.mac_address)}')">${v.cve_id}</div>
                         ${isSuppressed ? `<div style="font-size: 0.7rem; color: #4CAF50;">✅ Suppressed: ${escapeHTML(v.suppression_reason)}</div>` : ''}
                     </td>
                     <td>${escapeHTML(v.ip_address)}</td>
                     <td style="text-align: right;">
                         ${isSuppressed ?
                         '<span style="color: var(--text-muted); font-size: 0.8rem;">User Verified</span>' :
-                        `<button class="btn btn-primary" style="padding: 4px 10px;" onclick="openRemediationModal('${v.cve_id}', '${v.mac_address}')">Remediate</button>`
+                        `<button class="btn btn-primary" style="padding: 4px 10px;" onclick="openRemediationModal('${escapeJSString(v.cve_id)}', '${escapeJSString(v.mac_address)}')">Remediate</button>`
                     }
                     </td>
                 </tr>
@@ -1820,7 +1826,7 @@
                 <p style="margin-bottom: 1.5rem; line-height: 1.6;">${escapeHTML(v.description)}</p>
                 
                 <div style="margin-bottom: 2rem;">
-                    <a href="https://nvd.nist.gov/vuln/detail/${v.cve_id}" target="_blank" class="btn btn-ghost" style="display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none;">
+                    <a href="https://nvd.nist.gov/vuln/detail/${encodeURIComponent(v.cve_id)}" target="_blank" class="btn btn-ghost" style="display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none;">
                         <span>🌐</span> View NVD Details
                     </a>
                 </div>
@@ -1828,7 +1834,7 @@
                 <span class="section-title">Management Actions</span>
                 <div style="display: flex; flex-direction: column; gap: 1rem;">
                     ${!isSuppressed && appConfig.llm_enabled ?
-                    `<button class="btn btn-secondary" style="width: 100%; padding: 1rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem; background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); border: none; font-weight: 600;" onclick="analyzeCVE('${v.cve_id}', '${v.mac_address}')">
+                    `<button class="btn btn-secondary" style="width: 100%; padding: 1rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem; background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); border: none; font-weight: 600;" onclick="analyzeCVE('${escapeJSString(v.cve_id)}', '${escapeJSString(v.mac_address)}')">
                         <span style="font-size: 1.2rem;">✨</span> Analyze with AI
                     </button>` : ''}
 
@@ -1838,7 +1844,7 @@
                             <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.5rem;">Reason: ${escapeHTML(v.suppression_reason)}</p>
                             ${v.suppression_logic ? `<p style="font-size: 0.75rem; font-family: monospace; color: var(--text-muted); margin-top: 0.25rem;">Logic: ${escapeHTML(v.suppression_logic)}</p>` : ''}
                         </div>` :
-                    `<button class="btn btn-danger" style="width: 100%; padding: 1rem;" onclick="suppressVulnerability('${v.mac_address}', '${v.cve_id}'); closeModal('remediation');">
+                    `<button class="btn btn-danger" style="width: 100%; padding: 1rem;" onclick="suppressVulnerability('${escapeJSString(v.mac_address)}', '${escapeJSString(v.cve_id)}'); closeModal('remediation');">
                             Dismiss Vulnerability
                         </button>`
                 }

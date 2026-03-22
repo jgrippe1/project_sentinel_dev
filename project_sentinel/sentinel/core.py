@@ -1,13 +1,11 @@
 import time
 import json
 import os
-import sys
 import logging
 from sentinel.scanner import scan_subnet, TOP_20_PORTS, resolve_mac
 from sentinel.analysis import grab_banner, analyze_banner, analyze_device_intelligence, get_ssl_expiry, get_vendor_from_mac, OUI_MAP
 from sentinel.datastore import Datastore
 from sentinel.nvd_client import NVDClient
-from sentinel.version_utils import is_safe_version, extract_affected_version
 from sentinel.cve_analyzer import HybridAnalyzer
 from sentinel.topology import TopologyMapper
 
@@ -60,7 +58,7 @@ def process_host(ip, mac, ports, db, nvd, analyzer):
     for port in ports:
         banner = grab_banner(ip, port)
         if banner:
-            logger.info(f"DEBUG: Raw Banner from {ip}:{port} -> {banner[:100]}...")
+            logger.debug(f"Raw Banner from {ip}:{port} -> {banner[:100]}...")
         
         product, version, os_found = analyze_banner(banner)
         
@@ -168,14 +166,16 @@ def process_host(ip, mac, ports, db, nvd, analyzer):
                 else:
                     logger.info(f"Logged vulnerability {cve_id} (Score: {cvss_score}) for {ip}")
 
-def reassess_vulnerabilities(mac_address):
+def reassess_vulnerabilities(mac_address, db=None, analyzer=None):
     """
     Manually triggers a re-assessment of all active vulnerabilities for an asset
     against its current 'actual_fw_version'.
+    L-12 FIX: Accepts optional db/analyzer to avoid re-creating on each call.
     """
-    config = load_config()
-    db = Datastore()
-    analyzer = HybridAnalyzer(config)
+    if db is None or analyzer is None:
+        config = load_config()
+        db = db or Datastore()
+        analyzer = analyzer or HybridAnalyzer(config)
     asset = db.get_asset(mac_address)
     if not asset:
         return
@@ -224,7 +224,8 @@ def main():
         if not subnets:
             # Basic fallback
             subnets = ["192.168.1.0/24"] 
-            # TODO: Better auto-detection in container environment
+            logger.warning("No subnets configured — falling back to 192.168.1.0/24. "
+                           "Set 'subnets' in add-on options to target your actual network.")
 
         logger.info(f"Starting scan cycle. Target Subnets: {subnets}")
         
@@ -269,8 +270,10 @@ def main():
                     interface = asset.get('interface')
                     hostname = asset.get('hostname')
                     original_type = asset.get('type')
+                    # M-11 FIX: Resolve router's actual MAC from ARP if possible
+                    router_mac = resolve_mac(router_host) if router_host else None
                     
-                    db.upsert_asset(mac=mac, ip=ip, hostname=hostname, interface=interface, parent_mac=router_host, original_device_type=original_type)
+                    db.upsert_asset(mac=mac, ip=ip, hostname=hostname, interface=interface, parent_mac=router_mac, original_device_type=original_type)
                     processed_macs.add(mac)
                     processed_ips[ip] = mac
                     

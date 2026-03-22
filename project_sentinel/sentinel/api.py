@@ -16,20 +16,45 @@ db = Datastore()
 from sentinel.cve_analyzer import HybridAnalyzer
 
 # Add-on version — keep in sync with config.yaml on each release
-_ADDON_VERSION = "1.0.48"
+_ADDON_VERSION = "1.0.49"
 
 # Load config similar to core.py
 OPTIONS_PATH = "/data/options.json"
 config = {"options": {}}
+_config_mtime = 0  # M-10: Track file modification time
+
+def _reload_config():
+    """M-10 FIX: Reload config from disk if the file has been modified since last load."""
+    global config, _config_mtime, analyzer
+    try:
+        if not os.path.exists(OPTIONS_PATH):
+            return
+        mtime = os.path.getmtime(OPTIONS_PATH)
+        if mtime > _config_mtime:
+            _config_mtime = mtime
+            with open(OPTIONS_PATH, 'r') as f:
+                config["options"] = json.load(f)
+            
+            verbose = config['options'].get('verbose_logging', False)
+            log_level = logging.DEBUG if verbose else logging.INFO
+            logging.getLogger().setLevel(log_level)
+            logger.info(f"Config reloaded. LLM={config['options'].get('llm_enabled', False)}, LogLevel={'DEBUG' if verbose else 'INFO'}")
+            
+            # Reinitialize analyzer with new config
+            analyzer = HybridAnalyzer(config)
+    except Exception as e:
+        logger.error(f"Failed to reload config: {e}")
+
+# Initial load
 if os.path.exists(OPTIONS_PATH):
     try:
+        _config_mtime = os.path.getmtime(OPTIONS_PATH)
         with open(OPTIONS_PATH, 'r') as f:
             config["options"] = json.load(f)
             logger.info(f"Loaded {len(config['options'])} options from {OPTIONS_PATH}")
             if 'llm_enabled' in config['options']:
                 logger.info(f"API Config LLM Status: {config['options']['llm_enabled']}")
             
-            # Set Log Level
             verbose = config['options'].get('verbose_logging', False)
             log_level = logging.DEBUG if verbose else logging.INFO
             logging.getLogger().setLevel(log_level)
@@ -82,6 +107,7 @@ def approve_asset():
 @app.route('/api/analyze/metadata', methods=['POST'])
 def analyze_metadata():
     try:
+        _reload_config()  # M-10: Ensure fresh LLM config
         data = request.json
         name = data.get('name')
         hostname = data.get('hostname')
@@ -105,10 +131,10 @@ def analyze_metadata():
 @app.route('/api/analyze/cve', methods=['POST'])
 def analyze_cve():
     try:
+        _reload_config()  # M-10: Ensure fresh LLM config
         data = request.json
         mac = data.get('mac')
         cve_id = data.get('cve_id')
-        force_refresh = data.get('force_refresh', False)
 
         if not mac or not cve_id:
             return jsonify({"error": "Missing mac or cve_id"}), 400
@@ -125,23 +151,13 @@ def analyze_cve():
                 "method": "pre-check"
             })
 
-        # E-2 FIX: Targeted lookup instead of fetching all vulnerabilities
+        # Targeted lookup instead of fetching all vulnerabilities
         vuln = db.get_vulnerability(mac, cve_id)
         
         if not vuln:
              return jsonify({"error": "Vulnerability not found on this asset"}), 404
 
         description = vuln.get('description', '')
-
-        # If force refresh, we might want to bypass cache in analyzer?
-        # For now, analyzer checks cache first. 
-        # To strictly force LLM, we'd need to bypass cache check in analyzer or clear cache.
-        # Let's assume 'analyze' does what we need, but maybe we add a 'skip_cache' param to it?
-        # checking cve_analyzer.py signature: def analyze(self, cve_id, cve_description, asset_context):
-        # I'll rely on standard analysis for now. If user wants to force, they might need to clear previous result?
-        # Actually, if we are "re-analyzing", it implies we think the previous result (SAFE/VULNERABLE) might be wrong
-        # or that metadata changed. If metadata changed, cache key (ver+model) changes, so it won't hit cache.
-        
         analysis = analyzer.analyze(cve_id, description, asset)
         
         return jsonify(analysis)
