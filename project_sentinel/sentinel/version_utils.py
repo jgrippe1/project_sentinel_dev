@@ -114,7 +114,7 @@ def is_version_relevant(actual_ver, cve_description, asset_context=None):
             # unless the CVE explicitly mentions Asuswrt.
             firmware = asset_context.get('actual_fw_version') or ""
             fw_segments = parse_version(firmware)
-            if fw_segments and fw_segments[0] >= 3 or '380' in firmware or '382' in firmware or '384' in firmware or '386' in firmware or '388' in firmware:
+            if fw_segments and (fw_segments[0] >= 3 or '380' in firmware or '382' in firmware or '384' in firmware or '386' in firmware or '388' in firmware):
                 if 'asuswrt' not in desc_l and 'asus' not in desc_l:
                     # If it's a generic component CVE (Mongoose, shttpd, etc.) on modern Asus, mark as low confidence
                     # This lets HybridAnalyzer know it should probably fallback to LLM for a deeper look.
@@ -167,11 +167,3 @@ def analyze_version_safety(actual_ver, cve_description, asset_context=None):
             "reason": f"Version {actual_ver} <= {v_limit_str} (Affected Limit)",
             "method": "regex"
         }
-
-def is_safe_version(actual_ver, cve_description, asset_context=None):
-    """
-    Legacy wrapper for analyze_version_safety.
-    Returns True if SAFE, False otherwise.
-    """
-    analysis = analyze_version_safety(actual_ver, cve_description, asset_context)
-    return analysis["result"] == "SAFE"

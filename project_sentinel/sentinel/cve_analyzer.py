@@ -54,16 +54,17 @@ class HybridAnalyzer:
         llm_base_url (str): Base URL for API requests.
     """
 
-    def __init__(self, config):
+    def __init__(self, config, db=None):
         """
         Initialize the HybridAnalyzer.
 
         Args:
             config (dict): The configuration object, typically from the Home Assistant add-on options.
                            Expected keys: 'options' dict containing 'llm_enabled', 'llm_provider', etc.
+            db (Datastore, optional): Existing Datastore instance. Creates new one if None.
         """
         self.config = config
-        self.db = Datastore()
+        self.db = db or Datastore()
         options = config.get('options', {})
         
         self.llm_enabled = options.get('llm_enabled', False)
@@ -440,7 +441,7 @@ class HybridAnalyzer:
                 "device_type": parsed.get("device_type")
             }
         except Exception as e:
-            logger.error(f"Failed to parse LLM Metadata JSON: {e}. Content: {content}")
+            logger.error(f"Failed to parse LLM Metadata JSON: {e}. Content: {str(content)[:200]}")
             return None
 
     def _parse_content(self, content, method_name):

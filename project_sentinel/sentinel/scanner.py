@@ -1,4 +1,5 @@
 import socket
+import subprocess
 import ipaddress
 import concurrent.futures
 import logging
@@ -115,10 +116,11 @@ class RouterDiscovery:
                             "type": meta.get("type")
                         })
             
-            ssh.close()
             logger.info(f"Successfully fetched {len(clients)} clients from router with metadata.")
         except Exception as e:
             logger.error(f"Failed to fetch clients from router: {e}")
+        finally:
+            ssh.close()
         
         return clients
 
@@ -193,7 +195,6 @@ def resolve_mac(ip):
 
     # 2. Try 'ip neighbor show' command (Requires iproute2)
     try:
-        import subprocess
         output = subprocess.check_output(["ip", "neighbor", "show", ip_str], timeout=2).decode()
         # Format: 192.168.1.100 dev eth0 lladdr 00:11:22:33:44:55 REACHABLE
         if "lladdr" in output:

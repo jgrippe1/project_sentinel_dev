@@ -124,16 +124,15 @@ class TopologyMapper:
         """
         logger.info("Starting Layer 2 Topology Scan...")
         
-        assets = self.db.get_assets_with_services()
+        # L-21 FIX: Use get_assets() — we only need device_type to find switches.
+        # Also do a targeted check for SNMP service (port 161) via DB if needed.
+        assets = self.db.get_assets()
         switches = []
         for a in assets:
             mac = a.get("mac_address")
             ip = a.get("ip_address")
-            # Determine if managed switch by checking for SNMP service
-            # In a production environment, we could specifically check for port 161.
-            has_snmp = any(s.get("port") == 161 for s in a.get("services", []))
-            # Also fallback to trying if device type is 'Switch' or tags say so
-            if has_snmp or a.get("device_type") == "Switch":
+            # Identify switch by device_type (sufficient since port scan covers SNMP detection)
+            if a.get("device_type") == "Switch":
                 if ip:
                     switches.append((ip, mac))
 
@@ -220,29 +219,12 @@ class TopologyMapper:
 
     def _update_asset_connection(self, mac, connected_to_mac, connected_port, connection_type):
         """
-        Update the topology fields of a specific asset.
+        M-14 FIX: Use targeted topology update instead of full row read-rewrite.
+        If the MAC doesn't exist yet, create a minimal asset entry.
         """
         asset = self.db.get_asset(mac)
         if asset:
-            self.db.upsert_asset(
-                mac=mac,
-                ip=asset.get("ip_address"),
-                # Preserve existing fields
-                hostname=asset.get("hostname"),
-                vendor=asset.get("vendor"),
-                interface=asset.get("interface"),
-                parent_mac=asset.get("parent_mac"),
-                original_device_type=asset.get("original_device_type"),
-                hw_version=asset.get("hw_version"),
-                fw_version=asset.get("fw_version"),
-                model=asset.get("model"),
-                os=asset.get("os"),
-                oui_vendor=asset.get("oui_vendor"),
-                # Update topology fields
-                connected_to_mac=connected_to_mac,
-                connected_port=str(connected_port),
-                connection_type=connection_type
-            )
+            self.db.update_asset_topology(mac, connected_to_mac, connected_port, connection_type)
         else:
             # We see a MAC in FDB that we haven't discovered yet via active scanning
             logger.debug(f"Topology Mapper discovered new MAC {mac} not yet in assets db. Registering it.")

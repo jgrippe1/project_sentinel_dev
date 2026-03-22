@@ -77,6 +77,7 @@ def fetch_sentinel_data(db_path):
         dict: A dictionary of aggregated metrics.
     """
     data = {}
+    conn = None
     try:
         conn = sqlite3.connect(db_path)
         c = conn.cursor()
@@ -97,9 +98,11 @@ def fetch_sentinel_data(db_path):
         c.execute("SELECT MAX(last_seen) FROM assets")
         data["last_scan"] = c.fetchone()[0] or "Unknown"
 
-        conn.close()
     except Exception as e:
         _LOGGER.error(f"Failed to query Sentinel DB at {db_path}: {e}")
         raise e
+    finally:
+        if conn:
+            conn.close()
         
     return data

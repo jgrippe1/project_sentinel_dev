@@ -685,3 +685,17 @@ class Datastore:
             logger.warning(f"Error caching verification result: {e}")
         finally:
             conn.close()
+
+    def update_asset_topology(self, mac, connected_to_mac, connected_port, connection_type):
+        """M-14: Targeted topology update — updates only 3 fields instead of full row rewrite."""
+        conn = sqlite3.connect(self.db_path)
+        try:
+            c = conn.cursor()
+            c.execute("""
+                UPDATE assets 
+                SET connected_to_mac=?, connected_port=?, connection_type=?
+                WHERE mac_address=?
+            """, (connected_to_mac, str(connected_port), connection_type, mac))
+            conn.commit()
+        finally:
+            conn.close()
