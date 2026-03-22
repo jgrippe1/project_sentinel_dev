@@ -17,7 +17,7 @@ db = Datastore()
 from sentinel.cve_analyzer import HybridAnalyzer
 
 # Add-on version — keep in sync with config.yaml on each release
-_ADDON_VERSION = "1.0.51"
+_ADDON_VERSION = "1.0.52"
 
 # Load config similar to core.py
 OPTIONS_PATH = "/data/options.json"
@@ -43,6 +43,7 @@ def _reload_config():
             
             # Reinitialize analyzer with new config
             analyzer = HybridAnalyzer(config)
+            _init_adguard()
     except Exception as e:
         logger.error(f"Failed to reload config: {e}")
 
@@ -65,6 +66,26 @@ if os.path.exists(OPTIONS_PATH):
         logger.error(f"Failed to load options: {e}")
 
 analyzer = HybridAnalyzer(config)
+
+# Optional AdGuard Home integration
+adguard_client = None
+def _init_adguard():
+    """Initialize AdGuard client from config if host is set."""
+    global adguard_client
+    options = config.get('options', {})
+    host = options.get('adguard_host', '')
+    if host:
+        from sentinel.adguard_client import AdGuardClient
+        adguard_client = AdGuardClient(
+            host=host,
+            username=options.get('adguard_username', ''),
+            password=options.get('adguard_password', '')
+        )
+        logger.info(f"AdGuard integration enabled: {host}")
+    else:
+        adguard_client = None
+
+_init_adguard()
 
 @app.route('/')
 def index():
@@ -242,6 +263,42 @@ def get_ha_integrations():
         logger.error(f"Error fetching HA integrations: {e}", exc_info=True)
         return jsonify({"error": "An internal error occurred"}), 500
 
+@app.route('/api/investigate/dns', methods=['POST'])
+def investigate_dns():
+    """
+    Query AdGuard Home DNS logs for an asset's IP to extract a device fingerprint.
+    Returns top queried domains, platform indicators, and suggested device type.
+    """
+    try:
+        _reload_config()
+        data = request.json
+        if not data:
+            return jsonify({"error": "Invalid or missing JSON body"}), 400
+        mac = data.get('mac')
+        if not mac:
+            return jsonify({"error": "MAC address required"}), 400
+
+        if not adguard_client:
+            return jsonify({"error": "AdGuard Home integration not configured"}), 400
+
+        # Look up the asset's IP address
+        asset = db.get_asset(mac)
+        if not asset:
+            return jsonify({"error": "Asset not found"}), 404
+
+        ip = asset.get('ip_address')
+        if not ip:
+            return jsonify({"error": "Asset has no IP address"}), 400
+
+        result = adguard_client.get_dns_fingerprint(ip)
+        result["ip"] = ip
+        result["mac"] = mac
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error(f"Error investigating DNS for asset: {e}", exc_info=True)
+        return jsonify({"error": "An internal error occurred"}), 500
+
 @app.route('/api/config')
 def get_config():
     """
@@ -254,7 +311,8 @@ def get_config():
         return jsonify({
             "llm_enabled": llm_enabled,
             "router_host": router_host,
-            "version": _ADDON_VERSION
+            "version": _ADDON_VERSION,
+            "adguard_enabled": adguard_client is not None
         })
     except Exception as e:
         logger.error(f"Error fetching config: {e}", exc_info=True)

@@ -1,5 +1,5 @@
 name: "Project Sentinel"
-version: "1.0.51"
+version: "1.0.52"
 slug: "project_sentinel"
 description: "Home Network Governance & Risk Management"
 url: "https://github.com/jgrippe1/project_sentinel_dev"
@@ -37,6 +37,9 @@ options:
   verbose_logging: false
   snmp_community: "public"
   topology_polling_interval: 60
+  adguard_host: ""
+  adguard_username: ""
+  adguard_password: ""
 schema:
   scan_interval: int
   subnets:
@@ -62,6 +65,9 @@ schema:
   llm_base_url: str?
   snmp_community: str?
   topology_polling_interval: int?
+  adguard_host: str?
+  adguard_username: str?
+  adguard_password: password?
 map:
   - config:rw
   - share:rw
