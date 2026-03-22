@@ -8,9 +8,9 @@ export SENTINEL_DB_PATH="/share/sentinel.db"
 export PYTHONPATH="${PYTHONPATH:-}:/app"
 
 # Start the Web API (Ingress) in the background with logging
-# Bound to 127.0.0.1 so it's only reachable via HA Ingress proxy, not directly from LAN
-echo "Starting Project Sentinel Dashboard on port 8099 (localhost only)..."
-gunicorn --access-logfile - --error-logfile - -w 2 -b 127.0.0.1:8099 sentinel.api:app &
+# Bound to 0.0.0.0 inside the container — HA Ingress proxy handles authentication
+echo "Starting Project Sentinel Dashboard on port 8099..."
+gunicorn --access-logfile - --error-logfile - -w 2 -b 0.0.0.0:8099 sentinel.api:app &
 
 # Small sleep to let Gunicorn bind
 sleep 2

@@ -4,7 +4,6 @@ import requests
 import io
 import csv
 import json
-import yaml
 from flask import Flask, jsonify, send_from_directory, request, Response
 from sentinel.datastore import Datastore
 
@@ -16,16 +15,8 @@ app = Flask(__name__, static_folder='static')
 db = Datastore()
 from sentinel.cve_analyzer import HybridAnalyzer
 
-# Read add-on version from config.yaml at startup
-_ADDON_VERSION = "unknown"
-try:
-    _config_yaml_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config.yaml')
-    if os.path.exists(_config_yaml_path):
-        with open(_config_yaml_path, 'r') as _f:
-            _addon_config = yaml.safe_load(_f)
-            _ADDON_VERSION = _addon_config.get('version', 'unknown')
-except Exception:
-    pass
+# Add-on version — keep in sync with config.yaml on each release
+_ADDON_VERSION = "1.0.45"
 
 # Load config similar to core.py
 OPTIONS_PATH = "/data/options.json"
