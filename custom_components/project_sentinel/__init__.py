@@ -85,12 +85,12 @@ def fetch_sentinel_data(db_path):
         c.execute("SELECT COUNT(*) FROM assets WHERE status='active'")
         data["device_count"] = c.fetchone()[0]
         
-        # Get total vulnerabilities
-        c.execute("SELECT COUNT(*) FROM vulnerabilities")
+        # M-6 FIX: Only count active (non-suppressed) vulnerabilities
+        c.execute("SELECT COUNT(*) FROM vulnerabilities WHERE status != 'suppressed' OR status IS NULL")
         data["vulnerability_count"] = c.fetchone()[0]
 
-        # Get critical vulnerabilities (Score >= 9.0)
-        c.execute("SELECT COUNT(*) FROM vulnerabilities WHERE cvss_score >= 9.0")
+        # Get critical vulnerabilities (Score >= 9.0, active only)
+        c.execute("SELECT COUNT(*) FROM vulnerabilities WHERE cvss_score >= 9.0 AND (status != 'suppressed' OR status IS NULL)")
         data["critical_vulnerability_count"] = c.fetchone()[0]
         
         # Get last scan time

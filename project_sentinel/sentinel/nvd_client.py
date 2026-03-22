@@ -1,7 +1,10 @@
 
 import requests
 import time
+import logging
 import urllib.parse
+
+logger = logging.getLogger("NVDClient")
 
 class NVDClient:
     def __init__(self, api_key=None):
@@ -39,7 +42,7 @@ class NVDClient:
             data = response.json()
             return data.get('vulnerabilities', [])
         except requests.exceptions.RequestException as e:
-            print(f"Error querying NVD API: {e}")
+            logger.error(f"Error querying NVD API: {e}")
             return []
 
     def lookup_cpe(self, product, version):

@@ -420,9 +420,7 @@ class HybridAnalyzer:
                 logger.error(f"LLM API Error during inference: {response.status_code} - {response.text[:200]}")
                 return None
         except Exception as e:
-            import traceback
-            logger.error(f"Exception during LLM inference: {e}")
-            logger.error(traceback.format_exc())
+            logger.error(f"Exception during LLM inference: {e}", exc_info=True)
             return None
 
     def _parse_metadata_content(self, content):

@@ -16,7 +16,7 @@ db = Datastore()
 from sentinel.cve_analyzer import HybridAnalyzer
 
 # Add-on version — keep in sync with config.yaml on each release
-_ADDON_VERSION = "1.0.47"
+_ADDON_VERSION = "1.0.48"
 
 # Load config similar to core.py
 OPTIONS_PATH = "/data/options.json"
@@ -322,7 +322,8 @@ def suppress_vulnerability():
 @app.route('/api/report/security')
 def export_security_report():
     try:
-        assets = db.get_assets_with_services()
+        # E-7 FIX: Use get_assets() — report doesn't use service data
+        assets = db.get_assets()
         vulns = db.get_all_vulnerabilities()
         
         # Build mapping for easier lookup

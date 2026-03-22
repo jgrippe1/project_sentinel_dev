@@ -302,7 +302,7 @@ class Datastore:
         conn.row_factory = sqlite3.Row
         c = conn.cursor()
         
-        print(f"Merging {source_mac} into {target_mac}...")
+        logger.info(f"Merging {source_mac} into {target_mac}...")
 
         # 1. Migrate Services
         # Handle UNIQUE(mac_address, port, proto) constraint
@@ -369,7 +369,7 @@ class Datastore:
         
         conn.commit()
         conn.close()
-        print(f"Successfully merged {source_mac} into {target_mac}")
+        logger.info(f"Successfully merged {source_mac} into {target_mac}")
 
     def approve_asset(self, mac):
         conn = sqlite3.connect(self.db_path)
@@ -392,37 +392,43 @@ class Datastore:
         conn.close()
 
     def update_asset_governance(self, mac, custom_name=None, location=None, device_type=None, tags=None, confirmed_integrations=None, dismissed_integrations=None, actual_fw_version=None, model=None, os=None, vendor=None, dismissed_fw_version=None, dismissed_vendor=None, manual_parent_mac=None):
+        """M-4 FIX: Single dynamic UPDATE instead of up to 13 individual queries."""
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
-        if custom_name is not None:
-            c.execute("UPDATE assets SET custom_name=? WHERE mac_address=?", (custom_name, mac))
-        if location is not None:
-            c.execute("UPDATE assets SET location=? WHERE mac_address=?", (location, mac))
-        if device_type is not None:
-            c.execute("UPDATE assets SET device_type=? WHERE mac_address=?", (device_type, mac))
-        if confirmed_integrations is not None:
-            c.execute("UPDATE assets SET confirmed_integrations=? WHERE mac_address=?", (confirmed_integrations, mac))
-        if dismissed_integrations is not None:
-            c.execute("UPDATE assets SET dismissed_integrations=? WHERE mac_address=?", (dismissed_integrations, mac))
+        updates = []
+        params = []
+
+        simple_fields = [
+            ('custom_name', custom_name), ('location', location),
+            ('device_type', device_type), ('model', model),
+            ('os', os), ('vendor', vendor),
+            ('confirmed_integrations', confirmed_integrations),
+            ('dismissed_integrations', dismissed_integrations),
+            ('dismissed_fw_version', dismissed_fw_version),
+            ('dismissed_vendor', dismissed_vendor)
+        ]
+        for col_name, val in simple_fields:
+            if val is not None:
+                updates.append(f"{col_name}=?")
+                params.append(val)
+
         if actual_fw_version is not None:
-            now = datetime.datetime.now()
-            c.execute("UPDATE assets SET actual_fw_version=?, fw_verified_at=? WHERE mac_address=?", (actual_fw_version, now, mac))
-        if model is not None:
-            c.execute("UPDATE assets SET model=? WHERE mac_address=?", (model, mac))
-        if os is not None:
-            c.execute("UPDATE assets SET os=? WHERE mac_address=?", (os, mac))
-        if vendor is not None:
-            c.execute("UPDATE assets SET vendor=? WHERE mac_address=?", (vendor, mac))
-        if dismissed_fw_version is not None:
-            c.execute("UPDATE assets SET dismissed_fw_version=? WHERE mac_address=?", (dismissed_fw_version, mac))
-        if dismissed_vendor is not None:
-            c.execute("UPDATE assets SET dismissed_vendor=? WHERE mac_address=?", (dismissed_vendor, mac))
+            updates.append("actual_fw_version=?")
+            params.append(actual_fw_version)
+            updates.append("fw_verified_at=?")
+            params.append(datetime.datetime.now())
+
         if tags is not None:
-            import json
-            c.execute("UPDATE assets SET tags=? WHERE mac_address=?", (json.dumps(tags), mac))
+            updates.append("tags=?")
+            params.append(json.dumps(tags))
+
         if manual_parent_mac is not None:
-            val = None if manual_parent_mac == "" else manual_parent_mac
-            c.execute("UPDATE assets SET manual_parent_mac=? WHERE mac_address=?", (val, mac))
+            updates.append("manual_parent_mac=?")
+            params.append(None if manual_parent_mac == "" else manual_parent_mac)
+
+        if updates:
+            params.append(mac)
+            c.execute(f"UPDATE assets SET {', '.join(updates)} WHERE mac_address=?", tuple(params))
         conn.commit()
         conn.close()
 
@@ -585,6 +591,16 @@ class Datastore:
         conn.close()
         return dict(row) if row else None
 
+    def get_vulnerabilities_for_asset(self, mac):
+        """M-5: Targeted query for all vulns on a single asset."""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        c.execute("SELECT * FROM vulnerabilities WHERE mac_address=?", (mac,))
+        rows = [dict(row) for row in c.fetchall()]
+        conn.close()
+        return rows
+
     def get_cve_cache(self, product, version):
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
@@ -618,6 +634,6 @@ class Datastore:
             """, (cve_id, version_string, vendor, model, result, confidence, method, reasoning))
             conn.commit()
         except Exception as e:
-            print(f"Error caching verification result: {e}")
+            logger.warning(f"Error caching verification result: {e}")
         finally:
             conn.close()

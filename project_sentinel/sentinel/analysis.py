@@ -3,7 +3,6 @@ import ssl
 import socket
 import datetime
 import requests
-import time
 from datetime import timezone
 
 # Common IEEE OUIs (Manufacturer Prefixes)
@@ -26,7 +25,6 @@ OUI_MAP = {
     "84:F3:EB": "Shelly / Allterco",
     "3C:61:05": "Shelly / Allterco",
     "D4:D4:DA": "Shelly / Allterco",
-    "C8:2B:96": "Shelly / Allterco",
     "A8:48:FA": "Shelly / Allterco",
     "CA:97:0B": "Shelly / Allterco",
     "48:3F:DA": "Shelly / Allterco",
@@ -239,8 +237,7 @@ def get_ssl_expiry(ip, port, timeout=3):
     """
     Attempts to retrieve the SSL certificate expiry date for a given IP and port.
     M-3 FIX: Uses binary_form=True since CERT_NONE causes getpeercert() to return
-    an empty dict. We write the DER cert to a temp file and use ssl's internal
-    decoder to extract the notAfter field.
+    an empty dict. E-8 FIX: Uses in-memory cadata= instead of temp file.
     Returns a datetime object or None.
     """
     try:
@@ -254,30 +251,19 @@ def get_ssl_expiry(ip, port, timeout=3):
                 if not der_cert:
                     return None
                 
-                # Decode the DER cert using CPython's internal _ssl module
-                # This is the same function that getpeercert() uses internally
-                import tempfile, os as _os
+                # Convert DER to PEM, load into a context, and read parsed certs
                 pem_data = ssl.DER_cert_to_PEM_cert(der_cert)
                 
-                # Write PEM to temp file so ssl can load it as a CA cert
-                with tempfile.NamedTemporaryFile(mode='w', suffix='.pem', delete=False) as tmp:
-                    tmp.write(pem_data)
-                    tmp_path = tmp.name
+                # E-8 FIX: Use in-memory cadata instead of writing a temp file
+                ctx2 = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+                ctx2.check_hostname = False
+                ctx2.verify_mode = ssl.CERT_NONE
+                ctx2.load_verify_locations(cadata=pem_data)
                 
-                try:
-                    # Create a new context that trusts this cert and decode it
-                    ctx2 = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-                    ctx2.check_hostname = False
-                    ctx2.verify_mode = ssl.CERT_NONE
-                    ctx2.load_verify_locations(tmp_path)
-                    
-                    # Get certs from the context's cert store
-                    for cert_info in ctx2.get_ca_certs():
-                        not_after = cert_info.get('notAfter')
-                        if not_after:
-                            return datetime.datetime.strptime(not_after, '%b %d %H:%M:%S %Y %Z')
-                finally:
-                    _os.unlink(tmp_path)
+                for cert_info in ctx2.get_ca_certs():
+                    not_after = cert_info.get('notAfter')
+                    if not_after:
+                        return datetime.datetime.strptime(not_after, '%b %d %H:%M:%S %Y %Z')
         
     except Exception:
         pass

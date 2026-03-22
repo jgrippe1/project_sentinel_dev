@@ -111,7 +111,6 @@ def process_host(ip, mac, ports, db, nvd, analyzer):
             logger.info(f"Identified {product} {version} on {ip}:{port}")
             
             # 3. Vulnerability Lookup
-            # 3. Vulnerability Lookup
             logger.info(f"Checking Cache/NVD for {product} {version}...")
             
             # Check Cache First
@@ -187,10 +186,8 @@ def reassess_vulnerabilities(mac_address):
 
     logger.info(f"Re-assessing vulnerabilities for {mac_address} against version {actual_ver}...")
     
-    # Get all vulnerabilities for this MAC
-    # We'll use a slightly inefficient but safe approach: get all and filter
-    all_vulns = db.get_all_vulnerabilities()
-    asset_vulns = [v for v in all_vulns if v['mac_address'] == mac_address]
+    # M-5 FIX: Use targeted query instead of fetching all vulnerabilities
+    asset_vulns = db.get_vulnerabilities_for_asset(mac_address)
     
     for v in asset_vulns:
         # We only reassess 'active' ones, or we can reassess all to be sure
