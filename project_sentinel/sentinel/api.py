@@ -17,7 +17,7 @@ db = Datastore()
 from sentinel.cve_analyzer import HybridAnalyzer
 
 # Add-on version — keep in sync with config.yaml on each release
-_ADDON_VERSION = "1.0.60"
+_ADDON_VERSION = "1.0.61"
 
 # Load config similar to core.py
 OPTIONS_PATH = "/data/options.json"
@@ -99,6 +99,12 @@ def static_proxy(path):
 def get_assets():
     try:
         assets = db.get_assets_with_services()
+        # Attach cached DNS profiles
+        dns_profiles = db.get_all_dns_profiles()
+        for a in assets:
+            mac = a.get('mac_address')
+            profile = dns_profiles.get(mac)
+            a['dns_profile'] = profile
         return jsonify(assets)
     except Exception as e:
         logger.error(f"Error fetching assets: {e}", exc_info=True)
@@ -143,7 +149,18 @@ def analyze_metadata():
         asset = db.get_asset(mac)
         oui = asset.get('oui_vendor') if asset else None
 
-        result = analyzer.infer_device_metadata(name, hostname, mac, oui)
+        # Include DNS fingerprint data if available
+        dns_profile = db.get_dns_profile(mac) if mac else None
+        dns_context = None
+        if dns_profile:
+            dns_context = {
+                "top_domains": dns_profile.get("top_domains", [])[:10],
+                "platforms": dns_profile.get("platforms", {}),
+                "suggested_type": dns_profile.get("suggested_type"),
+                "suggested_vendor": dns_profile.get("suggested_vendor"),
+            }
+
+        result = analyzer.infer_device_metadata(name, hostname, mac, oui, dns_fingerprint=dns_context)
         
         if result:
             return jsonify(result)
@@ -293,6 +310,11 @@ def investigate_dns():
         result = adguard_client.get_dns_fingerprint(ip)
         result["ip"] = ip
         result["mac"] = mac
+
+        # Persist the scan results
+        if result.get("status") == "ok":
+            db.upsert_dns_profile(mac, result)
+
         return jsonify(result)
 
     except Exception as e:

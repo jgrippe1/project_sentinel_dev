@@ -3,6 +3,7 @@ import time
 import json
 import os
 import logging
+import datetime
 from sentinel.scanner import scan_subnet, TOP_20_PORTS, resolve_mac
 from sentinel.analysis import grab_banner, analyze_banner, analyze_device_intelligence, get_ssl_expiry, get_vendor_from_mac, OUI_MAP
 from sentinel.datastore import Datastore
@@ -236,6 +237,23 @@ def main():
             prev_nvd_key = nvd_api_key
         if analyzer is None:
             analyzer = HybridAnalyzer(config, db=db)
+
+        # Optional AdGuard client for DNS profiling
+        adguard_host = config.get("adguard_host", "")
+        adguard_client = None
+        if adguard_host:
+            try:
+                from sentinel.adguard_client import AdGuardClient
+                adguard_client = AdGuardClient(
+                    host=adguard_host,
+                    username=config.get("adguard_username", ""),
+                    password=config.get("adguard_password", "")
+                )
+                if not adguard_client.host:
+                    adguard_client = None  # Discovery failed
+            except Exception as e:
+                logger.warning(f"Failed to init AdGuard client in core: {e}")
+                adguard_client = None
         
         # Auto-detect subnet if empty (Re-using logic from PoC for now)
         if not subnets:
@@ -335,6 +353,36 @@ def main():
                 topo.scan_network_topology()
             except Exception as e:
                 logger.error(f"Error during topology mapping: {e}")
+
+        # 4. DNS Profiling (if AdGuard is configured)
+        if adguard_client:
+            dns_interval = config.get("dns_scan_interval", 30)
+            try:
+                assets = db.get_assets()
+                dns_scanned = 0
+                for asset in assets:
+                    mac = asset.get("mac_address")
+                    ip = asset.get("ip_address")
+                    if not ip or not mac:
+                        continue
+                    # Skip if profile is still fresh
+                    existing = db.get_dns_profile(mac)
+                    if existing and existing.get("last_scan"):
+                        try:
+                            last = datetime.datetime.fromisoformat(existing["last_scan"])
+                            age_min = (datetime.datetime.now() - last).total_seconds() / 60
+                            if age_min < dns_interval:
+                                continue
+                        except (ValueError, TypeError):
+                            pass  # Parse error, re-scan
+                    fingerprint = adguard_client.get_dns_fingerprint(ip)
+                    if fingerprint.get("status") == "ok":
+                        db.upsert_dns_profile(mac, fingerprint)
+                        dns_scanned += 1
+                if dns_scanned > 0:
+                    logger.info(f"DNS profiling: updated {dns_scanned} asset profiles.")
+            except Exception as e:
+                logger.error(f"Error during DNS profiling: {e}")
 
         logger.info(f"Scan cycle complete. Sleeping for {interval} minutes.")
         time.sleep(interval * 60)

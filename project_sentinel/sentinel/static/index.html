@@ -541,30 +541,9 @@
                             style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px;"></div>
                     </div>
 
-                    <span class="section-title" style="margin-top: 2rem;">Integration Center</span>
-                    <div id="active-integrations" style="margin-bottom: 1rem;">
-                        <!-- confirmed integrations -->
-                    </div>
-                    <div id="integration-list">
-                        <!-- suggestions injected here -->
-                    </div>
-                    <div id="manual-integration-search" style="margin-top: 1.5rem;">
-                        <span class="section-title"
-                            style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase;">Manual
-                            Link</span>
-                        <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
-                            <input list="manual-int-list" id="manual-int-input"
-                                placeholder="+ Type integration name (e.g. esphome)"
-                                style="flex: 1; padding: 0.75rem; border-radius: 8px; background: rgba(0,0,0,0.3); color: white; border: 1px solid var(--glass-border); outline: none;">
-                            <datalist id="manual-int-list"></datalist>
-                            <button class="btn btn-primary" style="padding: 0 1.25rem;"
-                                onclick="addManualIntegration()">Add</button>
-                        </div>
-                    </div>
-
                     <div class="card" style="margin-top: 1rem; background: rgba(255,255,255,0.03)">
-                        <span class="section-title">System Intelligence
-                            <button id="btn-autosuggest" class="btn btn-ghost"
+                        <span class="section-title">Device Details
+                            <button id="btn-autosuggest" class="btn btn-ghost hidden"
                                 style="font-size: 0.7rem; padding: 2px 6px; margin-left: 8px;"
                                 onclick="autosuggestMetadata()">✨ Autosuggest</button>
                         </span>
@@ -706,6 +685,62 @@
                         <button class="btn btn-primary" style="flex: 1" onclick="saveAssetDetail()">Apply
                             Changes</button>
                     </div>
+
+                    <!-- DNS Profile (AdGuard) -->
+                    <div id="dns-profile-section" class="hidden" style="margin-top: 2rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                            <span class="section-title" style="margin-bottom: 0;">📡 DNS Profile</span>
+                            <button class="btn btn-ghost" id="btn-dns-refresh"
+                                style="font-size: 0.7rem; padding: 3px 10px; border: 1px solid var(--accent-blue); color: var(--accent-blue);"
+                                onclick="refreshDNSProfile()">↻ Refresh</button>
+                        </div>
+                        <div id="dns-profile-content" class="card" style="background: rgba(255,255,255,0.03);">
+                            <div id="dns-profile-empty" style="text-align: center; padding: 1.5rem; color: var(--text-muted); font-size: 0.85rem;">
+                                No DNS data yet. Click <strong>Refresh</strong> to scan.
+                            </div>
+                            <div id="dns-profile-data" style="display: none;">
+                                <!-- Stats bar -->
+                                <div id="dns-stats-bar" style="display: flex; gap: 1.5rem; padding: 0.5rem 0.75rem; font-size: 0.8rem; border-bottom: 1px solid var(--glass-border);"></div>
+                                <!-- Platform tags -->
+                                <div id="dns-platform-tags" style="padding: 0.5rem 0.75rem; display: flex; flex-wrap: wrap; gap: 0.4rem;"></div>
+                                <!-- Top 5 domains -->
+                                <div id="dns-top-domains" style="padding: 0.25rem 0;"></div>
+                                <!-- Expand toggle -->
+                                <div style="text-align: center; padding: 0.5rem;">
+                                    <button class="btn btn-ghost" id="btn-dns-expand"
+                                        style="font-size: 0.7rem; color: var(--accent-blue);" onclick="toggleDNSExpand()">▸ Show All Domains</button>
+                                </div>
+                                <div id="dns-all-domains" style="display: none; max-height: 250px; overflow-y: auto;"></div>
+                            </div>
+                        </div>
+                        <div id="dns-loading" class="card hidden" style="text-align: center; padding: 1.5rem;">
+                            <div class="dns-spinner"></div>
+                            <p style="margin-top: 0.75rem; color: var(--text-muted); font-size: 0.85rem;">Querying AdGuard Home DNS logs...</p>
+                            <p id="dns-timer" style="margin-top: 0.25rem; color: var(--text-muted); font-size: 0.7rem;"></p>
+                        </div>
+                    </div>
+
+                    <!-- Integration Center -->
+                    <span class="section-title" style="margin-top: 2rem;">Integration Center</span>
+                    <div id="active-integrations" style="margin-bottom: 1rem;">
+                        <!-- confirmed integrations -->
+                    </div>
+                    <div id="integration-list">
+                        <!-- suggestions injected here -->
+                    </div>
+                    <div id="manual-integration-search" style="margin-top: 1.5rem;">
+                        <span class="section-title"
+                            style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase;">Manual
+                            Link</span>
+                        <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                            <input list="manual-int-list" id="manual-int-input"
+                                placeholder="+ Type integration name (e.g. esphome)"
+                                style="flex: 1; padding: 0.75rem; border-radius: 8px; background: rgba(0,0,0,0.3); color: white; border: 1px solid var(--glass-border); outline: none;">
+                            <datalist id="manual-int-list"></datalist>
+                            <button class="btn btn-primary" style="padding: 0 1.25rem;"
+                                onclick="addManualIntegration()">Add</button>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Right: Security & Vulnerabilities -->
@@ -725,22 +760,6 @@
                     <div id="no-vulns" class="card" style="text-align:center; padding: 2rem;">
                         <span style="font-size: 2rem;">🛡️</span>
                         <p style="margin-top: 1rem;">No known CVEs for this asset.</p>
-                    </div>
-
-                    <!-- DNS Investigation (AdGuard) -->
-                    <div id="dns-investigation-section" class="hidden" style="margin-top: 2rem;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                            <span class="section-title" style="margin-bottom: 0;">🔍 DNS Investigation</span>
-                            <button class="btn btn-ghost" id="btn-investigate-dns" style="font-size: 0.75rem; padding: 4px 12px; border: 1px solid var(--accent-blue); color: var(--accent-blue);" onclick="investigateDNS()">Scan DNS Logs</button>
-                        </div>
-                        <div id="dns-results" class="card" style="display: none; max-height: 400px; overflow-y: auto;">
-                            <!-- DNS results injected here -->
-                        </div>
-                        <div id="dns-loading" class="card hidden" style="text-align: center; padding: 2rem;">
-                            <div class="dns-spinner"></div>
-                            <p style="margin-top: 0.75rem; color: var(--text-muted); font-size: 0.85rem;">Querying AdGuard Home DNS logs...</p>
-                            <p id="dns-timer" style="margin-top: 0.25rem; color: var(--text-muted); font-size: 0.7rem;"></p>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -1017,20 +1036,100 @@
         function openModal(id) { document.getElementById(`modal-${id}`).classList.add('active'); }
         function closeModal(id) { document.getElementById(`modal-${id}`).classList.remove('active'); }
 
-        async function investigateDNS() {
+        // Current DNS profile data for the open asset
+        let currentDNSProfileData = null;
+
+        function renderDNSProfile(data) {
+            const emptyDiv = document.getElementById('dns-profile-empty');
+            const dataDiv = document.getElementById('dns-profile-data');
+
+            if (!data || data.status === 'no_data' || !data.top_domains || data.top_domains.length === 0) {
+                emptyDiv.style.display = 'block';
+                dataDiv.style.display = 'none';
+                return;
+            }
+
+            emptyDiv.style.display = 'none';
+            dataDiv.style.display = 'block';
+            currentDNSProfileData = data;
+
+            // Stats bar
+            const statsBar = document.getElementById('dns-stats-bar');
+            let statsHtml = `<span><strong>${data.total_queries || 0}</strong> queries</span>`;
+            statsHtml += `<span><strong>${data.unique_domains || 0}</strong> unique</span>`;
+            if (data.suggested_vendor) statsHtml += `<span>Platform: <strong style="color: var(--accent-blue)">${escapeHTML(data.suggested_vendor)}</strong></span>`;
+            if (data.suggested_type) statsHtml += `<span>Type: <strong style="color: var(--success)">${escapeHTML(data.suggested_type)}</strong></span>`;
+            statsBar.innerHTML = statsHtml;
+
+            // Platform tags
+            const tagsDiv = document.getElementById('dns-platform-tags');
+            const platforms = data.platforms || {};
+            let tagsHtml = '';
+            for (const [platform, count] of Object.entries(platforms)) {
+                tagsHtml += `<span style="background: rgba(99,102,241,0.15); border: 1px solid var(--primary); border-radius: 12px; padding: 2px 10px; font-size: 0.7rem; color: var(--primary);">${escapeHTML(platform)} (${count})</span>`;
+            }
+            tagsDiv.innerHTML = tagsHtml;
+            tagsDiv.style.display = Object.keys(platforms).length > 0 ? 'flex' : 'none';
+
+            // Top 5 domains
+            const topDiv = document.getElementById('dns-top-domains');
+            const domains = data.top_domains || [];
+            const maxCount = domains.length > 0 ? domains[0].count : 1;
+            let domHtml = '';
+            for (const d of domains.slice(0, 5)) {
+                const barWidth = Math.min(100, Math.round((d.count / maxCount) * 100));
+                domHtml += `<div style="display: flex; align-items: center; padding: 3px 0.75rem; gap: 0.75rem; font-size: 0.75rem;">`;
+                domHtml += `<span style="color: var(--text-muted); min-width: 30px; text-align: right;">${d.count}</span>`;
+                domHtml += `<div style="flex: 1; position: relative;"><div style="background: rgba(14,165,233,0.15); height: 18px; width: ${barWidth}%; border-radius: 3px;"></div><span style="position: absolute; left: 4px; top: 1px; font-size: 0.7rem; color: var(--text);">${escapeHTML(d.domain)}</span></div>`;
+                domHtml += `</div>`;
+            }
+            topDiv.innerHTML = domHtml;
+
+            // Expand button visibility
+            const expandBtn = document.getElementById('btn-dns-expand');
+            expandBtn.parentElement.style.display = domains.length > 5 ? 'block' : 'none';
+            expandBtn.innerText = '\u25b8 Show All Domains';
+            document.getElementById('dns-all-domains').style.display = 'none';
+
+            // Pre-render all domains for expand
+            if (domains.length > 5) {
+                let allHtml = '';
+                for (const d of domains.slice(5)) {
+                    const barWidth = Math.min(100, Math.round((d.count / maxCount) * 100));
+                    allHtml += `<div style="display: flex; align-items: center; padding: 3px 0.75rem; gap: 0.75rem; font-size: 0.75rem;">`;
+                    allHtml += `<span style="color: var(--text-muted); min-width: 30px; text-align: right;">${d.count}</span>`;
+                    allHtml += `<div style="flex: 1; position: relative;"><div style="background: rgba(14,165,233,0.15); height: 18px; width: ${barWidth}%; border-radius: 3px;"></div><span style="position: absolute; left: 4px; top: 1px; font-size: 0.7rem; color: var(--text);">${escapeHTML(d.domain)}</span></div>`;
+                    allHtml += `</div>`;
+                }
+                document.getElementById('dns-all-domains').innerHTML = allHtml;
+            }
+        }
+
+        function toggleDNSExpand() {
+            const allDiv = document.getElementById('dns-all-domains');
+            const btn = document.getElementById('btn-dns-expand');
+            if (allDiv.style.display === 'none') {
+                allDiv.style.display = 'block';
+                btn.innerText = '\u25be Hide Domains';
+            } else {
+                allDiv.style.display = 'none';
+                btn.innerText = '\u25b8 Show All Domains';
+            }
+        }
+
+        async function refreshDNSProfile() {
             const mac = document.getElementById('detail-mac')?.value;
             if (!mac) return;
 
-            const resultsDiv = document.getElementById('dns-results');
             const loadingDiv = document.getElementById('dns-loading');
-            const btn = document.getElementById('btn-investigate-dns');
+            const contentDiv = document.getElementById('dns-profile-content');
+            const btn = document.getElementById('btn-dns-refresh');
 
             btn.disabled = true;
             btn.innerText = 'Scanning...';
             loadingDiv.classList.remove('hidden');
-            resultsDiv.style.display = 'none';
+            contentDiv.style.display = 'none';
 
-            // Start elapsed timer
             const timerEl = document.getElementById('dns-timer');
             const startTime = Date.now();
             const timerInterval = setInterval(() => {
@@ -1047,58 +1146,32 @@
                 const data = await res.json();
 
                 if (!res.ok || data.error) {
-                    resultsDiv.innerHTML = `<p style="color: var(--danger); padding: 1rem;">${escapeHTML(data.error || 'Unknown error')}</p>`;
-                    resultsDiv.style.display = 'block';
-                    return;
+                    document.getElementById('dns-profile-empty').innerHTML = `<p style="color: var(--danger); padding: 0.5rem;">${escapeHTML(data.error || 'Unknown error')}</p>`;
+                    document.getElementById('dns-profile-empty').style.display = 'block';
+                    document.getElementById('dns-profile-data').style.display = 'none';
+                } else {
+                    // Convert API response format to profile format
+                    const profile = {
+                        total_queries: data.total_queries,
+                        unique_domains: data.unique_domains,
+                        top_domains: data.domains || [],
+                        platforms: (data.indicators && data.indicators.platforms) || {},
+                        suggested_type: data.suggested_type,
+                        suggested_vendor: data.suggested_vendor,
+                    };
+                    renderDNSProfile(profile);
                 }
-
-                if (data.status === 'no_data' || !data.domains || data.domains.length === 0) {
-                    resultsDiv.innerHTML = `<p style="text-align: center; padding: 1.5rem; color: var(--text-muted);">No DNS queries found for this device in AdGuard logs.</p>`;
-                    resultsDiv.style.display = 'block';
-                    return;
-                }
-
-                let html = '';
-
-                // Summary bar
-                html += `<div style="display: flex; gap: 1.5rem; padding: 0.75rem 1rem; border-bottom: 1px solid var(--glass-border); font-size: 0.8rem;">`;
-                html += `<span><strong>${data.total_queries}</strong> total queries</span>`;
-                html += `<span><strong>${data.unique_domains}</strong> unique domains</span>`;
-                if (data.suggested_vendor) html += `<span>Platform: <strong style="color: var(--accent-blue)">${escapeHTML(data.suggested_vendor)}</strong></span>`;
-                if (data.suggested_type) html += `<span>Type: <strong style="color: var(--success)">${escapeHTML(data.suggested_type)}</strong></span>`;
-                html += `</div>`;
-
-                // Platform indicators
-                if (data.indicators && data.indicators.platforms) {
-                    html += `<div style="padding: 0.5rem 1rem; display: flex; flex-wrap: wrap; gap: 0.4rem;">`;
-                    for (const [platform, count] of Object.entries(data.indicators.platforms)) {
-                        html += `<span style="background: rgba(99,102,241,0.15); border: 1px solid var(--primary); border-radius: 12px; padding: 2px 10px; font-size: 0.7rem; color: var(--primary);">${escapeHTML(platform)} (${count})</span>`;
-                    }
-                    html += `</div>`;
-                }
-
-                // Domain list
-                html += `<div style="padding: 0.5rem 0;">`;
-                for (const d of data.domains.slice(0, 20)) {
-                    const barWidth = Math.min(100, Math.round((d.count / data.domains[0].count) * 100));
-                    html += `<div style="display: flex; align-items: center; padding: 3px 1rem; gap: 0.75rem; font-size: 0.75rem;">`;
-                    html += `<span style="color: var(--text-muted); min-width: 30px; text-align: right;">${d.count}</span>`;
-                    html += `<div style="flex: 1; position: relative;"><div style="background: rgba(14,165,233,0.15); height: 18px; width: ${barWidth}%; border-radius: 3px;"></div><span style="position: absolute; left: 4px; top: 1px; font-size: 0.7rem; color: var(--text);">${escapeHTML(d.domain)}</span></div>`;
-                    html += `</div>`;
-                }
-                html += `</div>`;
-
-                resultsDiv.innerHTML = html;
-                resultsDiv.style.display = 'block';
             } catch (err) {
-                console.error('DNS Investigation error:', err);
-                resultsDiv.innerHTML = `<p style="color: var(--danger); padding: 1rem;">Failed to query AdGuard Home.</p>`;
-                resultsDiv.style.display = 'block';
+                console.error('DNS refresh error:', err);
+                document.getElementById('dns-profile-empty').innerHTML = `<p style="color: var(--danger); padding: 0.5rem;">Failed to query AdGuard Home.</p>`;
+                document.getElementById('dns-profile-empty').style.display = 'block';
+                document.getElementById('dns-profile-data').style.display = 'none';
             } finally {
                 clearInterval(timerInterval);
                 loadingDiv.classList.add('hidden');
+                contentDiv.style.display = 'block';
                 btn.disabled = false;
-                btn.innerText = 'Scan DNS Logs';
+                btn.innerText = '\u21bb Refresh';
             }
         }
 
@@ -1405,30 +1478,40 @@
 
             document.getElementById('manual-int-input').value = '';
 
-            // Toggle AI buttons based on config
-            const autoBtn = document.getElementById('btn-autosuggest');
-            if (autoBtn) {
-                autoBtn.style.display = appConfig.llm_enabled ? 'inline-block' : 'none';
-            }
-
             if (a.manual_parent_mac) {
                 document.getElementById('btn-reset-topology').classList.remove('hidden');
             } else {
                 document.getElementById('btn-reset-topology').classList.add('hidden');
             }
 
-            // Toggle DNS Investigation section based on AdGuard config
-            const dnsSection = document.getElementById('dns-investigation-section');
+            // Toggle DNS Profile section based on AdGuard config
+            const dnsSection = document.getElementById('dns-profile-section');
             if (dnsSection) {
                 if (appConfig.adguard_enabled) {
                     dnsSection.classList.remove('hidden');
                 } else {
                     dnsSection.classList.add('hidden');
                 }
-                // Reset previous results when opening a new asset
-                document.getElementById('dns-results').style.display = 'none';
-                document.getElementById('dns-results').innerHTML = '';
+                // Populate from cached dns_profile
                 document.getElementById('dns-loading').classList.add('hidden');
+                document.getElementById('dns-profile-content').style.display = 'block';
+                if (a.dns_profile) {
+                    renderDNSProfile(a.dns_profile);
+                } else {
+                    document.getElementById('dns-profile-empty').innerHTML = 'No DNS data yet. Click <strong>Refresh</strong> to scan.';
+                    document.getElementById('dns-profile-empty').style.display = 'block';
+                    document.getElementById('dns-profile-data').style.display = 'none';
+                }
+            }
+
+            // Toggle Autosuggest button based on LLM config
+            const autoBtn = document.getElementById('btn-autosuggest');
+            if (autoBtn) {
+                if (appConfig.llm_enabled) {
+                    autoBtn.classList.remove('hidden');
+                } else {
+                    autoBtn.classList.add('hidden');
+                }
             }
 
             renderSuggestions(a);

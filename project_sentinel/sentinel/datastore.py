@@ -104,6 +104,21 @@ class Datastore:
                     UNIQUE(cve_id, version_string, vendor, model)
                 )
             ''')
+
+            # DNS Profiles — persistent DNS scan results per asset
+            c.execute('''
+                CREATE TABLE IF NOT EXISTS dns_profiles (
+                    mac_address TEXT PRIMARY KEY,
+                    total_queries INTEGER DEFAULT 0,
+                    unique_domains INTEGER DEFAULT 0,
+                    top_domains TEXT DEFAULT '[]',
+                    platforms TEXT DEFAULT '{}',
+                    suggested_type TEXT,
+                    suggested_vendor TEXT,
+                    last_scan TEXT,
+                    FOREIGN KEY (mac_address) REFERENCES assets(mac_address)
+                )
+            ''')
             
             # Vulnerabilities Table
             c.execute('''
@@ -227,6 +242,24 @@ class Datastore:
                         reasoning TEXT,
                         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
                         UNIQUE(cve_id, version_string, vendor, model)
+                    )
+                ''')
+
+            # Create dns_profiles table if missing (migration for existing DBs)
+            c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='dns_profiles'")
+            if not c.fetchone():
+                logger.info("Migrating database: Creating 'dns_profiles' table.")
+                c.execute('''
+                    CREATE TABLE IF NOT EXISTS dns_profiles (
+                        mac_address TEXT PRIMARY KEY,
+                        total_queries INTEGER DEFAULT 0,
+                        unique_domains INTEGER DEFAULT 0,
+                        top_domains TEXT DEFAULT '[]',
+                        platforms TEXT DEFAULT '{}',
+                        suggested_type TEXT,
+                        suggested_vendor TEXT,
+                        last_scan TEXT,
+                        FOREIGN KEY (mac_address) REFERENCES assets(mac_address)
                     )
                 ''')
 
@@ -714,5 +747,83 @@ class Datastore:
                 WHERE mac_address=?
             """, (connected_to_mac, str(connected_port), connection_type, mac))
             conn.commit()
+        finally:
+            conn.close()
+
+    def upsert_dns_profile(self, mac, data):
+        """Insert or update a DNS profile for an asset.
+
+        Args:
+            mac: MAC address of the asset.
+            data: Dict from AdGuardClient.get_dns_fingerprint() with keys:
+                  total_queries, unique_domains, domains, indicators,
+                  suggested_type, suggested_vendor, status.
+        """
+        conn = sqlite3.connect(self.db_path)
+        try:
+            c = conn.cursor()
+            now = datetime.datetime.now().isoformat()
+            top_domains = json.dumps(data.get("domains", [])[:30])
+            platforms = json.dumps(data.get("indicators", {}).get("platforms", {}))
+            c.execute("""
+                INSERT INTO dns_profiles
+                    (mac_address, total_queries, unique_domains, top_domains,
+                     platforms, suggested_type, suggested_vendor, last_scan)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(mac_address) DO UPDATE SET
+                    total_queries=excluded.total_queries,
+                    unique_domains=excluded.unique_domains,
+                    top_domains=excluded.top_domains,
+                    platforms=excluded.platforms,
+                    suggested_type=excluded.suggested_type,
+                    suggested_vendor=excluded.suggested_vendor,
+                    last_scan=excluded.last_scan
+            """, (
+                mac,
+                data.get("total_queries", 0),
+                data.get("unique_domains", 0),
+                top_domains,
+                platforms,
+                data.get("suggested_type"),
+                data.get("suggested_vendor"),
+                now,
+            ))
+            conn.commit()
+        except Exception as e:
+            logger.error(f"Error upserting DNS profile for {mac}: {e}")
+        finally:
+            conn.close()
+
+    def get_dns_profile(self, mac):
+        """Get the cached DNS profile for a specific asset."""
+        conn = sqlite3.connect(self.db_path)
+        try:
+            conn.row_factory = sqlite3.Row
+            c = conn.cursor()
+            c.execute("SELECT * FROM dns_profiles WHERE mac_address=?", (mac,))
+            row = c.fetchone()
+            if row:
+                d = dict(row)
+                d["top_domains"] = json.loads(d.get("top_domains") or "[]")
+                d["platforms"] = json.loads(d.get("platforms") or "{}")
+                return d
+            return None
+        finally:
+            conn.close()
+
+    def get_all_dns_profiles(self):
+        """Get all cached DNS profiles as a dict keyed by MAC address."""
+        conn = sqlite3.connect(self.db_path)
+        try:
+            conn.row_factory = sqlite3.Row
+            c = conn.cursor()
+            c.execute("SELECT * FROM dns_profiles")
+            result = {}
+            for row in c.fetchall():
+                d = dict(row)
+                d["top_domains"] = json.loads(d.get("top_domains") or "[]")
+                d["platforms"] = json.loads(d.get("platforms") or "{}")
+                result[d["mac_address"]] = d
+            return result
         finally:
             conn.close()

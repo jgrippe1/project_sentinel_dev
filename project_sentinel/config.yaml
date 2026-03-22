@@ -1,5 +1,5 @@
 name: "Project Sentinel"
-version: "1.0.60"
+version: "1.0.61"
 slug: "project_sentinel"
 description: "Home Network Governance & Risk Management"
 url: "https://github.com/jgrippe1/project_sentinel_dev"
@@ -41,6 +41,7 @@ options:
   adguard_host: ""
   adguard_username: ""
   adguard_password: ""
+  dns_scan_interval: 30
 schema:
   scan_interval: int
   subnets:
@@ -69,6 +70,7 @@ schema:
   adguard_host: str?
   adguard_username: str?
   adguard_password: password?
+  dns_scan_interval: int?
 map:
   - config:rw
   - share:rw

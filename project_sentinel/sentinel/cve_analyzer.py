@@ -323,16 +323,18 @@ class HybridAnalyzer:
             return None
 
 
-    def infer_device_metadata(self, name, hostname, mac, oui=None):
+    def infer_device_metadata(self, name, hostname, mac, oui=None, dns_fingerprint=None):
         """
         Uses the LLM to deduce device details (Vendor, Model, OS, Type) based on
-        scanned network identifiers.
+        scanned network identifiers and optionally DNS fingerprint data.
         
         Args:
             name (str): User-assigned name (e.g., "Kitchen Speaker").
             hostname (str): DHCP hostname (e.g., "Sonos-1234").
             mac (str): MAC address.
             oui (str, optional): Organizationally Unique Identifier (Manufacturer).
+            dns_fingerprint (dict, optional): DNS profile data with keys:
+                top_domains, platforms, suggested_type, suggested_vendor.
             
         Returns:
             dict or None: Inferred metadata or None if LLM is disabled/fails.
@@ -347,12 +349,13 @@ class HybridAnalyzer:
             return str(text).replace("<", "").replace(">", "")
             
         sys_instructions = f"""
-        You are a Device Fingerprinting Expert. Your goal is to identify the Manufacturer (Vendor), Model, and Operating System of a network device based on its name and hostname.
+        You are a Device Fingerprinting Expert. Your goal is to identify the Manufacturer (Vendor), Model, and Operating System of a network device based on its name, hostname, and network behavior.
 
         TASK:
-        Analyze the input strings to deduce the most likely device details.
+        Analyze the input strings and DNS query patterns to deduce the most likely device details.
         - If the name implies a specific product (e.g., "Kitchen Sonos"), infer Vendor="Sonos", Model="Speaker", OS="Linux (Sonos)".
         - If the name is generic (e.g., "iPhone"), infer Vendor="Apple", Model="iPhone", OS="iOS".
+        - DNS queries are strong signals — domains like *.apple.com strongly suggest Apple, *.roku.com suggests Roku, etc.
         - If you cannot determine a field with confidence, return null.
 
         RESPONSE FORMAT (JSON ONLY):
@@ -370,6 +373,27 @@ class HybridAnalyzer:
         - MAC Address: {sanitize(mac)}
         - Manufacturer (OUI): {sanitize(oui)}
         """
+
+        # Append DNS fingerprint data if available
+        if dns_fingerprint:
+            top_domains = dns_fingerprint.get("top_domains", [])
+            platforms = dns_fingerprint.get("platforms", {})
+            dns_type = dns_fingerprint.get("suggested_type")
+            dns_vendor = dns_fingerprint.get("suggested_vendor")
+
+            if top_domains:
+                domain_lines = ", ".join(
+                    f"{d.get('domain', '')} ({d.get('count', 0)}x)"
+                    for d in top_domains[:10]
+                )
+                user_data += f"\n        - Top DNS Queries: {sanitize(domain_lines)}"
+            if platforms:
+                platform_lines = ", ".join(f"{k}: {v}" for k, v in platforms.items())
+                user_data += f"\n        - DNS Platform Indicators: {sanitize(platform_lines)}"
+            if dns_vendor:
+                user_data += f"\n        - DNS Suggested Vendor: {sanitize(dns_vendor)}"
+            if dns_type:
+                user_data += f"\n        - DNS Suggested Type: {sanitize(dns_type)}"
 
         if self.llm_provider in ['openai', 'anthropic', 'google']:
             messages = [
