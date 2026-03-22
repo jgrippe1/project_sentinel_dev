@@ -541,13 +541,14 @@
                             style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px;"></div>
                     </div>
 
-                    <div class="card" style="margin-top: 1rem; background: rgba(255,255,255,0.03)">
-                        <span class="section-title">Device Details
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem;">
+                        <span class="section-title" style="margin-bottom: 0;">Device Details
                             <button id="btn-autosuggest" class="btn btn-ghost hidden"
                                 style="font-size: 0.7rem; padding: 2px 6px; margin-left: 8px;"
                                 onclick="autosuggestMetadata()">✨ Autosuggest</button>
                         </span>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; font-size: 0.85rem;">
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; font-size: 0.85rem; margin-top: 0.5rem;">
                             <!-- Model -->
                             <div>
                                 <label
@@ -676,8 +677,6 @@
                                 <span id="detail-intel-oui" style="display: block; padding: 6px 0;">--</span>
                             </div>
                         </div>
-                    </div>
-
                     <div style="margin-top: 2rem; display: flex; gap: 1rem;">
                         <button class="btn btn-ghost hidden" id="btn-reset-topology"
                             style="color: var(--danger); border: 1px solid var(--danger);"
@@ -685,9 +684,13 @@
                         <button class="btn btn-primary" style="flex: 1" onclick="saveAssetDetail()">Apply
                             Changes</button>
                     </div>
+                </div>
+
+                <!-- Right: Security & Vulnerabilities -->
+                <div class="modal-column">
 
                     <!-- DNS Profile (AdGuard) -->
-                    <div id="dns-profile-section" class="hidden" style="margin-top: 2rem;">
+                    <div id="dns-profile-section" class="hidden" style="margin-bottom: 1.5rem;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
                             <span class="section-title" style="margin-bottom: 0;">📡 DNS Profile</span>
                             <button class="btn btn-ghost" id="btn-dns-refresh"
@@ -721,30 +724,29 @@
                     </div>
 
                     <!-- Integration Center -->
-                    <span class="section-title" style="margin-top: 2rem;">Integration Center</span>
-                    <div id="active-integrations" style="margin-bottom: 1rem;">
-                        <!-- confirmed integrations -->
-                    </div>
-                    <div id="integration-list">
-                        <!-- suggestions injected here -->
-                    </div>
-                    <div id="manual-integration-search" style="margin-top: 1.5rem;">
-                        <span class="section-title"
-                            style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase;">Manual
-                            Link</span>
-                        <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
-                            <input list="manual-int-list" id="manual-int-input"
-                                placeholder="+ Type integration name (e.g. esphome)"
-                                style="flex: 1; padding: 0.75rem; border-radius: 8px; background: rgba(0,0,0,0.3); color: white; border: 1px solid var(--glass-border); outline: none;">
-                            <datalist id="manual-int-list"></datalist>
-                            <button class="btn btn-primary" style="padding: 0 1.25rem;"
-                                onclick="addManualIntegration()">Add</button>
+                    <div style="margin-bottom: 1.5rem;">
+                        <span class="section-title">Integration Center</span>
+                        <div id="active-integrations" style="margin-bottom: 0.5rem;">
+                            <!-- confirmed integrations -->
+                        </div>
+                        <div id="integration-list">
+                            <!-- suggestions injected here -->
+                        </div>
+                        <div id="manual-integration-search" style="margin-top: 1rem;">
+                            <span class="section-title"
+                                style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase;">Manual
+                                Link</span>
+                            <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                                <input list="manual-int-list" id="manual-int-input"
+                                    placeholder="+ Type integration name"
+                                    style="flex: 1; padding: 0.6rem; border-radius: 8px; background: rgba(0,0,0,0.3); color: white; border: 1px solid var(--glass-border); outline: none; font-size: 0.8rem;">
+                                <datalist id="manual-int-list"></datalist>
+                                <button class="btn btn-primary" style="padding: 0 1rem; font-size: 0.8rem;"
+                                    onclick="addManualIntegration()">Add</button>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- Right: Security & Vulnerabilities -->
-                <div class="modal-column">
                     <div
                         style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
                         <span class="section-title" style="margin-bottom: 0;">Security Intelligence</span>
