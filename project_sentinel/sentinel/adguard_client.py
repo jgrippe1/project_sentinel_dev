@@ -131,10 +131,11 @@ class AdGuardClient:
 
     def _init_ha_addon(self, slug):
         """
-        Initialize in HA add-on mode by discovering internal IP via Supervisor API.
+        Initialize in HA add-on mode by discovering AdGuard via Supervisor API.
 
-        Queries the Supervisor for the add-on's network info, then probes
-        multiple common ports to find the AdGuard Home API.
+        Handles two cases:
+        - host_network add-ons: reachable at 127.0.0.1 on host-mapped port
+        - bridge network add-ons: reachable at internal IP/hostname
         """
         self.mode = "ha_addon"
         self._diag = {}  # Diagnostic info for status endpoint
@@ -145,65 +146,86 @@ class AdGuardClient:
             return
 
         try:
-            # Query the Supervisor for the add-on's internal network info
+            # Query the Supervisor for the add-on's info
             url = f"http://supervisor/addons/{slug}/info"
             headers = {"Authorization": f"Bearer {token}"}
             response = requests.get(url, headers=headers, timeout=10)
             response.raise_for_status()
 
-            resp_json = response.json()
-            info = resp_json.get("data", {})
+            info = response.json().get("data", {})
 
-            # Log key fields for debugging
+            # Extract key fields
             state = info.get("state", "unknown")
+            is_host_network = info.get("host_network", False)
+            network_map = info.get("network") or {}
             addon_ip = info.get("ip_address", "")
             hostname = info.get("hostname", "")
-            ingress_port = info.get("ingress_port")
-            network = info.get("network")
+
             logger.info(
-                f"AdGuard Supervisor info: state={state}, ip={addon_ip}, "
-                f"hostname={hostname}, ingress_port={ingress_port}, network={network}"
+                f"AdGuard Supervisor info: state={state}, host_network={is_host_network}, "
+                f"network={network_map}, ip={addon_ip}, hostname={hostname}"
             )
-            self._diag["state"] = state
-            self._diag["ip"] = addon_ip
-            self._diag["hostname"] = hostname
+            self._diag.update({
+                "state": state, "host_network": is_host_network,
+                "network": network_map, "ip": addon_ip, "hostname": hostname,
+            })
 
             if state != "started":
                 logger.error(f"AdGuard: Add-on '{slug}' is not running (state: {state}).")
                 return
 
-            # Build list of candidate hosts to try
-            candidates = []
-            if addon_ip:
-                candidates.append(addon_ip)
-            if hostname:
-                candidates.append(hostname)
-            # Also try the Docker DNS name (slug with underscores → hyphens)
-            docker_name = slug.replace("_", "-")
-            candidates.append(docker_name)
+            if is_host_network:
+                # Both Sentinel and AdGuard share the host network stack.
+                # The 'network' map shows container_port → host_port mappings.
+                # e.g. {"80/tcp": 3000} means container port 80 is host port 3000.
+                host_ports = set()
+                for container_port, host_port in network_map.items():
+                    if isinstance(host_port, int):
+                        host_ports.add(host_port)
 
-            if not candidates:
-                logger.error(f"AdGuard: Add-on '{slug}' has no reachable address.")
-                self._diag["error"] = "No IP or hostname"
-                return
+                # Also add common fallback ports
+                for p in [3000, 80]:
+                    host_ports.add(p)
 
-            # Try each candidate on common AdGuard ports
-            ports = [3000, 80, 8080, 443]
-            for host in candidates:
-                for port in ports:
-                    test_url = f"http://{host}:{port}/control/status"
+                for port in sorted(host_ports):
+                    test_url = f"http://127.0.0.1:{port}/control/status"
                     try:
                         r = requests.get(test_url, timeout=3)
                         if r.status_code == 200:
-                            self.host = f"http://{host}:{port}"
-                            logger.info(f"AdGuardClient (HA add-on): Connected to {self.host}")
+                            self.host = f"http://127.0.0.1:{port}"
+                            logger.info(f"AdGuardClient (host_network): Connected at {self.host}")
                             self._diag["resolved"] = self.host
                             return
                     except Exception:
                         continue
 
-            logger.error(f"AdGuard: Tried {len(candidates)} hosts × {len(ports)} ports — none reachable.")
-            self._diag["error"] = f"Tried {candidates} on ports {ports}, none responded"
+                logger.error(f"AdGuard: host_network mode — tried ports {sorted(host_ports)} on 127.0.0.1, none reachable.")
+                self._diag["error"] = f"host_network: tried 127.0.0.1 ports {sorted(host_ports)}"
+            else:
+                # Bridge network: try internal IP, hostname, and Docker DNS name
+                candidates = []
+                if addon_ip:
+                    candidates.append(addon_ip)
+                if hostname:
+                    candidates.append(hostname)
+                candidates.append(slug.replace("_", "-"))
+
+                ports = [3000, 80, 8080]
+                for host in candidates:
+                    for port in ports:
+                        test_url = f"http://{host}:{port}/control/status"
+                        try:
+                            r = requests.get(test_url, timeout=3)
+                            if r.status_code == 200:
+                                self.host = f"http://{host}:{port}"
+                                logger.info(f"AdGuardClient (bridge): Connected at {self.host}")
+                                self._diag["resolved"] = self.host
+                                return
+                        except Exception:
+                            continue
+
+                logger.error(f"AdGuard: bridge mode — tried {candidates} on ports {ports}, none reachable.")
+                self._diag["error"] = f"bridge: tried {candidates} on ports {ports}"
 
         except requests.exceptions.ConnectionError:
             logger.error(f"AdGuard: Cannot reach Supervisor API to discover add-on '{slug}'.")
