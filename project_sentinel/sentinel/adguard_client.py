@@ -230,9 +230,46 @@ class AdGuardClient:
         except requests.exceptions.ConnectionError:
             logger.error(f"AdGuard: Cannot reach Supervisor API to discover add-on '{slug}'.")
             self._diag["error"] = "Supervisor API unreachable"
+        except requests.exceptions.HTTPError as e:
+            status_code = e.response.status_code if e.response is not None else 0
+            if status_code == 403:
+                # Supervisor denied access — likely missing hassio_role: manager.
+                # Fall back to probing localhost directly (works if both add-ons are host_network).
+                logger.warning(
+                    f"AdGuard: Supervisor returned 403 (need hassio_role: manager). "
+                    f"Falling back to localhost probe..."
+                )
+                self._diag["warning"] = "403 from Supervisor, trying localhost fallback"
+                if self._try_localhost_fallback():
+                    return
+                self._diag["error"] = "403 + localhost fallback failed"
+            else:
+                logger.error(f"AdGuard: Supervisor API error: {e}")
+                self._diag["error"] = str(e)
         except Exception as e:
             logger.error(f"AdGuard: Failed to discover HA add-on '{slug}': {e}")
             self._diag["error"] = str(e)
+
+    def _try_localhost_fallback(self):
+        """
+        Probe 127.0.0.1 on common AdGuard ports.
+        Used as a fallback when Supervisor API is inaccessible (403).
+        Works because both Sentinel and AdGuard typically use host_network.
+        """
+        fallback_ports = [3000, 80, 8080, 443]
+        for port in fallback_ports:
+            test_url = f"http://127.0.0.1:{port}/control/status"
+            try:
+                r = requests.get(test_url, timeout=3)
+                if r.status_code == 200:
+                    self.host = f"http://127.0.0.1:{port}"
+                    logger.info(f"AdGuardClient (localhost fallback): Connected at {self.host}")
+                    self._diag["resolved"] = self.host
+                    return True
+            except Exception:
+                continue
+        logger.error(f"AdGuard: Localhost fallback tried ports {fallback_ports}, none responded.")
+        return False
 
     def get_query_log(self, client_ip, limit=500):
         """
